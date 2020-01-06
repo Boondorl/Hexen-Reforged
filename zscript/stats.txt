@@ -1,0 +1,389 @@
+class Stat : Inventory abstract
+{
+	int level;
+	int maxLevel;
+	string title;
+	string description;
+	int cost;
+	int baseLevel;
+	
+	property BaseLevel : baseLevel;
+	property Level : level;
+	property MaxLevel : maxLevel;
+	property Title : title;
+	property Description : description;
+	property Cost : cost;
+	
+	ui int tempLevel;
+	ui int tempCost;
+	int displayLevel;
+	string currentBonus;
+	
+	Default
+	{
+		Stat.BaseLevel 1;
+		Stat.Level 1;
+		Stat.MaxLevel 6;
+		Stat.Cost 1000;
+		
+		+INVENTORY.UNDROPPABLE
+	}
+	
+	virtual void LevelUp(int levels, bool start = false)
+	{
+		level += levels;
+		displayLevel = level;
+		if (start)
+			baseLevel += levels;
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		displayLevel = level;
+	}
+}
+
+class Agility : Stat
+{
+	Default
+	{
+		Stat.Title "Agility";
+		Stat.Description "Increases movement speed, carrying capacity,\nand reduces skill cool downs";
+	}
+	
+	override void LevelUp(int levels, bool start)
+	{
+		super.LevelUp(levels, start);
+		
+		owner.player.mo.speed += 0.05*levels;
+		let rpg = RPGPlayer(owner.player.mo);
+		if (rpg)
+		{
+			rpg.carryCapacity += 20*levels;
+			rpg.skillCoolDown -= 0.1*levels;
+		}
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (displayLevel > 1)
+			currentBonus = String.Format("+%d%% move speed, +%d carry capacity, -%d%% skill cool down", 5*(displayLevel-1), 2*(displayLevel-1), 10*(displayLevel-1));
+		else
+			currentBonus = "";
+	}
+}
+
+class Vitality : Stat
+{
+	Default
+	{
+		Stat.Title "Vitality";
+		Stat.Description "Grants extra maximum health";
+	}
+	
+	override void LevelUp(int levels, bool start)
+	{
+		super.LevelUp(levels, start);
+		
+		owner.player.mo.maxHealth += 20*levels;
+		if (start)
+			owner.player.mo.GiveBody(20*levels);
+		else if (levels < 0)
+		{
+			int diff = owner.player.mo.health - owner.player.mo.maxHealth;
+			if (diff > 0)
+				owner.player.mo.A_DamageSelf(diff, flags: DMSS_NOPROTECT|DMSS_NOFACTOR);
+		}
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (displayLevel > 1)
+			currentBonus = String.Format("+%d max health", 20*(displayLevel-1));
+		else
+			currentBonus = "";
+	}
+}
+
+class Wisdom : Stat
+{
+	Default
+	{
+		Stat.Title "Wisdom";
+		Stat.Description "Grants extra maximum blue, green, and\nred mana";
+	}
+	
+	override void LevelUp(int levels, bool start)
+	{
+		super.LevelUp(levels, start);
+		
+		let bmana = Ammo(owner.player.mo.FindInventory("BlueMana"));
+		if (bmana)
+		{
+			bmana.MaxAmount += 10*levels;
+			bmana.BackpackMaxAmount += 10*levels;
+			if (start)
+				bmana.amount += 10*levels;
+			else if (levels < 0)
+			{
+				int diff = bmana.amount - bmana.maxAmount;
+				if (diff > 0)
+					bmana.amount -= diff;
+			}
+		}
+		
+		let gmana = Ammo(owner.player.mo.FindInventory("GreenMana"));
+		if (gmana)
+		{
+			gmana.MaxAmount += 10*levels;
+			gmana.BackpackMaxAmount += 10*levels;
+			if (start)
+				gmana.amount += 10*levels;
+			else if (levels < 0)
+			{
+				int diff = gmana.amount - gmana.maxAmount;
+				if (diff > 0)
+					gmana.amount -= diff;
+			}
+		}
+		
+		let rmana = Ammo(owner.player.mo.FindInventory("RedMana"));
+		if (rmana)
+		{
+			rmana.MaxAmount += 10*levels;
+			rmana.BackpackMaxAmount += 10*levels;
+			if (levels < 0)
+			{
+				int diff = rmana.amount - rmana.maxAmount;
+				if (diff > 0)
+					rmana.amount -= diff;
+			}
+		}
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (displayLevel > 1)
+			currentBonus = String.Format("+%d maximum blue, green, and red mana", 10*(displayLevel-1));
+		else
+			currentBonus = "";
+	}
+}
+
+class Intelligence : Stat
+{
+	static const Name bonus[] = {'Fire', 'Ice', 'Electric', 'Poison', 'Burn', 'Illness'};
+	
+	Default
+	{
+		Stat.Title "Intelligence";
+		Stat.Description "Shows mastery in the arcane by increasing\nmagic damage";
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (displayLevel > 1)
+			currentBonus = String.Format("+%d%% magic damage (fire, ice, lightning, poison)", 10*(displayLevel-1));
+		else
+			currentBonus = "";
+	}
+	
+	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
+	{
+		if (level <= 1)
+			return;
+		
+		if (!passive)
+		{
+			bool bonusDmg = false;
+			for (int i = 0; i < bonus.Size(); ++i)
+			{
+				if (damageType == bonus[i])
+				{
+					bonusDmg = true;
+					break;
+				}
+			}
+			
+			if (bonusDmg)
+				newdamage = round(newdamage * (1 + 0.1*(level-1)));
+		}
+	}
+}
+
+class Strength : Stat
+{
+	static const Name bonus[] = {'Cleave', 'Pierce', 'Blunt', 'Bleed'};
+	
+	Default
+	{
+		Stat.Title "Strength";
+		Stat.Description "Shows mastery in heavy weaponry by increasing\nphysical damage";
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (displayLevel > 1)
+			currentBonus = String.Format("+%d%% physical damage (cleave, blunt, pierce)", 10*(displayLevel-1));
+		else
+			currentBonus = "";
+	}
+	
+	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
+	{
+		if (level <= 1)
+			return;
+		
+		if (!passive)
+		{
+			bool bonusDmg = false;
+			for (int i = 0; i < bonus.Size(); ++i)
+			{
+				if (damageType == bonus[i])
+				{
+					bonusDmg = true;
+					break;
+				}
+			}
+			
+			if (bonusDmg)
+				newdamage = round(newdamage * (1 + 0.1*(level-1)));
+		}
+	}
+}
+
+class Dexterity : Stat
+{
+	State prevState;
+	int baseTicsToRemove;
+	int ticsToRemove;
+	int stateInterval;
+	int stateTracker;
+	int totalStates;
+	
+	double prevOffset;
+	
+	Default
+	{
+		Stat.Title "Dexterity";
+		Stat.Description "Shows mastery of all weapons by reducing the\n time needed to swap weapons, attack, and cast spells";
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (displayLevel > 1)
+			currentBonus = String.Format("-%d%% swap, attack, and cast time", 6*(displayLevel-1));
+		else
+			currentBonus = "";
+		
+		if (level > 1)
+		{
+			let weap = owner.player.ReadyWeapon;
+			if (weap)
+			{
+				let psp = owner.player.GetPSprite(PSP_WEAPON);
+				
+				if (psp && psp.CurState)
+				{
+					State raising = weap.GetUpState();
+					State lowering = weap.GetDownState();
+					double modifier = 100 / 6.;
+					
+					if (psp.CurState.InStateSequence(raising))
+					{
+						int diff = psp.y - prevOffset;
+						psp.y += diff*(level-1)/modifier;
+					}
+					else if (psp.CurState.InStateSequence(lowering))
+					{
+						int diff = psp.y - prevOffset;
+						psp.y += diff*(level-1)/modifier;
+					}
+					else
+					{
+						State ready = weap.GetReadyState();
+						int dist = 0;
+						if (!psp.CurState.InStateSequence(ready))
+						{
+							if (prevState && !prevState.InStateSequence(ready))
+								dist = abs(prevState.DistanceTo(psp.CurState));
+							else
+								dist = 2;
+						}
+						
+						if (dist > 1)
+						{
+							stateTracker = 0;
+							stateInterval = 0;
+							totalStates = 0;
+							
+							int totalTics = 0;
+							State thisState = psp.CurState;
+							State lastState;
+							do
+							{
+								totalTics += thisState.tics;
+								if (thisState.tics > 0)
+									++totalStates;
+								
+								lastState = thisState;
+								thisState = thisState.NextState;
+							} while (thisState && lastState.DistanceTo(thisState) == 1);
+							
+							baseTicsToRemove = round(totalTics * (level-1)/modifier);
+							ticsToRemove = baseTicsToRemove;
+							if (ticsToRemove > 0)
+								stateInterval = ceil(totalStates*1. / ticsToRemove);
+						}
+						
+						if (ticsToRemove > 0 && psp.CurState.tics > 0 && psp.CurState != prevState)
+						{
+							if (stateInterval < 1)
+								ticsToRemove = 0;
+							else if (!(stateTracker++ % stateInterval))
+							{
+								int remove = 1;
+								if (totalStates > 0 && baseTicsToRemove > totalStates)
+									remove = min(ticsToRemove, ceil(baseTicsToRemove*1. / totalStates));
+								
+								if (psp.tics > remove)
+									psp.tics -= remove;
+								else
+								{
+									int temp = remove;
+									do
+									{
+										int tempRemove = min(temp, psp.tics);
+										temp -= tempRemove;
+										psp.tics -= tempRemove;
+										if (psp.tics <= 0)
+											owner.player.SetPsprite(PSP_WEAPON, psp.CurState.NextState);
+									} while (temp > 0);
+								}
+								
+								ticsToRemove -= remove;
+							}
+						}
+					}
+					
+					prevOffset = psp.y;
+					prevState = psp.CurState;
+				}
+			}
+		}
+	}
+}

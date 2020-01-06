@@ -1,0 +1,327 @@
+class ReforgedFlame : RPGWeapon replaces CWeapFlame
+{
+	Default
+	{
+		Weapon.SelectionOrder 1000;
+		Weapon.KickBack 150;
+		Weapon.YAdjust 10;
+		Weapon.AmmoType1 "GreenMana";
+		Inventory.PickupMessage "$TXT_WEAPON_C3";
+		Tag "$TAG_CWEAPFLAME";
+		
+		+NOGRAVITY
+	}
+
+	States
+	{
+		Spawn:
+			WCFM ABCDEFGH 4 Bright;
+			Loop;
+			
+		Select:
+			CFLM A 1 A_Raise;
+			Loop;
+			
+		Deselect:
+			CFLM A 1 A_Lower;
+			Loop;
+			
+		Ready:
+			CFLM AAAABBBBCCCC 1 A_WeaponReady(WRF_ALLOWUSER1);
+			Loop;
+			
+		User1:
+			CFLM A 2 Offset (0, 40);
+			CFLM D 2 Offset (0, 50);
+			CFLM D 2 Offset (0, 36);
+			CFLM E 4 Bright;
+			CFLM F 4 Bright A_CFlameAttack3;
+			CFLM E 4 Bright;
+			CFLM G 2 Offset (0, 40);
+			CFLM G 2;
+			Goto Ready;
+			
+		Fire:
+			CFLM A 2 Offset (0, 40);
+			CFLM D 2 Offset (0, 50);
+			CFLM D 2 Offset (0, 36);
+			CFLM E 4 Bright;
+			CFLM F 4 Bright A_CFlameAttack;
+			CFLM E 4 Bright;
+			CFLM G 2 Offset (0, 40);
+			CFLM G 2;
+			Goto Ready;
+			
+		AltFire:
+			CFLM A 2 Offset (0, 40);
+			CFLM D 2 Offset (0, 50);
+			CFLM D 2 Offset (0, 36);
+			CFLM E 4 Bright;
+			CFLM F 4 Bright A_CFlameAttack2;
+			CFLM E 4 Bright;
+			CFLM G 2 Offset (0, 40);
+			CFLM G 2;
+			Goto Ready;
+	}
+
+	action void A_CFlameAttack()
+	{
+		if (player == null)
+		{
+			return;
+		}
+
+		Weapon weapon = player.ReadyWeapon;
+		if (weapon != null)
+		{
+			if (!weapon.DepleteAmmo (weapon.bAltFire))
+				return;
+		}
+		
+		FLineTraceData t;
+		LineTrace(angle, PLAYERMISSILERANGE, pitch, offsetz: height/2-floorclip+player.mo.attackZOffset*player.crouchfactor, data: t);
+		Actor missile;
+		if (t.HitActor)
+			missile = Spawn("RCFlameMissile", (t.hitActor.pos.x, t.hitActor.pos.y, t.hitActor.floorz), ALLOW_REPLACE);
+		else
+		{
+			Vector3 spawnPos = (t.hitLocation.x, t.hitLocation.y, GetZAt(t.hitLocation.x, t.hitLocation.y, flags: GZF_ABSOLUTEPOS));
+			missile = Spawn("RCFlameMissile", spawnPos, ALLOW_REPLACE);
+		}
+		
+		if (missile)
+		{
+			missile.target = self;
+			missile.ExplodeMissile();
+		}
+		
+		A_PlaySound ("ClericFlameFire", CHAN_WEAPON);
+	}
+	
+	action void A_CFlameAttack2()
+	{
+		if (player == null)
+		{
+			return;
+		}
+
+		Weapon weapon = player.ReadyWeapon;
+		if (weapon != null)
+		{
+			if (!weapon.DepleteAmmo (weapon.bAltFire))
+				return;
+		}
+		
+		FLineTraceData t;
+		LineTrace(angle, PLAYERMISSILERANGE, pitch, offsetz: height/2-floorclip+player.mo.attackZOffset*player.crouchfactor, data: t);
+		Actor missile;
+		if (t.HitActor)
+			missile = Spawn("FlameBlast", (t.hitActor.pos.x, t.hitActor.pos.y, t.hitActor.floorz), ALLOW_REPLACE);
+		else
+		{
+			Vector3 spawnPos = (t.hitLocation.x, t.hitLocation.y, GetZAt(t.hitLocation.x, t.hitLocation.y, flags: GZF_ABSOLUTEPOS));
+			missile = Spawn("FlameBlast", spawnPos, ALLOW_REPLACE);
+		}
+		
+		if (missile)
+		{
+			missile.target = self;
+			missile.ExplodeMissile();
+		}
+		
+		A_PlaySound ("ClericFlameFire", CHAN_WEAPON);
+	}
+	
+	action void A_CFlameAttack3()
+	{
+		if (player == null)
+		{
+			return;
+		}
+
+		Weapon weapon = player.ReadyWeapon;
+		if (weapon != null)
+		{
+			if (!weapon.DepleteAmmo (weapon.bAltFire))
+				return;
+		}
+		
+		for (int i = 0; i < 8; ++i)
+		{
+			FLineTraceData t;
+			LineTrace(i*45, 64, 0, TRF_THRUACTORS | TRF_THRUHITSCAN, data: t);
+			if (t.distance >= 64)
+			{
+				let pillar = Spawn("FlamePillar", t.hitLocation, ALLOW_REPLACE);
+				if (pillar)
+				{
+					pillar.target = self;
+					pillar.ExplodeMissile();
+				}
+			}
+		}
+		
+		A_PlaySound ("ClericFlameExplode", CHAN_BODY);
+	}
+}
+
+class RCFlameMissile : RPGMissile
+{
+	Default
+	{
+		Radius 64;
+		Damage 180;
+		DamageType "Fire";
+		RPGMissile.AilmentPower 100;
+		RPGMissile.AilmentType "Burn";
+		RPGMissile.AilmentDamage 10;
+		XScale 2;
+		YScale 4;
+		RenderStyle "Add";
+		
+		+OLDRADIUSDMG
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+		Death:
+			TNT1 A 0 A_PlaySound ("ClericFlameExplode", CHAN_BODY);
+			CFFX A 1 Bright A_Explode(damage, radius, 0, false, radius, damagetype: damageType);
+			CFFX ABC 3 Bright;
+			CFFX D 4 Bright;
+			CFFX E 3 Bright;
+			CFFX F 4 Bright;
+			CFFX G 3 Bright;
+			CFFX H 4 Bright;
+			CFFX I 3 Bright;
+			CFFX J 4 Bright;
+			CFFX K 3 Bright;
+			CFFX L 4 Bright;
+			CFFX M 3 Bright;
+			Stop;
+	}
+}
+
+class FlamePillar : RPGMissile
+{
+	Default
+	{
+		Radius 32;
+		Damage 10;
+		DamageType "Fire";
+		RPGMissile.AilmentPower 100;
+		RPGMissile.AilmentType "Burn";
+		RPGMissile.AilmentDamage 5;
+		YScale 2;
+		RenderStyle "Add";
+		
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+		Death:
+			CFFX A 1 Bright A_Explode(damage, radius, 0, false, radius, damagetype: damageType);
+			CFFX ABC 3 Bright;
+			CFFX D 4 Bright;
+			CFFX E 3 Bright;
+			CFFX F 4 Bright;
+			CFFX G 3 Bright;
+			CFFX H 4 Bright;
+			CFFX I 3 Bright;
+			CFFX J 4 Bright;
+			CFFX K 3 Bright;
+			CFFX L 4 Bright;
+			CFFX M 3 Bright;
+			Stop;
+	}
+}
+
+class FlameBlast : RPGMissile
+{
+	Default
+	{
+		Radius 128;
+		Damage 60;
+		DamageType "Fire";
+		RPGMissile.AilmentPower 100;
+		RPGMissile.AilmentType "Burn";
+		RPGMissile.AilmentDamage 10;
+		XScale 4;
+		YScale 4;
+		RenderStyle "Add";
+		
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+		Death:
+			TNT1 A 0
+			{
+				A_PlaySound ("ClericFlameExplode", CHAN_BODY);
+				let fire = Spawn("GroundFire", pos, ALLOW_REPLACE);
+				if (fire)
+					fire.target = target;
+				
+				for (int i = 0; i < 8; ++i)
+				{
+					FLineTraceData t;
+					LineTrace(i*45, 64, 0, TRF_THRUACTORS | TRF_THRUHITSCAN, data: t);
+					if (t.distance >= 64)
+					{
+						let pillar = Spawn("FlamePillar", t.hitLocation, ALLOW_REPLACE);
+						if (pillar)
+						{
+							pillar.target = target;
+							pillar.ExplodeMissile();
+						}
+					}
+				}
+			}
+			CFFX A 1 Bright A_Explode(damage, radius, 0, false, radius, damagetype: damageType);
+			CFFX ABC 3 Bright;
+			CFFX D 4 Bright;
+			CFFX E 3 Bright;
+			CFFX F 4 Bright;
+			CFFX G 3 Bright;
+			CFFX H 4 Bright;
+			CFFX I 3 Bright;
+			CFFX J 4 Bright;
+			CFFX K 3 Bright;
+			CFFX L 4 Bright;
+			CFFX M 3 Bright;
+			Stop;
+	}
+}
+
+class GroundFire : AreaOfEffect
+{
+	Default
+	{
+		AreaOfEffect.AilmentPower 25;
+		AreaOfEffect.AilmentType "Burn";
+		AreaOfEffect.AilmentDamage 10;
+		AreaOfEffect.CoolDownToken "GroundFireHit";
+		Height 4;
+		Radius 256;
+		Damage 10;
+		DamageType "Fire";
+		Threshold 350;
+		
+		+AREAOFEFFECT.SHATTERER
+		+AREAOFEFFECT.GROUNDED
+	}
+}
+
+class GroundFireHit : CoolDownToken
+{
+	Default
+	{
+		Threshold 8;
+	}
+}

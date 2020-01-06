@@ -1,0 +1,215 @@
+class RPGPlayer : PlayerPawn abstract
+{
+	Array<class<Stat> > stats;
+	Array<class<Skill> > skills;
+	Array<class<Skill> > activeSkills;
+	
+	int carryCapacity;
+	int maxLevel;
+	int skillSlots;
+	int currentLevel;
+	double currentXP;
+	double nextLevelXP;
+	int points;
+	double skillCoolDown;
+	
+	int currentCapacity;
+	ui int tempPoints;
+	
+	property CarryCapacity : carryCapacity;
+	property MaxLevel : maxLevel;
+	property SkillSlots : skillSlots;
+	property StartLevel : currentLevel;
+	property StartRequiredXP : nextLevelXP;
+	property StartPoints : points;
+	property StartXP : currentXP;
+	property SkillCoolDown : skillCoolDown;
+	
+	Default
+	{
+		Player.MaxHealth 50;
+		Health 50;
+		Speed 0.85;
+		PainChance 256;
+		ReactionTime 0;
+		RPGPlayer.SkillCoolDown 1;
+		RPGPlayer.CarryCapacity 100;
+		RPGPlayer.MaxLevel 11;
+		RPGPlayer.SkillSlots 3;
+		RPGPlayer.StartLevel 1;
+		RPGPlayer.StartRequiredXP 2000;
+		
+		+NODAMAGETHRUST
+		+PLAYERPAWN.NOTHRUSTWHENINVUL
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (!player || !player.mo || player.mo != self)
+			return;
+		
+		if (currentLevel < maxLevel && currentXP >= nextLevelXP)
+			LevelUp();
+		
+		CheckSkill();
+	}
+	
+	void UseSkill(uint index)
+	{
+		if (index >= skillSlots)
+			return;
+		
+		if (!activeSkills[index])
+			A_Log("No skill");
+		else
+		{
+			let skill = FindInventory(activeSkills[index]);
+			if (skill)
+				skill.Use(false);
+		}
+	}
+	
+	virtual void CheckSkill()
+	{
+		if (player.cmd.buttons & BT_USER2)
+			UseSkill(0);
+		else if (player.cmd.buttons & BT_USER3)
+			UseSkill(1);
+		else if (player.cmd.buttons & BT_USER4)
+			UseSkill(2);	
+	}
+	
+	virtual void LevelUp()
+	{
+		if (currentXP >= nextLevelXP)
+			currentXP -= nextLevelXP;
+		
+		++currentLevel;
+		nextLevelXP += default.nextLevelXP;
+		++points;
+			
+		switch (currentLevel)
+		{
+			case 2:
+				if (1 < skills.Size())
+					GiveInventoryType(skills[1]);
+				break;
+				
+			case 3:
+				if (2 < skills.Size())
+					GiveInventoryType(skills[2]);
+				break;
+				
+			case 5:
+				if (3 < skills.Size())
+					GiveInventoryType(skills[3]);
+				if (4 < skills.Size())
+					GiveInventoryType(skills[4]);
+				break;
+				
+			case 8:
+				if (5 < skills.Size())
+					GiveInventoryType(skills[5]);
+				if (6 < skills.Size())
+					GiveInventoryType(skills[6]);
+				break;
+				
+			case 11:
+				if (7 < skills.Size())
+					GiveInventoryType(skills[7]);
+				break;
+		}
+	}
+	
+	virtual void InitializeStats()
+	{
+		SetStat(0, 'Agility');
+		SetStat(1, 'Vitality');
+		SetStat(2, 'Wisdom');
+		SetStat(3, 'Intelligence');
+		SetStat(4, 'Strength');
+		SetStat(5, 'Dexterity');
+	}
+	
+	virtual void InitializeSkills() {}
+	
+	protected void SetStat(uint index, class<Stat> stat)
+	{
+		stats.Insert(index, stat);
+		GiveInventoryType(stat);
+	}
+	
+	protected void SetSkill(uint index, class<Skill> skill, bool give = false)
+	{
+		skills.Insert(index, skill);
+		if (give)
+			GiveInventoryType(skill);
+	}
+	
+	protected void SetActiveSkill(uint index, class<Skill> skill = null)
+	{
+		if (index >= skillSlots)
+			return;
+		
+		if (activeSkills[index])
+		{
+			let curSkill = Skill(FindInventory(activeSkills[index]));
+			if (curSkill)
+			{
+				curSkill.OnUnequip();
+				curSkill.bCurToggle = false;
+				curSkill.EndSkill();
+				curSkill.bActive = false;
+			}
+		}
+		
+		activeSkills.Insert(index, skill);
+		if (skill)
+		{
+			let newSkill = Skill(FindInventory(skill));
+			if (newSkill)
+			{
+				newSkill.OnEquip();
+				newSkill.bActive = true;
+			}
+		}
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		GiveInventoryType("ArmorPieceManager");
+		GiveInventoryType("BuffManager");
+		activeSkills.Resize(skillSlots);
+		InitializeStats();
+		InitializeSkills();
+	}
+	
+	override void CheatGive(String name, int amount)
+	{
+		if (name ~== "level")
+		{
+			for (int i = 0; i < amount; ++i)
+			{
+				LevelUp();
+			}
+			
+			return;
+		}
+		else if (name ~== "xp")
+		{
+			currentXP += amount;
+			return;
+		}
+		else if (name ~== "point")
+		{
+			points += amount;
+			return;
+		}
+		
+		super.CheatGive(name, amount);
+	}
+}

@@ -1,0 +1,107 @@
+class ReforgedWand : RPGWeapon replaces MWeapWand
+{
+	Default
+	{
+		Weapon.SelectionOrder 3600;
+		Weapon.KickBack 0;
+		Weapon.YAdjust 9;
+		Tag "$TAG_MWEAPWAND";
+	}
+	
+	States
+	{
+		Select:
+			MWND A 1 A_Raise;
+			Loop;
+			
+		Deselect:
+			MWND A 1 A_Lower;
+			Loop;
+			
+		Ready:
+			MWND A 1 A_WeaponReady(WRF_ALLOWUSER1);
+			Loop;
+			
+		User1:
+			MWND B 6 Bright Offset (0, 48) A_WandBlast(10, "Blunt");
+			MWND A 3 Offset (0, 40);
+			MWND A 3 Offset (0, 36);
+			MWND AAAAAAAAAAAA 1 A_WeaponReady(WRF_NOBOB);
+			Goto Ready;
+			
+		Fire:
+			MWND B 6 Bright Offset (0, 48) A_FireProjectile("RMageWandMissile");
+			MWND A 3 Offset (0, 40);
+			MWND A 3 Offset (0, 36);
+			MWND A 2;
+			TNT1 A 0 A_ReFire;
+			Goto Ready;
+			
+		AltFire:
+			MWND B 2 Bright Offset (0, 48) A_FireProjectile("MageSecondaryMissile");
+			MWND A 2 Offset (0, 40);
+			MWND B 2 Bright Offset (0, 48) A_FireProjectile("MageSecondaryMissile");
+			MWND A 2 Offset (0, 40);
+			MWND B 2 Bright Offset (0, 48) A_FireProjectile("MageSecondaryMissile");
+			MWND A 3 Offset (0, 40);
+			MWND A 3 Offset (0, 36);
+			TNT1 A 0 A_ReFire;
+			Goto Ready;
+	}
+}
+
+class RMageWandMissile : RPGMissile
+{
+	Default
+	{
+		RPGMissile.MaxPenetration 3;
+		RPGMissile.AilmentPower 35;
+		RPGMissile.AilmentType "Flinch";
+		Speed 256;
+		Radius 3;
+		Height 6;
+		Damage 20;
+		DamageType "Pierce";
+		MissileType "MageWandSmoke";
+		SeeSound "MageWandFire";
+		Obituary "$OB_MPMWEAPWAND";
+		
+		+CANNOTPUSH
+		+NODAMAGETHRUST
+		+SPAWNSOUNDSOURCE
+		+RPGMISSILE.PENETRATING
+		+RPGMISSILE.THRUOBJECTS
+		+RPGMISSILE.SHIELDBUSTER
+	}
+	
+	States
+	{
+		Spawn:
+			MWND CD 4 Bright;
+			Loop;
+			
+		Death:
+			MWND E 4 Bright;
+			MWND F 3 Bright;
+			MWND G 4 Bright;
+			MWND H 3 Bright;
+			MWND I 4 Bright;
+			Stop;
+	}
+}
+
+class MageSecondaryMissile : RMageWandMissile
+{
+	Default
+	{
+		RPGMissile.AilmentPower 20;
+		RPGMissile.AilmentType "Stumble";
+		Speed 128;
+		DamageType "Blunt";
+		Damage 10;
+		
+		-RPGMISSILE.PENETRATING
+		-RPGMISSILE.THRUOBJECTS
+		-RPGMISSILE.SHIELDBUSTER
+	}
+}

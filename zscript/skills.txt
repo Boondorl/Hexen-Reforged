@@ -1,0 +1,428 @@
+class Skill : Inventory abstract
+{
+	int cost;
+	int drain;
+	int drainInterval;
+	class<Inventory> type;
+	class<Inventory> reserveType;
+	class<Inventory> drainType;
+	class<Inventory> reserveDrainType;
+	int coolDown;
+	int castTime;
+	int actionInterval;
+	class<Buff> buffType;
+	double range;
+	class<Weapon> activeWeapon;
+	string weaponName;
+	
+	bool bActive;
+	bool bInCast;
+	bool bInCoolDown;
+	bool bCurToggle;
+	
+	private int drainTimer;
+	private int coolDownTimer;
+	protected int castTimer;
+	private int actionTimer;
+	private int messageTimer;
+	
+	property Cost : cost;
+	property Drain : drain;
+	property DrainInterval : drainInterval;
+	property ActionInterval : actionInterval;
+	property CoolDown : coolDown;
+	property CastTime : castTime;
+	property Type : type;
+	property ReserveType : reserveType;
+	property DrainType : drainType;
+	property ReserveDrainType : reserveDrainType;
+	property BuffType : buffType;
+	property Range : range;
+	property ActiveWeapon : activeWeapon;
+	property WeaponName : weaponName;
+	
+	deprecated("3.7") private int skillFlags;
+	flagdef NoEffect: skillFlags, 0;
+	flagdef Toggle: skillFlags, 1;
+	flagdef AreaBuff: skillFlags, 2;
+	flagdef GlobalBuff: skillFlags, 3;
+	
+	Default
+	{
+		+INVENTORY.UNDROPPABLE
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (messageTimer > 0)
+			--messageTimer;
+		
+		if (owner.health <= 0)
+		{
+			if (bCurToggle)
+			{
+				bCurToggle = false;
+				EndSkill();
+			}
+			
+			return;
+		}
+		
+		if (castTimer > 0)
+		{
+			--castTimer;
+			if (castTimer <= 0)
+			{
+				bInCast = false;
+				if (coolDown > 0)
+				{
+					coolDownTimer = coolDown;
+					let rpg = RPGPlayer(owner);
+					if (rpg)
+						coolDownTimer *= rpg.skillCoolDown;
+					
+					bInCoolDown = true;
+				}
+			}
+		}
+		
+		if (coolDownTimer > 0)
+		{
+			--coolDownTimer;
+			if (coolDownTimer <= 0)
+				bInCoolDown = false;
+		}
+		
+		if (!bNoEffect && actionTimer++ >= actionInterval)
+		{
+			actionTimer = 0;
+			Effect();
+		}
+		
+		if (drain && bCurToggle)
+		{
+			if (drainTimer++ >= drainInterval)
+			{
+				let ammo = owner.FindInventory(drainType);
+				if (ammo.amount <= drain)
+				{
+					int take = (drainType == 'Health') ? ammo.amount - 1 : ammo.amount;
+					owner.TakeInventory(drainType, take);
+					bCurToggle = false;
+					EndSkill();
+				}
+				else
+					owner.TakeInventory(drainType, drain);
+				
+				drainTimer = 0;
+			}
+		}
+	}
+	
+	override bool Use(bool pickup)
+	{
+		if (pickup || owner.health <= 0)
+			return false;
+		
+		bool useSkill = true;
+		
+		if (bInCast)
+		{
+			if (messageTimer <= 0)
+				A_Log("Currently casting this spell");
+			
+			useSkill = false;
+		}
+		else if (bInCoolDown)
+		{
+			if (messageTimer <= 0)
+				A_Log("Spell on cool down");
+			
+			useSkill = false;
+		}
+			
+		if (useSkill && cost > 0 && !bCurToggle &&
+			((type == 'Health' && owner.health <= cost) || !owner.CheckInventory(type, cost)))
+		{
+			if (messageTimer <= 0)
+				A_Log("You do not have enough resources to cast this");
+			
+			useSkill = false;
+		}
+		
+		if (useSkill && activeWeapon && (!owner.player.ReadyWeapon || owner.player.ReadyWeapon.GetClass() != activeWeapon))
+		{
+			if (messageTimer <= 0)
+				A_Log("You must have "..weaponName.." out to use this");
+			
+			useSkill = false;
+		}
+		
+		if (useSkill)
+		{
+			if (castTime > 0)
+			{
+				castTimer = castTime;
+				bInCast = true;
+			}
+			else if (coolDown > 0)
+			{
+				coolDownTimer = coolDown;
+				let rpg = RPGPlayer(owner);
+				if (rpg)
+					coolDownTimer *= rpg.skillCoolDown;
+				
+				bInCoolDown = true;
+			}
+			
+			bool useAmmo = true;
+			if (bToggle)
+			{
+				bCurToggle = !bCurToggle;
+				useAmmo = bCurToggle;
+			}
+				
+			if (useAmmo)
+				owner.TakeInventory(type, cost);
+			
+			if (!bToggle || bCurToggle)
+				UseSkill();
+			else
+				EndSkill();
+		}
+		
+		if (messageTimer <= 0)
+		{
+			if (!useSkill)
+				messageTimer = TICRATE;
+			else
+				messageTimer = TICRATE / 4;
+		}
+		
+		return false;
+	}
+	
+	virtual void UseSkill() {}
+	
+	virtual void EndSkill() {}
+	
+	virtual void Effect() {}
+	
+	virtual void OnEquip() {}
+	
+	virtual void OnUnequip() {}
+	
+	void GiveBuff(Actor mast, Actor other = null)
+	{
+		if (!mast)
+			return;
+		
+		if (bAreaBuff)
+		{
+			ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
+			Actor mo;
+			while (mo = Actor(it.Next()))
+			{
+				if (mo == mast || ((bGlobalBuff || mast.Distance3DSquared(mo) <= (mast.radius+range+mo.radius)**2) && mast.IsFriend(mo)))
+					CheckDuplicate(mast, mo);
+			}
+		}
+		else
+		{
+			Actor receiver = other ? other : mast;
+			CheckDuplicate(mast, receiver);
+		}
+	}
+	
+	private void CheckDuplicate(Actor mast, Actor mo)
+	{
+		if (!mo)
+			return;
+		
+		let dup = Buff(mo.FindInventory(buffType));
+		if (dup)
+			dup.ResetDuration();
+		else
+		{
+			mo.GiveInventoryType(buffType);
+		
+			let buff = mo.FindInventory(buffType);
+			if (buff)
+				buff.master = mast;
+		}
+	}
+	
+	void TakeBuff(Actor mast = null)
+	{
+		if (!mast)
+			owner.TakeInventory(buffType, 1);
+		else if (bAreaBuff)
+		{
+			ThinkerIterator it = ThinkerIterator.Create(buffType, STAT_DEFAULT);
+			Buff mo;
+			while (mo = Buff(it.Next()))
+			{
+				if (mo && mo.owner == mast)
+					mo.owner.TakeInventory(buffType, 1);
+			}
+		}
+	}
+	
+	void SetWeaponState(StateLabel sl)
+	{
+		if (!sl)
+			return;
+			
+		owner.player.GetPSprite(PSP_WEAPON).SetState(owner.player.ReadyWeapon.FindState(sl));
+	}
+	
+	void FireMissile(class<Actor> missile, class<CastWeapon> cweap = null, StateLabel sl = null, int flags = 0)
+	{
+		if (!missile)
+			return;
+			
+		let proj = Spawn(missile, owner.pos + (0,0,32), ALLOW_REPLACE);
+		if (proj)
+		{
+			owner.A_AlertMonsters();
+			proj.A_PlaySound(proj.SeeSound, CHAN_WEAPON);
+			proj.target = owner;
+			proj.vel = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch)) * proj.speed;
+		}
+	}
+}
+
+class BuffManager : Inventory
+{
+	Array<Buff> buffs;
+	
+	Default
+	{
+		+INVENTORY.UNDROPPABLE
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		buffs.Clear();
+		
+		for (let probe = owner.inv; probe != null; probe = probe.inv)
+		{
+			let bf = Buff(probe);
+			if (bf)
+				buffs.Push(bf);
+		}
+	}
+	
+	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
+	{
+		if (!buffs.Size())
+			return;
+		
+		for (int i = 0; i < buffs.Size(); ++i)
+		{
+			let bf = buffs[i];
+			if (!bf || (!bf.bOffensive && !bf.bDefensive))
+				continue;
+			
+			int boost = ApplyDamageFactors(bf.GetClass(), damageType, damage, damage) - damage;
+			if (!boost)
+				continue;
+			
+			if (bf.bStackable)
+				boost *= bf.stacks;
+			
+			if (bf.bDefensive && passive)
+				newdamage += boost;
+			else if (bf.bOffensive && !passive)
+				newdamage += boost;
+			
+			if (newdamage <= 0)
+				break;
+		}
+	}
+}
+
+class Buff : Inventory abstract
+{
+	double range;
+	int duration;
+	int actionInterval;
+	int maxStacks;
+	int stacks;
+	
+	private int durationTimer;
+	private int actionTimer;
+	
+	property Range : range;
+	property Duration : duration;
+	property ActionInterval : actionInterval;
+	property MaxStacks : maxStacks;
+	
+	deprecated("3.7") private int buffFlags;
+	flagdef NoEffect: buffFlags, 0;
+	flagdef Infinite: buffFlags, 1;
+	flagdef Stackable: buffFlags, 2;
+	flagdef LoseStack: buffFlags, 3;
+	flagdef Offensive: buffFlags, 4;
+	flagdef Defensive: buffFlags, 5;
+	
+	Default
+	{
+		+INVENTORY.UNDROPPABLE
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (owner.health <= 0)
+		{
+			Destroy();
+			return;
+		}
+		
+		if (!bNoEffect && actionTimer++ >= actionInterval)
+		{
+			actionTimer = 0;
+			Effect();
+		}
+		
+		if (!bInfinite && durationTimer++ >= duration)
+		{
+			if (bStackable && bLoseStack)
+			{
+				durationTimer = 0;
+				if (--stacks <= 0)
+					Destroy();
+			}
+			else
+				Destroy();
+		}
+	}
+	
+	virtual void Effect() {}
+	
+	virtual void ThingDied(Actor thing, Actor inflictor) {}
+	
+	virtual void MissileFired(Actor missile) {}
+	
+	void ResetDuration()
+	{
+		durationTimer = 0;
+		if (bStackable && stacks < maxStacks)
+			++stacks;
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		stacks = 1;
+		if (maxStacks <= 0)
+			maxStacks = 1;
+	}
+}

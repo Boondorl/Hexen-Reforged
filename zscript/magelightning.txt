@@ -1,0 +1,433 @@
+class LightningTracer : LineTracer
+{
+	double maxDistance;
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				if (!(results.hitLine.flags & Line.ML_TWOSIDED))
+					return TRACE_Stop;
+				else if (results.tier != TIER_Middle)
+				{
+					Sector hit = results.hitLine.sidedef[results.side].sector;
+					Sector other = results.hitLine.sidedef[!results.side].sector;
+					
+					double floorZ = hit.floorPlane.ZatPoint(hit.centerSpot);
+					double ceilZ = hit.ceilingPlane.ZatPoint(hit.centerSpot);
+					double otherFloorZ = other.floorPlane.ZatPoint(other.centerSpot);
+					double otherCeilZ = other.ceilingPlane.ZatPoint(other.centerSpot);
+						
+					if (otherCeilZ - otherFloorZ <= 0 || floorZ >= otherCeilZ || ceilZ <= otherFloorZ)
+						return TRACE_Stop;
+				}
+				break;
+		}
+		
+		results.distance = maxDistance;
+		return TRACE_Skip;
+	}
+}
+
+class ReforgedLightning : RPGWeapon replaces MWeapLightning
+{
+	Default
+	{
+		Weapon.SelectionOrder 1100;
+		Weapon.KickBack 0;
+		Weapon.YAdjust 20;
+		Weapon.AmmoType1 "GreenMana";
+		Inventory.PickupMessage "$TXT_WEAPON_M3";
+		Tag "$TAG_MWEAPLIGHTNING";
+		
+		+NOGRAVITY
+	}
+
+	States
+	{
+		Spawn:
+			WMLG ABCDEFGH 4 Bright;
+			Loop;
+			
+		Select:
+			MLNG A 1 Bright A_Raise;
+			Loop;
+			
+		Deselect:
+			MLNG A 1 Bright A_Lower;
+			Loop;
+			
+		Ready:
+			MLNG AAAAA 1 Bright A_WeaponReady(WRF_ALLOWUSER1);
+			MLNG A 1 Bright A_LightningReady;
+			MLNG BBBBBB 1 Bright A_WeaponReady(WRF_ALLOWUSER1);
+			MLNG CCCCC 1 Bright A_WeaponReady(WRF_ALLOWUSER1);
+			MLNG C 1 Bright A_LightningReady;
+			MLNG BBBBBB 1 Bright A_WeaponReady(WRF_ALLOWUSER1);
+			Loop;
+			
+		Fire:
+			MLNG DE 3 Bright;
+			MLNG F 4 Bright A_MLightningAttack;
+			MLNG G 4 Bright;
+			MLNG HI 3 Bright;
+			MLNG I 6 Bright Offset (0, 199);
+			MLNG C 2 Bright Offset (0, 55);
+			MLNG B 2 Bright Offset (0, 50);
+			MLNG B 2 Bright Offset (0, 45);
+			MLNG B 2 Bright Offset (0, 40);
+			Goto Ready;
+	}
+	
+	action void A_LightningReady()
+	{
+		A_WeaponReady(WRF_ALLOWUSER1);
+		if (random[LightningReady]() < 160)
+		{
+			A_PlaySound ("MageLightningReady", CHAN_WEAPON);
+		}
+	}
+
+	action void A_MLightningAttack(class<Actor> floor = "LightningFloor", class<Actor> ceiling = "LightningCeiling")
+	{
+		let mo = Spawn("LightningMissile", (pos.x, pos.y, floorz), ALLOW_REPLACE);
+		if (mo)
+		{
+			mo.target = self;
+			mo.angle = angle;
+		}
+		A_PlaySound ("MageLightningFire", CHAN_BODY);
+
+		if (player != NULL)
+		{
+			Weapon weapon = player.ReadyWeapon;
+			if (weapon != NULL)
+			{
+				weapon.DepleteAmmo (weapon.bAltFire);
+			}
+		}
+	}
+}
+
+class LightningMissile : Actor
+{
+	int duration;
+	bool bHitTarget;
+	bool bKill;
+	
+	Default
+	{
+		Speed 32;
+		Damage 8;
+		DamageType "Electric";
+		AttackSound "MageLightningZap";
+		ActiveSound "MageLightningContinuous";
+		Obituary "$OB_MPMWEAPLIGHTNING";
+		
+		+NOINTERACTION
+	}
+	
+	void CheckTracer(double ang = 3, double range = 0, double sightAngle = 0)
+	{
+		if (range <= 0)
+			range = 1024;
+		
+		if (sightAngle <= 0)
+			sightAngle = 60;
+		
+		// If we have nothing to seek than look for the next closest enemy
+		if (!tracer)
+		{
+			double rangeSq = range**2;
+			double closestDist = 3221243536.;
+			BlockThingsIterator it = BlockThingsIterator.Create(self, range);
+			Actor mo;
+			
+			while (it.Next())
+			{
+				mo = it.thing;
+				if (!mo || mo == target || !mo.bIsMonster || !mo.bShootable || mo.health <= 0 || mo.FindInventory("LightningHit"))
+					continue;
+				
+				double distSq = Distance3DSquared(mo);
+				if (distSq <= rangeSq && distSq < closestDist && AbsAngle(angle, AngleTo(mo)) <= sightAngle && CheckSight(mo))
+				{
+					tracer = mo;
+					closestDist = distSq;
+				}
+			}
+		}
+		else if (tracer.health <= 0 || AbsAngle(angle, AngleTo(tracer)) > sightAngle || tracer.FindInventory("LightningHit") || !CheckSight(tracer))
+			tracer = null;
+		else
+		{
+			double rel = DeltaAngle(angle, AngleTo(tracer));
+			if (rel < 0)
+				angle += min(ang, rel);
+			else if (rel > 0)
+				angle -= min(ang, -rel);
+		}
+	}
+	
+	void Move()
+	{
+		let lt = new("LightningTracer");
+		if (lt)
+		{
+			lt.maxDistance = speed;
+			Vector3 dir = (AngleToVector(angle), 0);
+			lt.Trace(pos, level.PointInSector(pos.xy), dir, speed, 0);
+			
+			Vector3 newPos = pos + dir*lt.results.distance;
+			newPos.z = GetZAt(newPos.x, newPos.y, flags: GZF_ABSOLUTEPOS);
+			SetXYZ(newPos);
+			
+			if (tracer)
+			{
+				BlockThingsIterator it = BlockThingsIterator.Create(self, tracer.radius);
+				Actor mo;
+				
+				while (it.Next())
+				{
+					mo = it.thing;
+					if (!mo || mo != tracer || Distance2D(mo) > tracer.radius)
+						continue;
+					
+					master = tracer;
+					master.GiveInventoryType("LightningHit");
+					let ail = Ailment(master.FindInventory("Shock"));
+					if (ail)
+						ail.AddAilment(target, 100);
+					duration = 175;
+					bHitTarget = true;
+					break;
+				}
+			}
+			
+			if (!master && lt.results.distance < speed)
+				bKill = true;
+		}
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (master)
+		{
+			if (duration <= 0 || master.health <= 0)
+			{
+				Destroy();
+				return;
+			}
+			
+			SetXYZ(master.pos+(0,0,master.height/2));
+			if (duration % 2)
+				master.DamageMobj(self, target, damage, damageType);
+			
+			if (!(duration % 22))
+				A_PlaySound(AttackSound, CHAN_WEAPON);
+		}
+		else if (!bHitTarget)
+		{
+			CheckTracer();
+			Move();
+			
+			if (bKill)
+			{
+				Destroy();
+				return;
+			}
+		}
+		else
+		{
+			Destroy();
+			return;
+		}
+		
+		if (duration > 0)
+			--duration;
+		
+		if (!(GetAge() % 6))
+		{
+			let cz = Spawn("RLightningZap", (pos.x, pos.y, GetZAt(pos.x, pos.y, flags: GZF_ABSOLUTEPOS | GZF_CEILING) - 35));
+			if (cz)
+			{
+				cz.vel = (0,0,-cz.speed);
+				cz.master = self;
+			}
+			
+			let fz = Spawn("RLightningZap", (pos.x, pos.y, GetZAt(pos.x, pos.y, flags: GZF_ABSOLUTEPOS)));
+			if (fz)
+			{
+				fz.vel = (0,0,cz.speed);
+				fz.master = self;
+			}
+		}
+	}
+	
+	override void OnDestroy()
+	{
+		if (master)
+			master.TakeInventory("LightningHit", 1);
+		
+		super.OnDestroy();
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		let cl = Spawn("RLightningCeiling", pos);
+		if (cl)
+			cl.master = self;
+		
+		let fl = Spawn("RLightningFloor", pos);
+		if (fl)
+			fl.master = self;
+		
+		A_PlaySound(ActiveSound, CHAN_WEAPON, 1, true);
+	}
+}
+
+class LightningHit : Inventory
+{
+	Default
+	{
+		+INVENTORY.UNDROPPABLE
+	}
+}
+
+class RLightningCeiling : Actor
+{
+	Default
+	{
+		Height 40;
+		RenderStyle "Add";
+		
+		+NOINTERACTION
+		+ZDOOMTRANS
+	}
+
+	States
+	{
+		Spawn:
+			MLFX A 2 Bright;
+			MLFX BCD 2 Bright;
+			Loop;
+			
+		Death:
+			MLF2 A 2 Bright;
+			MLF2 BCDEKLM 3 Bright;
+			ACLO E 35;
+			MLF2 NO 3 Bright;
+			MLF2 P 4 Bright;
+			MLF2 QP 3 Bright;
+			MLF2 Q 4 Bright;
+			MLF2 P 3 Bright;
+			MLF2 O 3 Bright;
+			MLF2 P 3 Bright;
+			MLF2 P 1 Bright;
+			Stop;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (master)
+		{
+			Vector3 move = (master.pos.x, master.pos.y, GetZAt(master.pos.x, master.pos.y, flags: GZF_ABSOLUTEPOS | GZF_CEILING) - height);
+			SetXYZ(move);
+		}
+		else
+			Destroy();
+	}
+}
+
+class RLightningFloor : Actor
+{
+	Default
+	{
+		RenderStyle "Add";
+		
+		+NOINTERACTION
+		+ZDOOMTRANS
+	}
+
+	States
+	{
+		Spawn:
+			MLFX E 2 Bright;
+			MLFX FGH 2 Bright;
+			Loop;
+			
+		Death:
+			MLF2 F 2 Bright;
+			MLF2 GHIJKLM 3 Bright;
+			ACLO E 20;
+			MLF2 NO 3 Bright;
+			MLF2 P 4 Bright;
+			MLF2 QP 3 Bright;
+			MLF2 Q 4 Bright;
+			MLF2 POP 3 Bright;
+			MLF2 P 1 Bright;
+			Stop;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (master)
+		{
+			Vector3 move = (master.pos.x, master.pos.y, GetZAt(master.pos.x, master.pos.y, flags: GZF_ABSOLUTEPOS));
+			SetXYZ(move);
+		}
+		else
+			Destroy();
+	}
+}
+
+class RLightningZap : FastProjectile
+{
+	Default
+	{
+		Radius 2;
+		Height 35;
+		Speed 64;
+		Projectile;
+		RenderStyle "Add";
+		
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+		+ZDOOMTRANS
+	}
+
+	States
+	{
+		Spawn:
+			MLFX IJKLM 2 Bright;
+			Loop;
+			
+		Death:
+			MLFX NOPQRSTU 2 Bright;
+			Stop;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (master && !InStateSequence(CurState, FindState("Death")))
+			vel.xy = master.vel.xy;
+		else if (!master)
+			Destroy();
+	}
+	
+	override int SpecialMissileHit(Actor thing)
+	{
+		return 1;
+	}
+}

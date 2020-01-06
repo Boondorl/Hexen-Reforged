@@ -1,0 +1,76 @@
+class BlueMana : Ammo replaces Mana1
+{
+	Default
+	{
+		Inventory.Amount 10;
+		Inventory.MaxAmount 50;
+		Ammo.BackpackAmount 10;
+		Ammo.BackpackMaxAmount 50;
+		Radius 8;
+		Height 8;
+		Inventory.Icon "MAN1I0";
+		Inventory.PickupMessage "$TXT_MANA_1";
+		Tag "$AMMO_MANA1";
+		
+		+FLOATBOB
+		+INVENTORY.IGNORESKILL
+	}
+	
+	States
+	{
+		Spawn:
+			MAN1 ABCDEFGHI 4 Bright;
+			Loop;
+	}
+}
+
+class GreenMana : Ammo replaces Mana2
+{
+	Default
+	{
+		Inventory.Amount 10;
+		Inventory.MaxAmount 50;
+		Ammo.BackpackAmount 10;
+		Ammo.BackpackMaxAmount 50;
+		Radius 8;
+		Height 8;
+		Inventory.Icon "MAN2G0";
+		Inventory.PickupMessage "$TXT_MANA_2";
+		Tag "$AMMO_MANA2";
+		
+		+FLOATBOB
+		+INVENTORY.IGNORESKILL
+	}
+	
+	States
+	{
+		Spawn:
+			MAN2 ABCDEFGHIJKLMNOP 4 Bright;
+			Loop;
+	}
+}
+
+class RedMana : Ammo replaces Mana3
+{
+	Default
+	{
+		Inventory.Amount 10;
+		Inventory.MaxAmount 50;
+		Ammo.BackpackAmount 10;
+		Ammo.BackpackMaxAmount 50;
+		Radius 8;
+		Height 8;
+		Inventory.Icon "MAN3G0";
+		Inventory.PickupMessage "$TXT_MANA_BOTH";
+		
+		+FLOATBOB
+		+INVENTORY.IGNORESKILL
+	}
+	
+	States
+	{
+		Spawn:
+			MAN3 ABCDEFGHIJKLMNOP 4 Bright;
+			Loop;
+	}
+}

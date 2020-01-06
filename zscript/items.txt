@@ -1,0 +1,689 @@
+class RPGItem : Inventory
+{
+	int weight;
+	string description;
+	
+	property Weight : weight;
+	property Description : description;
+	
+	Default
+	{
+		Inventory.MaxAmount 255;
+	}
+	
+	override void Touch(Actor toucher)
+	{
+		let rpg = RPGPlayer(toucher);
+		if (rpg && (rpg.carryCapacity - rpg.currentCapacity) < weight)
+		{
+			//A_Log("You cannot carry this");
+			return;
+		}
+		
+		let item = toucher.FindInventory(GetClass());
+		if (item && item.amount >= item.maxAmount)
+		{
+			//A_Log("You cannot carry any more of these");
+			return;
+		}
+		
+		super.Touch(toucher);
+	}
+	
+	override void AttachToOwner(Actor user)
+	{
+		let rpg = RPGPlayer(user);
+		if (rpg)
+			rpg.currentCapacity += weight*amount;
+		
+		super.AttachToOwner(user);
+	}
+	
+	override Inventory CreateTossable(int amt)
+	{
+		let rpg = RPGPlayer(owner);
+		if (rpg)
+		{
+			rpg.currentCapacity -= weight*clamp(amt, 1, amount);
+			if (rpg.currentCapacity < 0)
+				rpg.currentCapacity = 0;
+		}
+		
+		return super.CreateTossable(amt);
+	}
+	
+	override bool HandlePickup(Inventory item)
+	{
+		bool pickup = super.HandlePickup(item);
+		
+		if (pickup)
+		{
+			let rpg = RPGPlayer(owner);
+			let it = RPGItem(item);
+			if (rpg && it)
+				rpg.currentCapacity += it.weight*it.amount;
+		}
+		
+		return pickup;
+	}
+	
+	override bool Use(bool pickup)
+	{
+		let rpg = RPGPlayer(owner);
+		if (rpg)
+		{
+			rpg.currentCapacity -= weight;
+			if (rpg.currentCapacity < 0)
+				rpg.currentCapacity = 0;
+		}
+		
+		return false;
+	}
+}
+
+class RPGHealthPickup : RPGItem
+{
+	Default
+	{
+		+INVENTORY.INVBAR
+		+INVENTORY.ISHEALTH
+	}
+
+	override Inventory CreateCopy(Actor other)
+	{
+		Inventory copy = super.CreateCopy(other);
+		if (copy)
+			copy.health = health;
+		
+		return copy;
+	}
+
+	override Inventory CreateTossable(int amt)
+	{
+		Inventory copy = super.CreateTossable(amt);
+		if (copy)
+			copy.health = health;
+		
+		return copy;
+	}
+	
+	override bool HandlePickup(Inventory item)
+	{
+		if (item.health == health)
+			return super.HandlePickup(item);
+		
+		return false;
+	}
+
+	override bool Use(bool pickup)
+	{
+		bool used = owner.GiveBody(health, 0);
+		if (used)
+			super.Use(pickup);
+		
+		return used;
+	}
+}
+
+class RPGPowerupGiver : RPGItem
+{
+	
+	Class<Actor> Type;
+	int EffectTics;
+	color BlendColor;
+	Name Mode;
+	double Strength;
+	
+	property Type : Type;
+	property EffectTics : EffectTics;
+	property BlendColor : BlendColor;
+	property Strength : Strength;
+	property Mode : Mode;
+	
+	Default
+	{
+		Inventory.PickupSound "misc/p_pkup";
+		
+		+INVENTORY.INVBAR
+		+INVENTORY.FANCYPICKUPSOUND
+	}
+
+	override bool Use(bool pickup)
+	{
+		super.Use(pickup);
+		
+		if (!Type || !owner)
+			return true;
+
+		let power = Powerup(Spawn(Type));
+		
+		if (EffectTics != 0)
+			power.EffectTics = EffectTics;
+		
+		if (BlendColor != 0)
+		{
+			if (BlendColor != Powerup.SPECIALCOLORMAP_MASK | 65535)
+				power.BlendColor = BlendColor;
+			else
+				power.BlendColor = 0;
+		}
+		
+		if (Mode != 'None')
+			power.Mode = Mode;
+		
+		if (Strength != 0)
+			power.Strength = Strength;
+
+		power.bAlwaysPickup |= bAlwaysPickup;
+		power.bAdditiveTime |= bAdditiveTime;
+		power.bNoTeleportFreeze |= bNoTeleportFreeze;
+		
+		if (power.CallTryPickup(owner))
+			return true;
+		
+		power.GoAwayAndDie();
+		return false;
+	}
+}
+
+class ReforgedCrystalVial : CrystalVial replaces CrystalVial
+{
+	Default
+	{
+		Inventory.Amount 5;
+	}
+}
+
+class RPGFlask : RPGHealthPickup replaces ArtiHealth
+{
+	Default
+	{
+		RPGItem.Weight 2;
+		Health 15;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTIPTN2";
+		Inventory.PickupSound "misc/p_pkup";
+		Inventory.PickupMessage "$TXT_ARTIHEALTH";
+		Tag "$TAG_ARTIHEALTH";
+		
+		+FLOATBOB
+		+INVENTORY.FANCYPICKUPSOUND
+	}
+	
+	States
+	{
+		Spawn:
+			PTN2 ABC 4;
+			Loop;
+	}
+}
+
+class RPGUrn : RPGHealthPickup replaces ArtiSuperHealth
+{
+	Default
+	{
+		RPGItem.Weight 25;
+		Health 50;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTISPHL";
+		Inventory.PickupSound "misc/p_pkup";
+		Inventory.PickupMessage "$TXT_ARTISUPERHEALTH";
+		Tag "$TAG_ARTISUPERHEALTH";
+		
+		+FLOATBOB
+		+INVENTORY.FANCYPICKUPSOUND
+	}
+	
+	States
+	{
+		Spawn:
+			SPHL A 350;
+			Loop;
+	}
+}
+
+class RPGTorch : RPGPowerupGiver replaces ArtiTorch
+{
+	Default
+	{
+		RPGItem.Weight 5;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTITRCH";
+		Inventory.PickupMessage "$TXT_ARTITORCH";
+		Tag "$TAG_ARTITORCH";
+		RPGPowerupGiver.Type "PowerTorch";
+		
+		+FLOATBOB
+	}
+	
+	States
+	{
+		Spawn:
+			TRCH ABC 3 Bright;
+			Loop;
+	}
+}
+
+class RPGRook : RPGPowerupGiver replaces ArtiInvulnerability2
+{
+	Default
+	{
+		RPGItem.Weight 50;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.RespawnTics 4230;
+		Inventory.Icon "ARTIDEFN";
+		Inventory.PickupMessage "$TXT_ARTIINVULNERABILITY2";
+		RPGPowerupGiver.Type "PowerInvulnerable";
+		Tag "$TAG_ARTIDEFENDER";
+		
+		+FLOATBOB
+	}
+	
+	States
+	{
+		Spawn:
+			DEFN ABCD 3;
+			Loop;
+	}
+}
+
+class RPGFly : RPGPowerupGiver replaces ArtiFly
+{
+	Default
+	{
+		RPGItem.Weight 25;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.InterHubAmount 0;
+		Inventory.RespawnTics 4230;
+		Inventory.Icon "ARTISOAR";
+		Inventory.PickupMessage "$TXT_ARTIFLY";
+		Tag "$TAG_ARTIFLY";
+		RPGPowerupGiver.Type "PowerFlight";
+		
+		+FLOATBOB
+	}
+	
+	States
+	{
+		Spawn:
+			SOAR ABCB 5;
+			Loop;
+	}
+}
+
+class RPGBlast : RPGItem replaces ArtiBlastRadius
+{
+	Default
+	{
+		RPGItem.Weight 2;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTIBLST";
+		Inventory.PickupSound "misc/p_pkup";
+		Inventory.PickupMessage "$TXT_ARTIBLASTRADIUS";
+		Tag "$TAG_ARTIBLASTRADIUS";
+		
+		+INVENTORY.INVBAR
+		+INVENTORY.FANCYPICKUPSOUND
+		+FLOATBOB
+	}
+	
+	States
+	{
+		Spawn:
+			BLST ABCDEFGH 4 Bright;
+			Loop;
+	}
+	
+	override bool Use(bool pickup)
+	{
+		super.Use(pickup);
+		
+		A_InvBlast();
+		return true;
+	}
+	
+	void InvBlastActor(Actor victim, Vector3 dir, double strength, double speed, Class<Actor> blasteffect, bool dontdamage)
+	{
+		if (!owner)
+			return;
+		
+		if (!victim.SpecialBlastHandling(owner, strength))
+			return;
+		
+		double ang = VectorAngle(dir.xy.x, dir.xy.y);
+		if (victim.bMissile)
+		{
+			victim.vel = dir * GetDefaultSpeed(victim.GetClass());
+			victim.tracer = victim.target;
+			victim.target = owner;
+			victim.angle = ang;
+		}
+		else
+			victim.vel += dir * speed;
+
+		ang -= 180.;
+		Vector3 spawnpos = victim.Vec3Offset((victim.radius + 1) * cos(ang), (victim.radius + 1) * sin(ang), (victim.Height / 2) - victim.Floorclip);
+		Actor mo = Spawn(blasteffect, spawnpos, ALLOW_REPLACE);
+		if (mo)
+			mo.vel = victim.vel;
+		
+		if (victim.player)
+		{
+			// Players handled automatically
+		}
+		else if (!victim.bMissile && !dontdamage)
+			victim.bBlasted = true;
+		
+		if (victim.bTouchy)
+		{
+			victim.bArmed = false;
+			victim.DamageMobj(owner, owner, victim.health, 'Blunt', DMG_FORCED|DMG_EXPLOSION);
+		}
+	}
+
+	void A_InvBlast(int blastflags = 0, double strength = 256, double rad = 256, double speed = 20, double maxAng = 35, class<Actor> blasteffect = "BlastEffect", sound blastsound = "BlastRadius")
+	{
+		if (!owner)
+			return;
+		
+		owner.A_PlaySound(blastsound, CHAN_AUTO);
+
+		if (!(blastflags & BF_DONTWARN))
+			owner.SoundAlert(owner);
+		
+		Vector3 viewDir = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch));
+		
+		ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
+		Actor mo;
+		while (mo = Actor(it.Next()))
+		{
+			if (mo == owner || mo == self || (mo.bBoss && !(blastflags & BF_AFFECTBOSSES)) || mo.bDormant || mo.bDontBlast)
+				continue;
+			
+			if (mo.bIceCorpse || mo.bCanBlast)
+			{
+				// Let these special cases go
+			}
+			else if (mo.bIsMonster && mo.health <= 0)
+				continue;
+			else if (mo.bMissile && mo.target == owner)
+				continue;
+			else if (!mo.player && !mo.bMissile && !mo.bIsMonster && !mo.bCanBlast && !mo.bTouchy && !mo.bVulnerable)
+				continue;
+			
+			if (owner.Distance3DSquared(mo) > (owner.radius + rad + mo.radius)**2)
+				continue;
+			
+			if (!owner.CheckSight(mo))
+				continue;
+			
+			Vector3 dirTo = (owner.Vec3To(mo) + (0,0,mo.height/2 - owner.height*3/4.)).Unit();
+			if (acos(dirTo dot viewDir) > maxAng)
+				continue;
+			
+			if (mo is 'RPoisonCloud')
+				blastflags |= BF_NOIMPACTDAMAGE;
+			
+			InvBlastActor(mo, dirTo, strength, speed, blasteffect, !!(blastflags & BF_NOIMPACTDAMAGE));
+		}
+	}
+}
+
+class RPGBanish : RPGItem replaces ArtiTeleportOther
+{
+	Default
+	{
+		RPGItem.Weight 5;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTITELO";
+		Inventory.PickupSound "misc/p_pkup";
+		Inventory.PickupMessage "$TXT_ARTITELEPORTOTHER";
+		Tag "$TAG_ARTITELEPORTOTHER";
+		
+		+FLOATBOB
+		+INVENTORY.INVBAR
+		+INVENTORY.FANCYPICKUPSOUND
+	}
+	
+	States
+	{
+		Spawn:
+			TELO ABCD 5;
+			Loop;
+	}
+
+	override bool Use (bool pickup)
+	{
+		super.Use(pickup);
+		
+		owner.SpawnPlayerMissile("TelOtherRFX1");
+		return true;
+	}
+}
+
+class RPGBoots : RPGPowerupGiver replaces ArtiSpeedBoots
+{
+	Default
+	{
+		RPGItem.Weight 10;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTISPED";
+		Inventory.PickupMessage "$TXT_ARTISPEED";
+		Tag "$TAG_ARTISPEED";
+		RPGPowerupGiver.Type "PowerSpeed";
+		
+		+FLOATBOB
+	}
+	
+	States
+	{
+		Spawn:
+			SPED ABCDEFGH 3 Bright;
+			Loop;
+	}
+}
+
+class RPGFlechette : RPGItem replaces ArtiPoisonBag
+{
+	Default
+	{
+		RPGItem.Weight 5;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTIPSBG";
+		Inventory.PickupSound "misc/p_pkup";
+		Inventory.PickupMessage "$TXT_ARTIPOISONBAG";
+		Tag "$TAG_ARTIPOISONBAG";
+		
+		+FLOATBOB
+		+INVENTORY.INVBAR
+		+INVENTORY.FANCYPICKUPSOUND
+	}
+	
+	States
+	{
+		Spawn:
+			PSBG A -1;
+			Stop;
+	}
+	
+	override bool Use(bool pickup)
+	{
+		let missile = owner.SpawnPlayerMissile("FlechetteMissile");
+		if (missile)
+			missile.vel.z += 5;
+		
+		super.Use(pickup);
+		return true;
+	}
+}
+
+class RPGDarkServant : RPGItem replaces ArtiDarkServant
+{
+	Default
+	{
+		RPGItem.Weight 20;
+		Inventory.RespawnTics 4230;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTISUMN";
+		Inventory.PickupSound "misc/p_pkup";
+		Inventory.PickupMessage "$TXT_ARTISUMMON";
+		Tag "$TAG_ARTISUMMON";
+		
+		+FLOATBOB
+		+INVENTORY.INVBAR 
+		+INVENTORY.FANCYPICKUPSOUND
+	}
+	
+	States
+	{
+		Spawn:
+			SUMN A 350;
+			Loop;
+	}
+
+	override bool Use (bool pickup)
+	{
+		Actor mo = owner.SpawnPlayerMissile("SummoningDoll");
+		if (mo)
+		{
+			mo.target = Owner;
+			mo.tracer = Owner;
+			mo.Vel.Z = 5;
+		}
+		
+		super.Use(pickup);
+		return true;
+	}
+}
+
+class RPGTeleport : RPGItem replaces ArtiTeleport
+{
+	Default
+	{
+		RPGItem.Weight 5;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTIATLP";
+		Inventory.PickupSound "misc/p_pkup";
+		Inventory.PickupMessage "$TXT_ARTITELEPORT";
+		Tag "$TAG_ARTITELEPORT";
+		
+		+FLOATBOB
+		+INVENTORY.INVBAR
+		+INVENTORY.FANCYPICKUPSOUND
+	}
+	
+	States
+	{
+		Spawn:
+			ATLP ABCB 4;
+			Loop;
+	}
+	
+	override bool Use(bool pickup)
+	{
+		Vector3 dest;
+		int destAngle;
+
+		if (deathmatch)
+			[dest, destAngle] = level.PickDeathmatchStart();
+		else
+			[dest, destAngle] = level.PickPlayerStart(Owner.PlayerNumber());
+		
+		dest.Z = ONFLOORZ;
+		owner.Teleport(dest, destAngle, TELF_SOURCEFOG | TELF_DESTFOG);
+		bool canlaugh = true;
+		Playerinfo p = owner.player;
+		if (p && p.morphTics && (p.MorphStyle & MRF_UNDOBYCHAOSDEVICE))
+		{
+			if (!p.mo.UndoPlayerMorph(p, MRF_UNDOBYCHAOSDEVICE) && (p.MorphStyle & MRF_FAILNOLAUGH))
+				canlaugh = false;
+		}
+		
+		if (canlaugh)
+		{
+			Owner.A_PlaySound ("*evillaugh", CHAN_VOICE, 1, false, ATTN_NONE);
+		}
+		
+		super.Use(pickup);
+		return true;
+	}
+}
+
+class RPGKrater : RPGItem replaces ArtiBoostMana
+{
+	Default
+	{
+		RPGItem.Weight 20;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTIBMAN";
+		Inventory.PickupSound "misc/p_pkup";
+		Inventory.PickupMessage "$TXT_ARTIBOOSTMANA";
+		Tag "$TAG_ARTIBOOSTMANA";
+		
+		+FLOATBOB
+		+INVENTORY.INVBAR
+		+INVENTORY.FANCYPICKUPSOUND
+	}
+	
+	States
+	{
+		Spawn:
+			BMAN A -1;
+			Stop;
+	}
+	
+	override bool Use(bool pickup)
+	{
+		let bm = owner.FindInventory("BlueMana");
+		let gm = owner.FindInventory("GreenMana");
+		let rm = owner.FindInventory("RedMana");
+		
+		if (!bm || !gm || !rm ||
+			bm.amount < bm.maxAmount || gm.amount < gm.maxAmount || rm.amount < rm.maxAmount)
+		{
+			owner.A_GiveInventory("BlueMana", 50);
+			owner.A_GiveInventory("GreenMana", 50);
+			owner.A_GiveInventory("RedMana", 50);
+			
+			super.Use(pickup);
+			return true;
+		}
+		
+		return false;
+	}
+}
+
+class RPGPork : RPGItem replaces ArtiPork
+{
+	Default
+	{
+		RPGItem.Weight 10;
+		Inventory.PickupFlash "PickupFlash";
+		Inventory.Icon "ARTIPORK";
+		Inventory.PickupSound "misc/p_pkup";
+		Inventory.PickupMessage "$TXT_ARTIEGG2";
+		Tag "$TAG_ARTIPORK";
+		
+		+FLOATBOB
+		+INVENTORY.INVBAR
+		+INVENTORY.FANCYPICKUPSOUND
+	}
+	
+	States
+	{
+		Spawn:
+			PORK ABCDEFGH 5;
+			Loop;
+	}
+	
+	override bool Use(bool pickup)
+	{
+		for (double i = -15; i <= 15; i += 7.5)
+		{
+			owner.SpawnPlayerMissile("PorkFX", owner.angle+i);
+		}
+		
+		super.Use(pickup);
+		return true;
+	}
+}

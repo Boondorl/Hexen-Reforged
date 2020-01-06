@@ -1,0 +1,649 @@
+class CollisionBox : Actor
+{
+	double length;
+	double forwardOffset;
+	double sideOffset;
+	double upOffset;
+	double multi;
+	
+	Vector3 forward;
+	Vector3 right;
+	Vector3 up;
+	
+	bool bDead;
+	
+	property Length : length;
+	property ForwardOffset : forwardOffset;
+	property SideOffset : sideOffset;
+	property UpOffset : upOffset;
+	property Multi : multi;
+	
+	deprecated("3.7") private int collisionBoxFlags;
+	flagdef CriticalZone: collisionBoxFlags, 0;
+	flagdef Oriented: collisionBoxFlags, 1;
+	
+	Default
+	{
+		+NOINTERACTION
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (master)
+		{
+			if (master.health <= 0 && !master.bIceCorpse)
+				bDead = true;
+			else
+			{
+				bDead = false;
+				
+				Vector3 masterForward = (AngleToVector(master.angle), 0);
+				Vector3 masterRight = (AngleToVector(master.angle-90), 0);
+				
+				Vector3 offset = masterForward*forwardOffset + masterRight*sideOffset + (0,0,upOffset);
+				SetXYZ(master.pos + offset - (0,0,master.floorclip));
+				
+				if (bOriented)
+				{
+					forward = masterForward;
+					right = masterRight;
+				}
+				
+				if (!globalfreeze && !level.frozen)
+				{
+					Spawn("Marker", pos+forward*length+right*radius);
+					Spawn("Marker", pos+forward*length-right*radius);
+					Spawn("Marker", pos-forward*length+right*radius);
+					Spawn("Marker", pos-forward*length-right*radius);
+					Spawn("Marker", pos+forward*length+right*radius+(0,0,height));
+					Spawn("Marker", pos+forward*length-right*radius+(0,0,height));
+					Spawn("Marker", pos-forward*length+right*radius+(0,0,height));
+					Spawn("Marker", pos-forward*length-right*radius+(0,0,height));
+				}
+			}
+		}
+		else
+			Destroy();
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		forward = (1,0,0);
+		right = (0,1,0);
+		up = (0,0,1);
+	}
+}
+
+// TODO: Fix friendly checking
+// Used for checking line of sight before an enemy attacks
+class SightTracer : LineTracer
+{
+	Actor master;
+	Actor target;
+	bool bMelee; // Blocked by no hitscan lines
+	bool bMissile; // Blocked by no projectile lines
+	bool bThruObj; // Should we shoot through solid objects that aren't shootable?
+	bool bThruMonst; // Should we shoot through our allies?
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				int blockFlags = Line.ML_BLOCKEVERYTHING;
+				if (bMelee)
+					blockFlags |= Line.ML_BLOCKHITSCAN;
+				else if (bMissile)
+					blockFlags |= Line.ML_BLOCKPROJECTILE;
+				else
+					blockFlags |= Line.ML_BLOCKMONSTERS; // Assume we're throwing ourselves at them
+				
+				if (!(results.hitLine.flags & blockFlags) &&
+					(results.hitLine.flags & Line.ML_TWOSIDED) &&
+					results.tier == TIER_Middle)
+				{
+					results.hitLine = null;
+					results.hitType = TRACE_HitNone;
+					break;
+				}
+			case TRACE_HasHitSky:
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (results.hitActor != master &&
+					((target && results.hitActor == target) ||
+					(!bThruObj && !results.hitActor.bShootable && results.hitActor.bSolid) ||
+					(!bThruMonst && results.hitActor.bIsMonster && !results.hitActor.bFriendly)))
+				{
+					return TRACE_Stop;
+				}
+				results.hitType = TRACE_HitNone;
+				results.hitActor = null;
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
+class RPGMonster : Actor
+{
+	enum EArmorTypes
+	{
+		AR_SHIELD = 1,
+		AR_CHEST = 2,
+		AR_HELM = 4,
+		AR_BRACE = 8,
+		AR_AMUL = 16
+	};
+	
+	Actor lastHit;
+	Array<CollisionBox> collisionBoxes;
+	Array<class<Ailment> > ailments;
+	class<BlockBox> shieldType;
+	BlockBox shield;
+	
+	double XP;
+	int armorType;
+	double trackRange;
+	double trackAccuracy;
+	double turnSpeed;
+	double missileCheckHeight;
+	
+	private bool bBlocking;
+	private bool bSawTarget;
+	private int missileCoolDown;
+	private double idealAngle;
+	private int blockCoolDown;
+	bool bDontAttack;
+	bool bDontBlock;
+	bool bCancelled;
+	bool bCancelDelay;
+	
+	property XP : XP;
+	property ArmorType : armorType;
+	property TrackRange : trackRange;
+	property TrackAccuracy : trackAccuracy;
+	property TurnSpeed : turnSpeed;
+	property MissileCheckHeight : missileCheckHeight;
+	property ShieldType : shieldType;
+	
+	deprecated("3.7") private int rpgMonsterFlags;
+	flagdef AttackThruMonst: rpgMonsterFlags, 0;
+	flagdef AttackThruObj: rpgMonsterFlags, 1;
+	flagdef Tracker: rpgMonsterFlags, 2;
+	flagdef Blocker: rpgMonsterFlags, 3;
+	
+	Default
+	{
+		Monster;
+		MaxTargetRange 2048;
+		RPGMonster.TrackRange 256;
+		RPGMonster.TrackAccuracy 0.75;
+		RPGMonster.TurnSpeed 10;
+		
+		+QUICKTORETALIATE
+		+TELESTOMP
+		+FLOORCLIP
+		+SEEINVISIBLE
+		+NOPAIN
+		+RPGMONSTER.TRACKER
+	}
+	
+	void A_MonsterLook(int delay = 35)
+	{
+		bool stand = bStandStill;
+		if (bFriendly)
+			bStandStill = true;
+		
+		A_LookEx();
+		if (target && target.health <= 0)
+			target = null;
+		
+		if (!target && !bAmbush && !bFriendly && GetAge() > delay)
+		{
+			ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
+			Actor mo;
+			while (mo = Actor(it.Next()))
+			{
+				if (!mo || !mo.bIsMonster || mo.bFriendly || mo.health <= 0 || !mo.target || mo.target.health <= 0)
+					continue;
+				
+				if ((!mo.target.bIsMonster || mo.target.bFriendly) && !mo.target.bShadow &&
+					AbsAngle(angle, AngleTo(mo)) <= 180 && CheckSight(mo))
+				{
+					target = mo.target;
+					break;
+				}
+			}
+			
+			if (target)
+			{
+				if (SeeState)
+					SetState(SeeState);
+				
+				A_PlaySound(SeeSound, CHAN_VOICE, 1, false, bBoss ? ATTN_NONE : ATTN_NORM);
+			}
+		}
+		
+		bStandStill = stand;
+	}
+	
+	void A_MonsterFaceTarget()
+	{
+		bSawTarget = false;
+		if (target && (!target.bShadow || CheckMelee3D()) && CheckSight(target))
+		{
+			bSawTarget = true;
+			idealAngle = AngleTo(target);
+		}
+	}
+	
+	void A_MonsterChase(StateLabel melee = "Melee", StateLabel missile = "Missile", int flags = 0)
+	{
+		if (target && target.health > 0)
+		{
+			if (!bDontAttack && melee && FindState(melee) && CheckMelee())
+			{
+				SetStateLabel(melee);
+				bJustAttacked = true;
+				return;
+			}
+			
+			flags |= CHF_NODIRECTIONTURN;
+			A_Chase(null, null, flags);
+			
+			if (!bDontAttack && missile && FindState(missile) && CheckMissile())
+			{
+				SetStateLabel(missile);
+				if (target.bShadow && !bSawTarget)
+					idealAngle = AngleTo(target) + frandom(-45, 45);
+				
+				bJustAttacked = true;
+				return;
+			}
+			
+			idealAngle = movedir * 45;
+		}
+		else
+		{
+			target = null;
+			
+			if (bFriendly)
+			{
+				A_Wander();
+				idealAngle = movedir * 45;
+				A_LookEx();
+			}
+			else if (SpawnState)
+				SetState(SpawnState);
+			
+			return;
+		}
+	}
+	
+	void A_MonsterProjectile(class<Actor> type, double heightOfs = 0, double forwOfs = 0, double sideOfs = 0)
+	{
+		if (!target)
+			return;
+		
+		A_MonsterFaceTarget();
+		missileCoolDown = random(75, 105);
+		
+		Vector3 right = (AngleToVector(angle-90), 0);
+		double h = heightOfs;
+		if (!h)
+			h = height/2 + 4;
+		h -= floorclip;
+		
+		Vector3 forward = (AngleToVector(angle), 0);
+		
+		Vector3 spawnPos = pos + forward*forwOfs + right*sideOfs + (0,0,h);
+		let missile = Spawn(type, spawnPos, ALLOW_REPLACE);
+		if (missile)
+		{
+			missile.target = self;
+			missile.tracer = target;
+			if (missile.bSpawnSoundSource)
+				A_PlaySound(missile.SeeSound, CHAN_WEAPON);
+			else
+				missile.A_PlaySound(missile.SeeSound, CHAN_WEAPON);
+			
+			double spd = GetDefaultSpeed(type);
+			Vector3 misDir = missile.Vec3To(target) + (0,0,(target.height/2-target.floorclip) - (missile.height/2));
+			if (!bSawTarget)
+				misDir.xy = AngleToVector(angle, misDir.xy.Length());
+			else if (spd > 0 && bTracker && missile.Distance3DSquared(target) <= trackRange**2)
+			{
+				double time = misDir.Length() / spd;
+				Vector2 enemyVel = target.vel.xy * trackAccuracy;
+				
+				misDir += enemyVel * time;
+			}
+			
+			missile.angle = VectorAngle(misDir.xy.x, misDir.xy.y);
+			missile.vel = misDir.Unit() * spd;
+		}
+	}
+	
+	void A_MonsterMelee(class<HurtBox> box, int dmg = -1, int bdmg = -1, double dur = 1, double range = 64, double minAng = 0, double maxAng = 0, double minPch = 0, double maxPch = 0, double minRol = 0, double maxRol = 0, double minForw = 0, double maxForw = 0)
+	{
+		if (!target)
+			return;
+		
+		A_MonsterFaceTarget();
+		
+		let hb = HurtBox(Spawn(box, pos, ALLOW_REPLACE));
+		if (hb)
+		{
+			hb.target = self;
+			hb.duration = dur;
+			hb.range = range;
+			if (dmg >= 0)
+				hb.SetDamage(dmg);
+			if (bdmg >= 0)
+				hb.bonusDamage = bdmg;
+			
+			hb.angleRange.Push(minAng);
+			hb.angleRange.Push(maxAng);
+			hb.pitchRange.Push(minPch);
+			hb.pitchRange.Push(maxPch);
+			hb.rollRange.Push(minRol);
+			hb.rollRange.Push(maxRol);
+			hb.forwardOffsets.Push(minForw);
+			hb.forwardOffsets.Push(maxForw);
+		}
+	}
+	
+	void A_MonsterBlock()
+	{
+		if (shieldType)
+		{
+			shield = BlockBox(Spawn(shieldType, pos));
+			if (shield)
+				shield.master = self;
+		}
+		
+		bBlocking = true;
+	}
+	
+	void A_MonsterUnblock()
+	{
+		if (shield)
+			shield.Destroy();
+		
+		bBlocking = false;
+		blockCoolDown = random(70,105);
+	}
+	
+	void A_Stumble(double speed = 10)
+	{
+		if (lastHit)
+			vel.xy = AngleToVector(lastHit.AngleTo(self), speed);
+		else
+			vel.xy = AngleToVector(-idealAngle, speed);
+	}
+	
+	void CreateBox(class<CollisionBox> type)
+	{
+		let box = CollisionBox(Spawn(type, pos));
+		if (box)
+		{
+			box.master = self;
+			collisionBoxes.Push(box);
+		}
+	}
+	
+	virtual bool Block(Actor mo, double maxAng = 90, bool fromDamage = false)
+	{
+		if (!mo || !bBlocker || bDontBlock || bBlocking || blockCoolDown > 0 || health <= 0)
+			return false;
+		
+		if (AbsAngle(idealAngle, AngleTo(mo)) > maxAng)
+			return false;
+		
+		if (!fromDamage && !CheckSight(mo))
+			return false;
+		
+		State block = FindState("Block");
+		if (block)
+		{
+			bool doBlock = false;
+			if (!fromDamage && mo.bMissile)
+			{
+				double time = 1;
+				double spd = GetDefaultSpeed(mo.GetClass());
+				if (spd > 0)
+					time = Distance3D(mo) / spd;
+				
+				if (time <= 0.5 && !random(0,3)) // 25% chance to block
+					doBlock = true;
+			}
+			else if (!random(0,4)) // 20% chance to block
+				doBlock = true;
+			
+			if (doBlock)
+			{
+				SetState(block);
+				bCancelled = true;
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	virtual bool CheckMelee()
+	{
+		if (target && CheckMelee3D())
+		{
+			let tracer = SightTracer(new("SightTracer"));
+			if (tracer)
+			{
+				tracer.bMelee = true;
+				tracer.master = self;
+				tracer.target = target;
+				tracer.bThruObj = bAttackThruObj;
+				tracer.bThruMonst = bAttackThruMonst;
+				
+				double h = height/2 + 8 - floorclip;
+				Vector3 start = pos + (0,0,h);
+				Vector3 dir = Vec3To(target) + (0,0,(target.height/2-target.floorclip) - h);
+				
+				tracer.Trace(start, CurSector, dir.Unit(), dir.Length(), 0);
+				if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
+					return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	bool CheckMelee3D()
+	{
+		if (!target || Distance3DSquared(target) > (radius + meleeRange + target.radius)**2)
+			return false;
+		
+		return true;
+	}
+	
+	virtual bool CheckMissile()
+	{
+		if (target && missileCoolDown <= 0 && Distance3DSquared(target) <= random(0, MaxTargetRange**2))
+		{
+			if (target.bShadow)
+				return true;
+			
+			let tracer = SightTracer(new("SightTracer"));
+			if (tracer)
+			{
+				tracer.bMissile = true;
+				tracer.master = self;
+				tracer.target = target;
+				tracer.bThruObj = bAttackThruObj;
+				tracer.bThruMonst = bAttackThruMonst;
+				
+				double h = missileCheckHeight ? missileCheckHeight : height/2 + 4;
+				h -= floorclip;
+				Vector3 start = pos + (0,0,h);
+				Vector3 dir = Vec3To(target) + (0,0,(target.height/2-target.floorclip) - h);
+				
+				tracer.Trace(start, CurSector, dir.Unit(), dir.Length(), 0);
+				if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
+					return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	virtual void InitializeAilments()
+	{
+		SetAilment(0, 'Burn');
+		SetAilment(1, 'Shock');
+		SetAilment(2, 'Chill');
+		SetAilment(3, 'Poison');
+		SetAilment(4, 'Stumble');
+		SetAilment(5, 'Flinch');
+		SetAilment(6, 'Bleed');
+	}
+	
+	protected void SetAilment(uint index, class<Ailment> ailment)
+	{
+		ailments.Insert(index, ailment);
+		GiveInventoryType(ailment);
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (missileCoolDown > 0)
+			--missileCoolDown;
+		if (blockCoolDown > 0)
+			--blockCoolDown;
+		
+		if (bCancelled)
+		{
+			// Make sure to let it tick at least once so the melee attack will be fully cancelled
+			if (!bCancelDelay)
+				bCancelDelay = true;
+			else
+			{
+				bCancelled = false;
+				bCancelDelay = false;
+			}
+		}
+		
+		if (bBlocking && !InStateSequence(CurState, FindState("Block")))
+			A_MonsterUnblock();
+		
+		if (health > 0)
+			Rotate();
+		
+		if (bJustAttacked)
+		{
+			if (tics > -1 && !FacingIdeal())
+				++tics;
+			else
+				bJustAttacked = false;
+		}
+	}
+	
+	void Rotate()
+	{
+		double angDiff = DeltaAngle(angle, idealAngle);
+		if (!angDiff)
+			return;
+		
+		if (angDiff < 0)
+			angle -= min(turnSpeed, -angDiff);
+		else
+			angle += min(turnSpeed, angDiff);
+	}
+	
+	bool FacingIdeal(double maxAng = 75)
+	{
+		if (AbsAngle(angle, idealAngle) <= maxAng)
+			return true;
+		
+		return false;
+	}
+	
+	override int DamageMobj(Actor inflictor, Actor source, int damage, Name mod, int flags, double angle)
+	{
+		if (source && !source.bDoHarmSpecies && source is GetClass())
+			return -1;
+			
+		Vector3 prevVel = vel;
+		
+		int newdam = super.DamageMobj(inflictor, source, damage, mod, flags, angle);
+		lastHit = source;
+		
+		if (health > 0)
+		{
+			if (newdam > 0)
+			{
+				/*if (skill >= 4 && !bFriendly && source && source.bIsMonster)
+				{
+					if (source == target)
+					{
+						rageTimer = 350;
+						searchCoolDown = 0;
+					}
+					
+					if (source.target == self && source is 'ReforgedHereticMonster')
+					{
+						let mo = ReforgedHereticMonster(source);
+						mo.rageTimer = 350;
+						mo.searchCoolDown = 0;
+					}	
+				}*/
+				
+				// Always wake up when taking damage
+				if (SeeState && target && InStateSequence(CurState, SpawnState))
+				{
+					A_PlaySound(SeeSound, CHAN_VOICE, 1, false, bBoss ? ATTN_NONE : ATTN_NORM);   
+					SetState(SeeState);
+				}
+				else if (!(flags & DMG_NOBLOCK))
+					Block(inflictor, 180, true);
+			}
+			
+			if (bSkullFly)
+				vel = prevVel;
+		}
+		
+		return newdam;
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		idealAngle = angle;
+		
+		GiveInventoryType("ArmorPieceManager");
+		GiveInventoryType("BuffManager");
+		
+		if (armorType & AR_SHIELD)
+			GiveInventoryType("ShieldPiece");
+		if (armorType & AR_CHEST)
+			GiveInventoryType("ChestPiece");
+		if (armorType & AR_HELM)
+			GiveInventoryType("HelmetPiece");
+		if (armorType & AR_BRACE)
+			GiveInventoryType("BracerPiece");
+		if (armorType & AR_AMUL)
+			GiveInventoryType("AmuletPiece");
+		
+		InitializeAilments();
+	}
+}

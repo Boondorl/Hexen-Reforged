@@ -1,0 +1,329 @@
+class ArmorPieceManager : Inventory
+{
+	double percentAC;
+	
+	Array<ArmorPiece> pieces;
+	
+	property PercentAC : percentAC;
+	
+	Default
+	{
+		ArmorPieceManager.PercentAC 4;
+		
+		+INVENTORY.UNDROPPABLE
+	}
+	
+	ui int GetCurrentAC()
+	{
+		double sp = 0;
+		for (int i = 0; i < pieces.Size(); ++i)
+		{
+			let piece = pieces[i];
+			if (!piece || !piece.savePercent || piece.health <= 0)
+				continue;
+			
+			double temp = piece.savePercent;
+			
+			double healthInterval = piece.default.health*1. / piece.breakPoints;
+			for (int i = 1; i < piece.breakPoints; ++i)
+			{
+				if (piece.health < (healthInterval * i))
+					temp -= piece.savePercent*piece.lossPercent;
+			}
+			
+			sp += temp;
+		}
+		
+		return ceil(sp*100 / percentAC);
+	}
+	
+	double GetSavePercent(ArmorPiece piece)
+	{
+		double sp = piece.savePercent;
+			
+		if (piece.lossPercent > 0)
+		{
+			double healthInterval = piece.default.health*1. / piece.breakPoints;
+			for (int i = 1; i < piece.breakPoints; ++i)
+			{
+				if (piece.health < (healthInterval * i))
+					sp -= piece.savePercent*piece.lossPercent;
+			}
+		}
+		
+		return sp;
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		pieces.Clear();
+		
+		if (!owner)
+		{
+			A_Log("Well that shouldn't happen");
+			return;
+		}
+		
+		for (let probe = owner.inv; probe != null; probe = probe.inv)
+		{
+			let ap = ArmorPiece(probe);
+			if (ap)
+				pieces.Push(ap);
+		}
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		if (percentAC <= 0)
+			percentAC = 4;
+	}
+	
+	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
+	{
+		if (!passive)
+			return;
+			
+		if (!pieces.Size())
+		{
+			if (damageType == "Cleave")
+				newdamage = round(newdamage * 1.2);
+				
+			return;
+		}
+		
+		if (flags & DMG_CRIT)
+		{
+			int saved = 0;
+			for (int i = 0; i < pieces.Size(); ++i)
+			{
+				let piece = pieces[i];
+				if (!piece || piece.health <= 0 || !piece.bCritStopper)
+					continue;
+				
+				saved += damage - round(damage*piece.criticalFactor);
+			}
+			
+			newdamage -= saved;
+		}
+	}
+	
+	override void AbsorbDamage(int damage, Name damageType, out int newdamage)
+	{
+		if (!pieces.Size() || damageType == "Illness" || damageType == "Bleed" || damageType == "Falling" || damageType == "Drowning")
+			return;
+		
+		for (int i = 0; i < pieces.Size(); ++i)
+		{
+			let piece = pieces[i];
+			if (!piece || !piece.savePercent || piece.health <= 0 ||
+				(!piece.bBlockPiercing && damageType == "Pierce") || (!piece.bBlockPoison && damageType == "Poison"))
+			{
+				continue;
+			}
+			
+			double sp = GetSavePercent(piece);
+			int saved = ceil(damage * sp);
+			if (saved > 0)
+				saved -= ApplyDamageFactors(piece.GetClass(), damageType, saved, saved) - saved;
+			
+			if (saved > damage)
+				saved = damage;
+			
+			if (saved > piece.health)
+				saved = piece.health;
+			
+			newdamage -= saved;
+			piece.health -= saved;
+			
+			if (newdamage <= 0)
+				break;
+		}
+	}
+}
+
+class ArmorPiece : Armor abstract
+{
+	double savePercent;
+	int breakPoints;
+	double lossPercent;
+	double criticalFactor;
+	
+	property SavePercent : savePercent;
+	property BreakPoints : breakPoints;
+	property LossPercent : lossPercent;
+	property CriticalFactor : criticalFactor;
+	
+	deprecated("3.7") private int armorPieceFlags;
+	flagdef BlockPiercing: armorPieceFlags, 0;
+	flagdef BlockPoison: armorPieceFlags, 1;
+	flagdef CritStopper: armorPieceFlags, 2;
+	
+	Default
+	{
+		ArmorPiece.BreakPoints 3;
+		ArmorPiece.LossPercent 0.2;
+		
+		+INVENTORY.ALWAYSPICKUP
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		breakPoints = max(1, breakPoints);
+		lossPercent = clamp(lossPercent, 0, 1./breakPoints);
+		savePercent = clamp(savePercent, 0, 1);
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (health <= 0)
+			Destroy();
+	}
+	
+	override Inventory CreateCopy(Actor other)
+	{
+		let copy = ArmorPiece(super.CreateCopy(other));
+		copy.SavePercent = SavePercent;
+		copy.health = health;
+
+		return copy;
+	}
+	
+	override void Touch(Actor toucher)
+	{
+		let armor = ArmorPiece(toucher.FindInventory(GetClass()));
+		if (armor)
+		{
+			if (armor.health >= health)
+				return;
+			else
+				armor.health = health;
+		}
+		
+		super.Touch(toucher);
+	}
+}
+
+class BracerPiece : ArmorPiece replaces ArtiBoostArmor
+{
+	Default
+	{
+		ArmorPiece.SavePercent 0.15;
+		Health 250;
+		Inventory.PickupMessage "$TXT_ARTIBOOSTARMOR";
+		Inventory.Icon "BRACA0";
+		DamageFactor "Cleave", 0.75;
+		
+		+FLOATBOB
+	}
+	
+	States
+	{
+		Spawn:
+			BRAC ABCDEFGH 4 Bright;
+			Loop;
+	}
+}
+
+class ChestPiece : ArmorPiece replaces MeshArmor
+{
+	Default
+	{
+		ArmorPiece.SavePercent 0.2;
+		Health 400;
+		Inventory.PickupMessage "$TXT_ARMOR1";
+		Inventory.Icon "AR_1A0";
+		DamageFactor "Blunt", 1.25;
+		DamageFactor "Electric", 1.25;
+		
+		+FLOATBOB
+	}
+	
+	States
+	{
+		Spawn:
+			AR_1 A -1;
+			Stop;
+	}
+}
+
+class ShieldPiece : ArmorPiece replaces FalconShield
+{
+	Default
+	{
+		ArmorPiece.SavePercent 0.2;
+		Health 500;
+		Inventory.PickupMessage "$TXT_ARMOR2";
+		Inventory.Icon "AR_2A0";
+		
+		+FLOATBOB
+		+ARMORPIECE.BLOCKPIERCING
+	}
+	
+	States
+	{
+		Spawn:
+			AR_2 A -1;
+			Stop;
+	}
+}
+
+class HelmetPiece : ArmorPiece replaces PlatinumHelm
+{
+	Default
+	{
+		ArmorPiece.SavePercent 0.15;
+		ArmorPiece.CriticalFactor 0.8;
+		Health 300;
+		Inventory.PickupMessage "$TXT_ARMOR3";
+		Inventory.Icon "AR_3A0";
+		DamageFactor "Blunt", 1.25;
+		DamageFactor "Electric", 1.25;
+		
+		+FLOATBOB
+		+ARMORPIECE.CRITSTOPPER
+	}
+	
+	States
+	{
+		Spawn:
+			AR_3 A -1;
+			Stop;
+	}
+}
+
+class AmuletPiece : ArmorPiece replaces AmuletOfWarding
+{
+	Default
+	{
+		ArmorPiece.LossPercent 0;
+		ArmorPiece.SavePercent 0.1;
+		Health 250;
+		Inventory.PickupMessage "$TXT_ARMOR4";
+		Inventory.Icon "AR_4A0";
+		DamageFactor "Blunt", 1.25;
+		DamageFactor "Cleave", 1.25;
+		DamageFactor "Fire", 0.75;
+		DamageFactor "Burn", 0.75;
+		DamageFactor "Ice", 0.75;
+		DamageFactor "Electric", 0.75;
+		DamageFactor "Poison", 0.75;
+		
+		+FLOATBOB
+		+ARMORPIECE.BLOCKPOISON
+	}
+	
+	States
+	{
+		Spawn:
+			AR_4 A -1;
+			Stop;
+	}
+}

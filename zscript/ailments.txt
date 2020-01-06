@@ -1,0 +1,436 @@
+class Ailment : Inventory abstract
+{
+	Array<int> damageValues;
+	Array<Actor> ailmentOwner;
+	int coolDown;
+	int duration;
+	double cap;
+	int initialLossTime;
+	int lossTime;
+	double loseAmount;
+	int dotInterval;
+	int maxStacks;
+	bool bActive;
+	
+	protected int stacks;
+	private double status;
+	private int coolDownTimer;
+	private Array<int> durationTimer;
+	private int lossTimer;
+	private Array<int> dotIntervalTimer;
+	private bool bInCoolDown;
+	
+	property CoolDown : coolDown;
+	property Duration : duration;
+	property Cap : cap;
+	property InitialLossTime : initialLossTime;
+	property LossTime : lossTime;
+	property LoseAmount : loseAmount;
+	property DOTInterval : dotInterval;
+	property MaxStacks : maxStacks;
+	
+	deprecated("3.7") private int ailmentFlags;
+	flagdef IsDOT: ailmentFlags, 0;
+	flagdef Stackable: ailmentFlags, 1;
+	
+	Default
+	{
+		Ailment.Cap 100;
+		Ailment.InitialLossTime 175;
+		Ailment.LossTime 105;
+		Ailment.LoseAmount 20;
+		Ailment.MaxStacks 5;
+		
+		+INVENTORY.UNDROPPABLE
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (globalfreeze || level.frozen)
+			return;
+		
+		if (owner.health <= 0)
+		{
+			Clear();
+			return;
+		}
+		
+		if (coolDownTimer > 0)
+		{
+			--coolDownTimer;
+			if (coolDownTimer <= 0)
+				bInCoolDown = false;
+		}
+		
+		if (stacks > 0)
+			bActive = true;
+		else
+			bActive = false;
+		
+		if (bActive)
+			Effect();
+		
+		for (int i = 0; i < durationTimer.Size(); ++i)
+		{
+			if (durationTimer[i]-- > 0)
+			{
+				target = ailmentOwner[i];
+				SetDamage(damageValues[i]);
+				
+				if (bIsDOT && dotIntervalTimer[i]-- <= 0)
+				{
+					DOTTick();
+					dotIntervalTimer.Insert(i, dotInterval);
+				}
+			}
+			else
+			{
+				OnLoss();
+				
+				durationTimer.Delete(i);
+				ailmentOwner.Delete(i);
+				dotIntervalTimer.Delete(i);
+				damageValues.Delete(i);
+				--stacks;
+			}
+		}
+		
+		if (lossTimer > 0)
+		{
+			--lossTimer;
+			if (lossTimer <= 0)
+			{
+				status -= min(status, loseAmount);
+				if (status > 0)
+					lossTimer = lossTime;
+			}
+		}
+	}
+	
+	virtual void Effect() {}
+	
+	virtual void DOTTick() {}
+	
+	virtual void OnSet() {}
+	
+	virtual void OnLoss() {}
+	
+	void Clear()
+	{
+		durationTimer.Clear();
+		ailmentOwner.Clear();
+		dotIntervalTimer.Clear();
+		damageValues.Clear();
+		stacks = 0;
+		lossTimer = 0;
+		status = 0;
+		coolDownTimer = 0;
+		bInCoolDown = false;
+		bActive = false;
+	}
+	
+	bool AddAilment(Actor mast, double amt, int dmg = -1)
+	{
+		if (bInCoolDown || owner.health <= 0)
+			return false;
+		
+		status += amt;
+		lossTimer = initialLossTime;
+		
+		if (status >= cap)
+		{
+			OnSet();
+			
+			if (bStackable)
+			{
+				if (stacks < maxStacks)
+				{
+					durationTimer.Push(duration);
+					ailmentOwner.Push(mast);
+					
+					if (dmg > -1)
+						damageValues.Push(dmg);
+					else
+						damageValues.Push(damage);
+					
+					if (bIsDOT)
+						dotIntervalTimer.Push(dotInterval);
+					
+					++stacks;
+				}
+			}
+			else
+			{
+				durationTimer.Insert(0, duration);
+				ailmentOwner.Insert(0, mast);
+				
+				if (dmg > -1)
+					damageValues.Push(dmg);
+				else
+					damageValues.Push(damage);
+					
+				if (bIsDOT)
+					dotIntervalTimer.Insert(0, dotInterval);
+				
+				stacks = 1;
+			}
+			
+			status = 0;
+			
+			if (coolDown)
+			{
+				coolDownTimer = coolDown;
+				bInCoolDown = true;
+			}
+			
+			return true;
+		}
+		
+		return false;
+	}
+}
+
+class Burn : Ailment
+{
+	Default
+	{
+		DamageType "Burn";
+		Ailment.CoolDown 210;
+		Ailment.Duration 140;
+		Ailment.DOTInterval 18;
+		
+		+AILMENT.ISDOT
+		+PAINLESS
+	}
+	
+	override void Effect()
+	{
+		if (owner.tics == 1)
+		{
+			owner.speed = owner.default.speed * 1.5;
+			owner.A_Wander();
+			owner.speed = 0;
+			let rpgm = RPGMonster(owner);
+			if (!rpgm)
+				owner.bJustAttacked = true;
+		}
+	}
+	
+	override void OnSet()
+	{
+		if (!stacks)
+		{
+			owner.SetState(owner.SeeState, true);
+			owner.speed = owner.default.speed * 1.5;
+			owner.A_Wander();
+			let rpgm = RPGMonster(owner);
+			if (rpgm)
+			{
+				rpgm.bDontBlock = true;
+				rpgm.bDontAttack = true;
+				rpgm.bCancelled = true;
+			}
+		}
+	}
+	
+	override void OnLoss()
+	{
+		owner.speed = owner.default.speed;
+		let rpgm = RPGMonster(owner);
+		if (rpgm)
+		{
+			rpgm.bDontBlock = false;
+			rpgm.bDontAttack = false;
+		}
+	}
+	
+	override void DOTTick()
+	{
+		owner.DamageMobj(self, target, damage, damageType);
+	}
+}
+
+class Chill : Ailment
+{
+	bool bJustSlowed;
+	
+	Default
+	{
+		Ailment.CoolDown 280;
+		Ailment.Duration 105;
+	}
+	
+	override void Effect()
+	{
+		if (owner.tics == owner.CurState.tics)
+		{
+			if (bJustSlowed)
+				bJustSlowed = false;
+			else
+			{
+				owner.tics = ceil(owner.tics * 1.2);
+				bJustSlowed = true;
+			}
+		}
+	}
+}
+
+class Shock : Ailment
+{
+	Default
+	{
+		Ailment.CoolDown 315;
+		Ailment.Duration 70;
+	}
+	
+	override void OnSet()
+	{
+		let rpgm = RPGMonster(owner);
+		if (rpgm)
+			rpgm.bDontBlock = true;
+		
+		State zap = owner.FindState("Shock");
+		if (zap)
+			owner.SetState(zap);
+		else
+		{
+			State pain = owner.FindState("Pain");
+			if (pain)
+				owner.SetState(pain);
+		}
+	}
+	
+	override void OnLoss()
+	{
+		let rpgm = RPGMonster(owner);
+		if (rpgm)
+			rpgm.bDontBlock = false;
+	}
+}
+
+class Poison : Ailment
+{
+	Default
+	{
+		DamageType "Illness";
+		Ailment.CoolDown 350;
+		Ailment.Duration 210;
+		Ailment.DOTInterval 35;
+		
+		+AILMENT.ISDOT
+		+PAINLESS
+	}
+	
+	override void DOTTick()
+	{
+		owner.DamageMobj(self, target, damage, damageType);
+		if (owner.health > 0 && !owner.InStateSequence(owner.CurState, owner.FindState("Shock")))
+		{
+			State pain = owner.FindState("Pain");
+			if (pain)
+				owner.SetState(pain);
+		}
+	}
+	
+	override void OnSet()
+	{
+		let rpgm = RPGMonster(owner);
+		if (rpgm)
+			rpgm.bDontBlock = true;
+	}
+	
+	override void OnLoss()
+	{
+		let rpgm = RPGMonster(owner);
+		if (rpgm)
+			rpgm.bDontBlock = false;
+	}
+	
+	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
+	{
+		if (!passive && bActive)
+			newdamage = round(newdamage * 0.75);
+	}
+}
+
+class Stumble : Ailment
+{
+	Default
+	{
+		Ailment.CoolDown 70;
+		Ailment.Duration 18;
+	}
+	
+	override void OnSet()
+	{
+		State stumb = owner.FindState("Stumble");
+		if (stumb)
+			owner.SetState(stumb);
+		else
+		{
+			State pain = owner.FindState("Pain");
+			if (pain)
+				owner.SetState(pain);
+		}
+		
+		let rpgm = RPGMonster(owner);
+		if (rpgm)
+			rpgm.bDontBlock = true;
+	}
+	
+	override void OnLoss()
+	{
+		let rpgm = RPGMonster(owner);
+		if (rpgm)
+			rpgm.bDontBlock = false;
+	}
+}
+
+class Flinch : Ailment
+{
+	Default
+	{
+		Ailment.CoolDown 18;
+		Ailment.Duration 9;
+	}
+	
+	override void OnSet()
+	{
+		State pain = owner.FindState("Pain");
+		if (pain)
+			owner.SetState(pain);
+		
+		let rpgm = RPGMonster(owner);
+		if (rpgm)
+			rpgm.bDontBlock = true;
+	}
+	
+	override void OnLoss()
+	{
+		let rpgm = RPGMonster(owner);
+		if (rpgm)
+			rpgm.bDontBlock = false;
+	}
+}
+
+class Bleed : Ailment
+{
+	Default
+	{
+		DamageType "Bleed";
+		Ailment.CoolDown 2;
+		Ailment.Duration 70;
+		Ailment.DOTInterval 9;
+		
+		+AILMENT.ISDOT
+		+AILMENT.STACKABLE
+		+PAINLESS
+	}
+	
+	override void DOTTick()
+	{
+		owner.DamageMobj(self, target, damage, damageType, DMG_NOBLOCK);
+	}
+}

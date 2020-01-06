@@ -1,0 +1,610 @@
+class InteractiveBox : Object ui
+{
+	Inventory item;
+	int height;
+	int width;
+	Vector2 absoluteCenter;
+	int scaledH;
+	int scaledW;
+	Vector2 center;
+	int tolerance;
+	bool bInvisible;
+	bool bAttached;
+	bool bLeftClicked;
+	bool bRightClicked;
+	bool bSelected;
+	bool bKeepAspectRatio;
+	bool bCenter;
+	
+	protected uint attachTimer;
+	protected double wRatio;
+	protected double hRatio;
+	protected int mouseX;
+	protected int mouseY;
+	protected int currentAction;
+	protected uint deltatime;
+	private uint prevTime;
+	
+	virtual void Initialize()
+	{
+		bCenter = true;
+		bKeepAspectRatio = true;
+	}
+	
+	virtual void Clear()
+	{
+		bLeftClicked = false;
+		bRightClicked = false;
+		attachTimer = 0;
+		bAttached = false;
+		prevTime = 0;
+	}
+	
+	virtual void OnHover() {}
+	
+	virtual void OnAttached() {}
+	
+	virtual void OnSelected() {}
+	
+	virtual void OnLeftClick()
+	{
+		bLeftClicked = true;
+	}
+	
+	virtual void OnRightClick()
+	{
+		bRightClicked = true;
+	}
+	
+	virtual void OnLeftHold() {}
+	
+	virtual void OnRightHold() {}
+	
+	virtual void OnLeftRelease()
+	{
+		bLeftClicked = false;
+	}
+	
+	virtual void OnRightRelease()
+	{
+		bRightClicked = false;
+	}
+	
+	virtual void Execute()
+	{
+		uint currentTime = MSTime();
+		if (!prevTime)
+			prevTime = currentTime;
+		
+		deltatime = currentTime - prevTime;
+		if (deltaTime > 200) // Cap to a minimum of 5 FPS
+			deltaTime = 200;
+		
+		prevTime = currentTime;
+		
+		int wOfs, hOfs, w, h;
+		[wOfs, hOfs, w, h] = Screen.GetViewWindow();
+		
+		wRatio = w / 1920.;
+		hRatio = h / 1080.;
+		
+		if (bKeepAspectRatio)
+		{
+			double ratio = min(wRatio, hRatio);
+			scaledW = width * ratio;
+			scaledH = height * ratio;
+		}
+		else
+		{
+			scaledW = width * wRatio;
+			scaledH = height * hRatio;
+		}
+		
+		if (bCenter)
+		{
+			double ratio = min(wRatio, hRatio);
+			center.x = wOfs + absoluteCenter.x*ratio + abs(1920*ratio - 1920*wRatio)/2;
+			center.y = hOfs + absoluteCenter.y*ratio + abs(1080*ratio - 1080*hRatio)/2;
+		}
+		else
+		{
+			center.x = wOfs + absoluteCenter.x * wRatio;
+			center.y = hOfs + absoluteCenter.y * hRatio;
+		}
+		
+		Vector3 mouse = RPGMenuHandler.GetMouse();
+		mouseX = mouse.x;
+		mouseY = mouse.y;
+		currentAction = mouse.z;
+		
+		if (mouse.x > -1)
+		{
+			double rad = scaledW / 2.;
+			double length = scaledH / 2.;
+			
+			if (bAttached ||
+				(mouse.x >= (center.x-rad) && mouse.x <= (center.x+rad) &&
+				mouse.y >= (center.y-length) && mouse.y <= (center.y+length)))
+			{
+				switch (mouse.z)
+				{
+					case RPGMenuHandler.MI_LEFTPRESS:
+						OnLeftClick();
+						break;
+						
+					case RPGMenuHandler.MI_LEFTHOLD:
+						OnLeftHold();
+						break;
+						
+					case RPGMenuHandler.MI_LEFTRELEASE:
+						OnLeftRelease();
+						break;
+						
+					case RPGMenuHandler.MI_RIGHTPRESS:
+						OnRightClick();
+						break;
+						
+					case RPGMenuHandler.MI_RIGHTHOLD:
+						OnRightHold();
+						break;
+						
+					case RPGMenuHandler.MI_RIGHTRELEASE:
+						OnRightRelease();
+						break;
+				}
+				
+				if (bAttached)
+					OnAttached();
+				else
+					OnHover();
+			}
+			else
+			{
+				attachTimer = 0;
+				bLeftClicked = false;
+				bRightClicked = false;
+			}
+		}
+		
+		if (bSelected && !bAttached)
+			OnSelected();
+	}
+}
+
+class ItemBox : InteractiveBox
+{
+	uint leftClickTimer;
+	uint rightClickTimer;
+	
+	override void Clear()
+	{
+		super.Clear();
+		
+		leftClickTimer = 0;
+		rightClickTimer = 0;
+	}
+	
+	override void OnAttached()
+	{
+		Screen.DrawFrame(mouseX-scaledW/2, mouseY-scaledH/2, scaledW, scaledH);
+	}
+	
+	override void OnSelected()
+	{
+		Screen.DrawFrame(center.x-scaledW/2, center.y-scaledH/2, scaledW, scaledH);
+	}
+	
+	override void OnHover()
+	{
+		if (!bSelected)
+			Screen.DrawFrame(center.x-scaledW/2, center.y-scaledH/2, scaledW, scaledH);
+		
+		Font font = "BIGUPPER";
+		int fHeight = font.GetHeight();
+		string title = item.GetTag();
+		int titleLength = font.StringWidth(title);
+		Vector2 pos = center;
+		
+		/*if (bKeepAspectRatio)
+		{
+			double ratio = min(wRatio, hRatio);
+			fHeight *= ratio;
+			titleLength *= ratio;
+		}
+		else
+		{
+			fHeight *= hRatio;
+			titleLength *= wRatio;
+		}*/
+		
+		pos.y -= (scaledH/2 + fHeight);
+		pos.x -= titleLength / 2;
+				
+		Screen.DrawText(font, Font.CR_WHITE, pos.x, pos.y, title);
+		
+		if (!bLeftClicked && !bRightClicked)
+		{
+			if (currentAction == RPGMenuHandler.BI_USEDITEM)
+			{
+				string use = "use:"..item.GetClassName();
+				EventHandler.SendNetworkEvent(use);
+			}
+		}
+	}
+	
+	override void Execute()
+	{
+		super.Execute();
+		
+		if (item && !bInvisible && item.icon)
+		{
+			Vector2 size = TexMan.GetScaledSize(item.icon);
+			size.y *= 1.2;
+			size *= 2;
+			Vector2 pos = bAttached ? (mouseX, mouseY) : center;
+			
+			int w, h;
+			if (bKeepAspectRatio)
+				size *= min(wRatio, hRatio);
+			else
+			{
+				size.x *= wRatio;
+				size.y *= hRatio;
+			}
+			
+			w = size.x;
+			h = size.y;
+			pos.y += size.y/2;
+			Screen.DrawTexture(item.icon, false, pos.x, pos.y, DTA_CenterBottomOffset, true, DTA_DestWidth, w, DTA_DestHeight, h);
+			
+			if (!bAttached)
+			{
+				Vector2 corner = center;
+				Font font = "BIGUPPER";
+				int fHeight = font.GetHeight();
+				string amount = String.Format("%d", item.amount);
+				int amtLength = font.StringWidth(amount);
+				
+				/*if (bKeepAspectRatio)
+				{
+					double ratio = min(wRatio, hRatio);
+					fHeight *= ratio;
+					amtLength *= ratio;
+				}
+				else
+				{
+					fHeight *= hRatio;
+					amtLength *= wRatio;
+				}*/
+				
+				corner.x += (scaledW/2 - amtLength);
+				corner.y += (scaledH/2 - fHeight);
+				
+				Screen.DrawText(font, Font.CR_WHITE, corner.x, corner.y, amount);
+			}
+		}
+		
+		if (leftClickTimer > 0)
+			leftClickTimer -= deltatime;
+	}
+	
+	override void OnLeftClick()
+	{
+		super.OnLeftClick();
+		
+		if (leftClickTimer > 0)
+		{
+			string use = "use:"..item.GetClassName();
+			EventHandler.SendNetworkEvent(use);
+			leftClickTimer = 0;
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		if (item)
+		{
+			if (bAttached)
+			{
+				ItemBox collided = RPGMenuHandler.CheckItemCollision(self);
+				if (collided)
+					RPGMenuHandler.SwapItems(self, collided);
+				
+				bAttached = false;
+			}
+			else if (bLeftClicked)
+			{
+				players[consoleplayer].mo.InvSel = item;
+				if (leftClickTimer <= 0)
+					leftClickTimer = 250;
+			}
+		}
+		
+		super.OnLeftRelease();
+		attachTimer = 0;
+	}
+	
+	override void OnLeftHold()
+	{
+		if (bLeftClicked)
+		{
+			if (attachTimer < 250)
+				attachTimer += deltatime;
+			else
+				bAttached = true;
+		}
+	}
+	
+	override void OnRightHold()
+	{
+		if (bRightClicked)
+		{
+			if (rightClickTimer < 250)
+				rightClickTimer += deltatime;
+		}
+	}
+	
+	override void OnRightRelease()
+	{
+		if (item && !bAttached)
+		{
+			string drop = "drop:"..item.GetClassName();
+			
+			if (rightClickTimer >= 250)
+			{
+				for (int i = 0; i < item.amount; ++i)
+				{
+					EventHandler.SendNetworkEvent(drop);
+				}
+			}
+			else				
+				EventHandler.SendNetworkEvent(drop);
+		}
+		
+		rightClickTimer = 0;
+		super.OnRightRelease();
+	}
+}
+
+class KeyItemBox : InteractiveBox
+{
+	override void Execute()
+	{
+		super.Execute();
+		
+		if (item && !bInvisible && item.icon)
+		{
+			Vector2 size = TexMan.GetScaledSize(item.icon);
+			size.y *= 1.2;
+			size *= 2;
+			Vector2 pos = bAttached ? (mouseX, mouseY) : center;
+			
+			int w, h;
+			if (bKeepAspectRatio)
+				size *= min(wRatio, hRatio);
+			else
+			{
+				size.x *= wRatio;
+				size.y *= hRatio;
+			}
+			
+			w = size.x;
+			h = size.y;
+			pos.y += size.y/2;
+			Screen.DrawTexture(item.icon, false, pos.x, pos.y, DTA_CenterBottomOffset, true, DTA_DestWidth, w, DTA_DestHeight, h);
+			
+			if (!bAttached)
+			{
+				Vector2 corner = center;
+				Font font = "BIGUPPER";
+				int fHeight = font.GetHeight();
+				string amount = String.Format("%d", item.amount);
+				int amtLength = font.StringWidth(amount);
+				
+				/*if (bKeepAspectRatio)
+				{
+					double ratio = min(wRatio, hRatio);
+					fHeight *= ratio;
+					amtLength *= ratio;
+				}
+				else
+				{
+					fHeight *= hRatio;
+					amtLength *= wRatio;
+				}*/
+				
+				corner.x += (scaledW/2 - amtLength);
+				corner.y += (scaledH/2 - fHeight);
+				
+				Screen.DrawText(font, Font.CR_WHITE, corner.x, corner.y, amount);
+			}
+		}
+	}
+	
+	override void OnAttached()
+	{
+		Screen.DrawFrame(mouseX-scaledW/2, mouseY-scaledH/2, scaledW, scaledH);
+	}
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(center.x-scaledW/2, center.y-scaledH/2, scaledW, scaledH);
+		
+		Font font = "BIGUPPER";
+		int fHeight = font.GetHeight();
+		string title = item.GetTag();
+		int titleLength = font.StringWidth(title);
+		Vector2 pos = center;
+		
+		/*if (bKeepAspectRatio)
+		{
+			double ratio = min(wRatio, hRatio);
+			fHeight *= ratio;
+			titleLength *= ratio;
+		}
+		else
+		{
+			fHeight *= hRatio;
+			titleLength *= wRatio;
+		}*/
+		
+		pos.y -= (scaledH/2 + fHeight);
+		pos.x -= titleLength / 2;
+				
+		Screen.DrawText(font, Font.CR_WHITE, pos.x, pos.y, title);				
+		
+		if (!bLeftClicked && !bRightClicked)
+		{
+			if (currentAction == RPGMenuHandler.BI_USEDITEM)
+			{
+				string use = "use:"..item.GetClassName();
+				EventHandler.SendNetworkEvent(use);
+			}
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		if (item)
+		{
+			if (bAttached)
+			{
+				KeyItemBox collided = RPGMenuHandler.CheckKeyItemCollision(self);
+				if (collided)
+					RPGMenuHandler.SwapKeyItems(self, collided);
+				
+				bAttached = false;
+			}
+			else if (bLeftClicked)
+			{
+				string use = "use:"..item.GetClassName();
+				EventHandler.SendNetworkEvent(use);
+			}
+		}
+		
+		super.OnLeftRelease();
+		attachTimer = 0;
+	}
+	
+	override void OnLeftHold()
+	{
+		if (bLeftClicked)
+		{
+			if (attachTimer < 250)
+				attachTimer += deltatime;
+			else
+				bAttached = true;
+		}
+	}
+}
+
+class PassiveBox : InteractiveBox
+{
+	int increment;
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(center.x-scaledW/2, center.y-scaledH/2, scaledW, scaledH);
+	}
+	
+	override void Execute()
+	{
+		super.Execute();
+		
+		if (item && !bInvisible)
+		{
+			Font font = "BIGUPPER";
+			string sign = increment ? ">" : "<";
+			Screen.DrawText(confont, Font.CR_WHITE, center.x, center.y, sign);
+			
+			if (!increment)
+			{
+				let stat = Stat(item);
+				if (stat)
+				{
+					int levelColor = Font.CR_CREAM;
+					if (stat.tempLevel < stat.level)
+						levelColor = Font.CR_RED;
+					else if (stat.tempLevel > stat.level)
+						levelColor = font.CR_GREEN;
+					
+					Screen.DrawText(font, levelColor, center.x+100*wRatio, center.y, String.Format("%d", stat.tempLevel));
+					
+					string title;
+					if (stat.title)
+						title = stat.title;
+					else
+						title = stat.GetClassName();
+					
+					Screen.DrawText(font, Font.CR_FIRE, center.x+300*wRatio, center.y, title);
+					Screen.DrawText(font, Font.CR_TAN, center.x+500*wRatio, center.y, stat.description);
+					if (stat.currentBonus != "")
+						Screen.DrawText(confont, Font.CR_WHITE, center.x+1100*wRatio, center.y, stat.currentBonus);
+				}
+			}
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		let owner = RPGPlayer(item.owner);
+		if (owner)
+		{
+			let it = Stat(item);
+			if (it)
+			{
+				if (!increment)
+				{
+					if (it.tempLevel > it.baseLevel)
+					{
+						it.tempLevel -= 1;
+						++owner.tempPoints;
+						if (it.tempLevel < it.level)
+							it.tempCost += it.cost;
+							
+						EventHandler.SendNetworkEvent("updatestat:"..it.GetClassName(), it.tempLevel);
+					}
+				}
+				else if (owner.tempPoints > 0 && it.tempLevel < it.maxLevel)
+				{
+					it.tempLevel += 1;
+					--owner.tempPoints;
+					if (it.tempCost)
+						it.tempCost -= it.cost;
+						
+					EventHandler.SendNetworkEvent("updatestat:"..it.GetClassName(), it.tempLevel);
+				}
+			}
+		}
+		
+		super.OnLeftRelease();
+	}
+}
+
+class ConfirmStatsButton : InteractiveBox
+{
+	override void OnHover()
+	{
+		Screen.DrawFrame(center.x-scaledW/2, center.y-scaledH/2, scaledW, scaledH);
+	}
+	
+	override void Execute()
+	{
+		super.Execute();
+		
+		if (!bInvisible)
+		{
+			Font font = "BIGUPPER";
+			int fHeight = font.GetHeight();
+			int w = font.StringWidth("Center");
+			Screen.DrawText(font, Font.CR_WHITE, center.x-w/2, center.y-fHeight/2, "Confirm");
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		RPGMenuHandler.LevelPlayer();
+		
+		super.OnLeftRelease();
+	}
+}

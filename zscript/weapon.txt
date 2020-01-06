@@ -1,0 +1,858 @@
+enum EExtendedDmgFlags
+{
+	DMG_CRIT = 1<<20, // Leave room just in case
+	DMG_NOBLOCK = 1<<21
+}
+
+class RPGWeapon : Weapon
+{
+	int bashCost;
+	class<Ammo> bashType;
+	class<Ammo> reserveBashType;
+	double bashAilment;
+	double bashAilmentType;
+
+	action void A_WandBlast(int dmg, Name dmgType = 'None', int blastflags = 0, double rad = 128, double speed = 15, double maxAng = 35, sound blastsound = "BlastRadius")
+	{
+		A_PlaySound(blastsound, CHAN_AUTO);
+
+		if (!(blastflags & BF_DONTWARN))
+			SoundAlert(self);
+		
+		Vector3 viewDir = (AngleToVector(angle, cos(pitch)), -sin(pitch));
+		
+		ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
+		Actor mo;
+		while (mo = Actor(it.Next()))
+		{
+			if (mo == self || (mo.bBoss && !(blastflags & BF_AFFECTBOSSES)) || mo.bDormant || !(mo.bIsMonster || mo.player))
+				continue;
+			
+			if (mo.bIceCorpse)
+			{
+				mo.DamageMobj(self, self, 1, 'None');
+				continue;
+			}
+			else if (mo.health <= 0)
+				continue;
+			
+			if (Distance3DSquared(mo) > (radius + rad + mo.radius)**2)
+				continue;
+			
+			if (!CheckSight(mo))
+				continue;
+			
+			Vector3 dir = (Vec3To(mo) + (0,0,mo.height/2 - height*3/4.)).Unit();
+			if (acos(dir dot viewDir) > maxAng)
+				continue;
+			
+			mo.DamageMobj(self, self, dmg, dmgType);
+			let ail = Ailment(mo.FindInventory("Stumble"));
+			if (ail)
+				ail.AddAilment(self, 100);
+			else
+				mo.vel += dir * speed;
+		}
+	}
+	
+	action void A_Melee(class<HurtBox> box, int dmg = -1, int bdmg = -1, double dur = 1, double range = 64, double minAng = 0, double maxAng = 0, double minPch = 0, double maxPch = 0, double minRol = 0, double maxRol = 0, double minForw = 0, double maxForw = 0)
+	{
+		if (!box)
+			return;
+		
+		let hb = HurtBox(Spawn(box, pos, ALLOW_REPLACE));
+		if (hb)
+		{
+			hb.target = self;
+			hb.duration = dur;
+			hb.range = range;
+			if (dmg >= 0)
+				hb.SetDamage(dmg);
+			if (bdmg >= 0)
+				hb.bonusDamage = bdmg;
+			
+			hb.angleRange.Push(minAng);
+			hb.angleRange.Push(maxAng);
+			hb.pitchRange.Push(minPch);
+			hb.pitchRange.Push(maxPch);
+			hb.rollRange.Push(minRol);
+			hb.rollRange.Push(maxRol);
+			hb.forwardOffsets.Push(minForw);
+			hb.forwardOffsets.Push(maxForw);
+		}
+	}
+}
+
+class CastWeapon : RPGWeapon
+{
+	Weapon prevWeapon;
+}
+
+// Send a warning to block
+class WarningTracer : LineTracer
+{
+	Actor owner;
+	Actor master;
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				if (!(results.hitLine.flags & Line.ML_BLOCKEVERYTHING) &&
+					(results.hitLine.flags & Line.ML_TWOSIDED) &&
+					results.tier == TIER_Middle)
+				{
+					break;
+				}
+			case TRACE_HasHitSky:
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if ((owner && results.hitActor == owner) ||
+					(master && results.hitActor == master) ||
+					results.hitActor.health <= 0 ||
+					(results.hitActor.bShootable && !(results.hitActor.bIsMonster || results.hitActor.player)))
+				{
+					results.hitActor = null;
+					break;
+				}
+				return TRACE_Stop;
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
+class RPGMissile : FastProjectile
+{
+	Array<Actor> alreadyHit;
+	
+	double ailmentPower;
+	class<Ailment> ailmentType;
+	int ailmentDamage;
+	bool bCriticalHit;
+	int maxPenetration;
+	double length;
+	double warnDistance;
+	
+	protected double damageMultiplier;
+	protected int currentPenetration;
+	
+	Vector3 prevVel;
+	
+	Vector3 forward;
+	Vector3 up;
+	Vector3 right;
+	
+	property Length : length;
+	property MaxPenetration : maxPenetration;
+	property AilmentPower : ailmentPower;
+	property AilmentType : ailmentType;
+	property AilmentDamage : ailmentDamage;
+	property WarnDistance : warnDistance;
+	
+	deprecated("3.7") private int rpgMissileFlags;
+	flagdef Penetrating: rpgMissileFlags, 0;
+	flagdef ThruObjects: rpgMissileFlags, 1;
+	flagdef Oriented: rpgMissileFlags, 2;
+	flagdef Freezer: rpgMissileFlags, 3;
+	flagdef Shatterer: rpgMissileFlags, 4;
+	flagdef NoCrit: rpgMissileFlags, 5;
+	flagdef NoBlockWarn: rpgMissileFlags, 6;
+	flagdef ShieldBuster: rpgMissileFlags, 7;
+	
+	Default
+	{
+		RPGMissile.WarnDistance 512;
+	}
+	
+	override int SpecialMissileHit(Actor victim)
+	{
+		if (victim == target || victim.bGhost || alreadyHit.Find(victim) != alreadyHit.Size())
+			return 1;
+		
+		if (bOriented && !CheckOBB(victim, forward, right, up, length))
+			return 1;
+		
+		if (victim.health <= 0)
+		{
+			if (victim.bIceCorpse)
+				victim.DamagemObj(self, target, 1, 'None'); // Make sure corpses shatter
+			
+			return 1;
+		}
+		
+		bool isShield = (victim is 'BlockBox');
+		if (isShield && victim.master == target)
+			return 1;
+		
+		if (isShield && alreadyHit.Find(victim.master) != alreadyHit.Size())
+		{
+			alreadyHit.Push(victim);
+			
+			if (!bPenetrating)
+				return -1;
+			
+			return 1;
+		}
+		
+		if (victim.bShootable && !(victim.bIsMonster || victim.player))
+		{
+			if (isShield && CheckOBB(victim, forward, right, up, bOriented ? length : radius))
+			{
+				victim.DamageMobj(self, target, damage, damageType);
+				alreadyHit.Push(victim);
+				alreadyHit.Push(victim.master);
+				
+				if (!bPenetrating)
+					return -1;
+			}
+			else if (!isShield)
+			{
+				victim.DamageMobj(self, target, damage, damageType);
+				alreadyHit.Push(victim);
+			}
+			
+			return 1;
+		}
+		else if (!victim.bShootable)
+		{
+			if (!victim.bSolid)
+				return 1;
+			else if (bThruObjects && victim.bSolid)
+			{
+				if (bPenetrating)
+				{
+					if (maxPenetration > 0 && currentPenetration-- <= 0)
+						return -1;
+					
+					alreadyHit.Push(victim);
+				}
+					
+				return 1;
+			}
+			
+			return -1;
+		}
+		
+		bool doDamage = true;
+		let rpgm = RPGMonster(victim);
+		if (rpgm && rpgm.collisionBoxes.Size())
+		{
+			// Check critical boxes first
+			CollisionBox bestBox;
+			int bestDamage;
+			for (int i = 0; i < rpgm.collisionBoxes.Size(); ++i)
+			{
+				let cBox = rpgm.collisionBoxes[i];
+				if (!cBox || cBox.bDead || !cBox.bCriticalZone)
+					continue;
+							
+				bool crit;
+				if (cBox.bOriented || bOriented)
+					crit = CheckOBB(cBox, forward, right, up, bOriented ? length : radius);
+				else
+					crit = CheckCollision(cBox);
+							
+				if (crit)
+				{
+					int dmg;
+					if (!bNoCrit)
+					{
+						bCriticalHit = true;
+						dmg = damage * cBox.multi;
+					}
+					else
+						dmg = damage;
+					
+					if (dmg > bestDamage)
+					{
+						bestBox = cBox;
+						bestDamage = dmg;
+					}
+				}
+			}
+			
+			if (!bestBox)
+			{
+				for (int i = 0; i < rpgm.collisionBoxes.Size(); ++i)
+				{
+					let box = rpgm.collisionBoxes[i];
+					if (!box || box.bDead || box.bCriticalZone)
+						continue;
+					
+					bool hit;
+					if (box.bOriented || bOriented)
+						hit = CheckOBB(box, forward, right, up, bOriented ? length : radius);
+					else
+						hit = CheckCollision(box);
+					
+					if (hit)
+					{
+						int dmg = damage * box.multi;
+						if (dmg > bestDamage)
+						{
+							bestBox = box;
+							bestDamage = dmg;
+						}
+					}
+				}
+			}
+			
+			if (bestBox)
+			{
+				if (bestBox.bCriticalZone && bNoCrit)
+					damageMultiplier = 1;
+				else
+					damageMultiplier = bestBox.multi;
+			}
+			else
+				doDamage = false;
+		}
+		
+		if (doDamage)
+		{
+			if (!rpgm)
+				damageMultiplier = 1;
+			
+			int flags = bCriticalHit ? DMG_CRIT : 0;
+			victim.DamageMobj(self, target, round(damage*damageMultiplier), damageType, flags);
+			if (victim.bIceCorpse)
+			{
+				if (bShatterer)
+					victim.DamageMobj(self, target, 1, 'None');
+				else if (!bFreezer)
+				{
+					victim.SetState(victim.FindState("Death"));
+					victim.A_StopSound(CHAN_BODY);
+					victim.bSolid = victim.bShootable = victim.bNoBlood = victim.bIceCorpse = victim.bPushable = victim.bTelestomp = victim.bCanPass = victim.bSlidesOnWalls = victim.bCrashed = false;
+				}
+			}
+			
+			alreadyHit.Push(victim);
+			
+			if (bPenetrating)
+			{
+				if (maxPenetration > 0 && currentPenetration-- <= 0)
+					return -1;
+					
+				return 1;
+			}
+			
+			return -1;
+		}
+		
+		return 1;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (bOriented && prevVel != vel)
+		{
+			forward = vel.Unit();
+			
+			double ang = VectorAngle(forward.x, forward.y);
+			double pch = -VectorAngle(forward.xy.Length(), forward.z);
+			
+			double angCos, angSin, pchCos, pchSin, rolCos, rolSin;
+			angCos = cos(ang);
+			angSin = sin(ang);
+			pchCos = cos(pch);
+			pchSin = sin(pch);
+			rolCos = cos(roll);
+			rolSin = sin(roll);
+			
+			right = (-1*rolSin*pchSin*angCos + -1*rolCos*-angSin, -1*rolSin*pchSin*angSin + -1*rolCos*angCos, -1*rolSin*pchCos);
+			up = (rolCos*pchSin*angCos + -rolSin*-angsin, rolCos*pchSin*angSin + -rolSin*angCos, rolCos*pchCos);
+			
+			prevVel = vel;
+		}
+		else if (!bOriented)
+		{
+			forward = (1,0,0);
+			right = (0,1,0);
+			up = (0,0,1);
+		}
+		
+		if (!globalfreeze && !level.frozen)
+		{
+			double len = radius;
+			if (bOriented)
+				len = length;
+			
+			Spawn("Marker", pos + forward*len + right*radius);
+			Spawn("Marker", pos + forward*len - right*radius);
+			Spawn("Marker", pos - forward*len + right*radius);
+			Spawn("Marker", pos - forward*len - right*radius);
+			Spawn("Marker", pos + forward*len + right*radius + up*height);
+			Spawn("Marker", pos + forward*len - right*radius + up*height);
+			Spawn("Marker", pos - forward*len + right*radius + up*height);
+			Spawn("Marker", pos - forward*len - right*radius + up*height);
+			
+			if (!bNoBlockWarn && !(GetAge() % 17) && InStateSequence(CurState, SpawnState))
+			{
+				let warn = WarningTracer(new("WarningTracer"));
+				if (warn)
+				{
+					warn.master = self;
+					warn.owner = target;
+					warn.Trace(pos+up*height/2, level.PointInSector(pos.xy), vel.Unit(), warnDistance, 0);
+					if (warn.results.hitActor is 'RPGMonster')
+					{
+						let rpgm = RPGMonster(warn.results.hitActor);
+						rpgm.Block(self);
+					}
+				}
+			}
+		}
+	}
+	
+	override int DoSpecialDamage(Actor victim, int damage, name damagetype)
+	{
+		if (alreadyHit.Find(victim) != alreadyHit.Size())
+			return -1;
+		
+		if (ailmentPower > 0 && ailmentType)
+		{
+			let ail = Ailment(victim.FindInventory(ailmentType));
+			if (ail)
+				ail.AddAilment(target, ailmentPower, ailmentDamage);
+		}
+		
+		return damage;
+	}
+	
+	// We can do faster checking if mo is axis aligned
+	bool CheckCollision(Actor mo)
+	{
+		if (!mo)
+			return false;
+		
+		double moLength = mo.radius;
+		if (mo is 'CollisionBox')
+			moLength = CollisionBox(mo).length;
+		
+		Vector3 min = (pos.x - radius, pos.y - radius, pos.z);
+		Vector3 max = (pos.x + radius, pos.y + radius, pos.z + height);
+		
+		Vector3 moMin = (mo.pos.x - moLength, mo.pos.y - mo.radius, mo.pos.z);
+		Vector3 moMax = (mo.pos.x + moLength, mo.pos.y + mo.radius, mo.pos.z + mo.height);
+		
+		return (min.x <= moMax.x && max.x >= moMin.x) &&
+				(min.y <= moMax.y && max.y >= moMin.y) &&
+				(min.z <= moMax.z && max.z >= moMin.z);
+	}
+	
+	// Things get a bit more complicated if the mo can orient itself
+	bool CheckOBB(Actor mo, Vector3 forward, Vector3 right, Vector3 up, double length)
+	{
+		if (!mo)
+			return false;
+		
+		double depth = height / 2;
+		double moDepth = mo.height / 2;
+		double moLength = mo.radius;
+		
+		Vector3 center = pos + (up*depth);
+		Vector3 moCenter = mo.pos + (0,0,moDepth);
+		
+		Vector3 moForward = (1,0,0);
+		Vector3 moRight = (0,1,0);
+		Vector3 moUp = (0,0,1);
+		
+		if (mo is 'CollisionBox')
+		{
+			let box = CollisionBox(mo);
+			moLength = box.length;
+			moForward = box.forward;
+			moRight = box.right;
+		}
+		else if (mo is 'BlockBox')
+		{
+			let box = BlockBox(mo);
+			moLength = box.length;
+			moForward = box.forward;
+			moRight = box.right;
+			moUp = box.up;
+		}
+		
+		Vector3 t = moCenter - center;
+		
+		if (ProjectEdge(t, forward, length, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, right, radius, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, up, depth, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, moForward, moLength, length, radius, depth, forward, right, up) ||
+			ProjectEdge(t, moRight, mo.radius, length, radius, depth, forward, right, up) ||
+			ProjectEdge(t, moUp, moDepth, length, radius, depth, forward, right, up))
+		{
+			return false;
+		}
+		
+		if (ProjectPlane(t, forward, radius, depth, moForward, mo.radius, moDepth, up, right, moUp, moRight) ||
+			ProjectPlane(t, forward, radius, depth, moRight, moLength, moDepth, up, right, moUp, moForward) ||
+			ProjectPlane(t, forward, radius, depth, moUp, moLength, mo.radius, up, right, moRight, moForward) ||
+			ProjectPlane(t, right, length, depth, moForward, mo.radius, moDepth, up, forward, moUp, moRight) ||
+			ProjectPlane(t, right, length, depth, moRight, moLength, moDepth, up, forward, moUp, moForward) ||
+			ProjectPlane(t, right, length, depth, moUp, moLength, mo.radius, up, forward, moRight, moForward) ||
+			ProjectPlane(t, up, length, radius, moForward, mo.radius, moDepth, right, forward, moUp, moRight) ||
+			ProjectPlane(t, up, length, radius, moRight, moLength, moDepth, right, forward, moUp, moForward) ||
+			ProjectPlane(t, up, length, radius, moUp, moLength, mo.radius, right, forward, moRight, moForward))
+		{
+			return false;
+		}
+		
+		return true;
+	}
+	
+	bool ProjectEdge(Vector3 t, Vector3 axis, double aR, double bL, double bR, double bD, Vector3 forward, Vector3 right, Vector3 up)
+	{
+		return abs(t dot axis) > (aR + abs(axis dot (bL*forward)) + abs(axis dot (bR*right)) + abs(axis dot (bD*up)));
+	}
+	
+	bool ProjectPlane(Vector3 t, Vector3 a1, double aR, double aD, Vector3 b1, double bR, double bD, Vector3 a2, Vector3 a3, Vector3 b2, Vector3 b3)
+	{
+		return abs(((t dot a2)*(a3 dot b1)) - ((t dot a3)*(a2 dot b1))) > (abs((aR*a2) dot b1) + abs((aD*a3) dot b1) + abs(a1 dot (bR*b2)) + abs(a1 dot (bD*b3)));
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		currentPenetration = maxPenetration;
+	}
+}
+
+class AreaOfEffect : Actor
+{
+	double ailmentPower;
+	class<Ailment> ailmentType;
+	int ailmentDamage;
+	class<CoolDownToken> coolDownToken;
+	
+	property AilmentPower : ailmentPower;
+	property AilmentType : ailmentType;
+	property AilmentDamage : ailmentDamage;
+	property CoolDownToken : coolDownToken;
+	
+	deprecated("3.7") private int areaOfEffectFlags;
+	flagdef Blocker: areaOfEffectFlags, 0;
+	flagdef Shatterer: areaOfEffectFlags, 1;
+	flagdef Grounded: areaOfEffectFlags, 2;
+	flagdef Spherical: areaOfEffectFlags, 3;
+	flagdef DamageOwner: areaOfEffectFlags, 4;
+	
+	Default
+	{
+		+NODAMAGETHRUST
+		+NOBLOCKMAP
+		+DROPOFF
+	}
+	
+	virtual void Effect() {}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (threshold > 0)
+		{
+			if (--threshold <= 0)
+			{
+				State death = FindState("Death");
+				if (death)
+					SetState(death);
+				else
+					Destroy();
+			}
+			else
+			{
+				Effect();
+				BlockThingsIterator it = BlockThingsIterator.Create(self);
+				Actor mo;
+				while (it.Next())
+				{
+					mo = it.thing;
+					if (!mo || (!bDamageOwner && mo == target) || !mo.bShootable || !(mo.bIsMonster || mo.player) || (!mo.bIceCorpse && mo.health <= 0))
+						continue;
+					
+					bool distanceCheck;
+					if (bSpherical)
+						distanceCheck = Distance3DSquared(mo) <= (radius+mo.radius)**2;
+					else
+					{
+						distanceCheck = Distance2DSquared(mo) <= (radius+mo.radius)**2;
+						if (distanceCheck)
+						{
+							if (bGrounded)
+								distanceCheck = mo.pos.z <= mo.floorz + height && abs(mo.floorz - pos.z) <= MaxStepHeight;
+							else
+								distanceCheck = mo.pos.z <= pos.z+height && mo.pos.z+mo.height >= pos.z;
+						}
+					}
+					
+					if (distanceCheck && CheckSight(mo))
+					{
+						if (mo.bIceCorpse)
+						{
+							if (bShatterer)
+								mo.DamageMobj(self, target, 1, 'None');
+						}
+						else if (!mo.FindInventory(coolDownToken))
+						{
+							mo.DamageMobj(self, target, damage, damageType, bBlocker ? 0 : DMG_NOBLOCK);
+							mo.GiveInventoryType(coolDownToken);
+							let ail = Ailment(mo.FindInventory(ailmentType));
+							if (ail)
+								ail.AddAilment(target, ailmentPower, ailmentDamage);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+class CoolDownToken : Inventory
+{
+	Default
+	{
+		+INVENTORY.UNDROPPABLE
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (threshold-- <= 0)
+			Destroy();
+	}
+}
+
+class FlechetteMissile : Actor
+{
+	Default
+	{
+		Speed 24;
+		Radius 3;
+		Height 6;
+		DamageType "Poison";
+		Projectile;
+		DeathSound "FlechetteExplode";
+		
+		-NOGRAVITY
+	}
+	
+	States
+	{
+		Spawn:
+			THRW A 4;
+			THRW BCDE 3;
+			THRW F 3;
+			Loop;
+
+		Death:
+			PSBG B 4 Bright A_Explode(20, 64, XF_HURTSOURCE, false, 64);
+			PSBG C 3;
+			PSBG C 1 A_PoisonBagInit;
+			Stop;
+	}
+
+	void A_PoisonBagInit()
+	{
+		Actor mo = Spawn("RPoisonCloud", pos+(0,0,32), ALLOW_REPLACE);
+		if (mo)
+			mo.target = target;
+	}
+}
+
+class RPoisonCloud : AreaOfEffect
+{
+	Default
+	{
+		AreaOfEffect.AilmentPower 15;
+		AreaOfEffect.AilmentType "Poison";
+		AreaOfEffect.AilmentDamage 3;
+		AreaOfEffect.CoolDownToken "PoisonCloudHit";
+		Radius 64;
+		Height 32;
+		Damage 3;
+		DamageType "Poison";
+		RenderStyle "Translucent";
+		Alpha 0.5;
+		Threshold 350;
+		DeathSound "PoisonShroomDeath";
+		
+		+AREAOFEFFECT.DAMAGEOWNER;
+	}
+
+	States
+	{
+		Spawn:
+			PSBG D 1;
+			PSBG D 1 A_Scream;
+			PSBG DEEEFFFGGGHHHIII 2;
+			Goto Spawn + 3;
+			
+		Death:
+			PSBG HG 7;
+			PSBG FD 6;
+			Stop;
+	}
+}
+
+class PoisonCloudHit : CoolDownToken
+{
+	Default
+	{
+		Threshold 3;
+	}
+}
+
+class BanishmentMissile : FastProjectile
+{
+	Default
+	{
+		Speed 64;
+		Radius 4;
+		Height 2;
+		Threshold 16;
+		Projectile;
+		
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+		+BLOODLESSIMPACT
+	}
+	
+	States
+	{
+		Spawn:
+			TNT1 A 4;
+			Stop;
+			
+		Death:
+			TNT1 A 0;
+			Stop;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (globalfreeze || level.frozen)
+			return;
+		
+		if (radius < threshold)
+			A_SetSize(radius+3, height);
+	}
+	
+	override int SpecialMissileHit(Actor victim)
+	{
+		if (victim == target || (target && target.IsFriend(victim)))
+			return 1;
+		
+		if (!victim.bShootable || victim.health <= 0 || !(victim.bIsMonster || victim.player) || victim.bBoss)
+			return 1;
+		
+		if (master)
+		{
+			victim.Teleport(master.pos, victim.angle, TELF_SOURCEFOG | TELF_DESTFOG);
+			victim.DamageMObj(null, null, TELEFRAG_DAMAGE, "Telefrag");
+		}
+		
+		return 1;
+	}
+}
+
+class TelOtherRFX1 : Actor
+{
+	Default
+	{
+		Projectile;
+		Radius 4;
+		Height 8;
+		Speed 24;
+		
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+		+BLOODLESSIMPACT
+	}
+
+
+	States
+	{
+		Spawn:
+			TRNG E 5 Bright;
+			TRNG D 4 Bright;
+			TRNG C 3 Bright;
+			TRNG B 3 Bright;
+			TRNG A 3 Bright;
+			TRNG B 3 Bright;
+			TRNG C 3 Bright;
+			TRNG D 3 Bright;
+			Goto Spawn+2;
+			
+		Death:
+			TRNG E 3 Bright;
+			Stop;
+	}
+		
+	override int SpecialMissileHit(Actor victim)
+	{
+		if (victim == target || (target && target.IsFriend(victim)))
+			return 1;
+		
+		if ((victim.bShootable && victim.health <= 0) || !(victim.bIsMonster || victim.player))
+			return 1;
+		
+		if (victim.bBoss)
+			return -1;
+		
+		let frag = Spawn("TelefragDestination", pos);
+		if (frag)
+		{
+			frag.master = victim;
+			
+			for (int i = 0; i < 24; ++i)
+			{
+				let missile = Spawn("BanishmentMissile", pos, ALLOW_REPLACE);
+				if (missile)
+				{
+					missile.master = frag;
+					missile.target = target;
+					missile.angle = i*15;
+					missile.VelFromAngle();
+				}
+			}
+		}
+		
+		return -1;
+	}
+}
+
+class TelefragDestination : Actor
+{
+	Default
+	{
+		+NOINTERACTION
+	}
+	
+	States
+	{
+		Spawn:
+			TNT1 A 8;
+			Stop;
+	}
+	
+	override void Tick()
+	{
+		if (master)
+			SetXYZ(master.pos);
+	}
+}

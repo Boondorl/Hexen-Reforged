@@ -1,0 +1,257 @@
+class FistShield : BlockBox
+{
+	Default
+	{
+		Radius 10;
+		Height 8;
+		BlockBox.Length 6;
+		BlockBox.BlockSound "FighterHammerHitWall";
+		BlockBox.BlockReduction 0.2;
+		BlockBox.ParryReduction 0.4;
+		BlockBox.ParryWindow 4;
+		BlockBox.ForwardOffset 24;
+		BlockBox.UpOffset 42;
+	}
+}
+
+class ReforgedFist : RPGMelee replaces FWeapFist
+{
+	Default
+	{
+		RPGMelee.ShieldType "FistShield";
+		Weapon.SelectionOrder 3400;
+		Obituary "$OB_MPFWEAPFIST";
+		Tag "$TAG_FWEAPFIST";
+		
+		+WEAPON.MELEEWEAPON
+		+BLOODSPLATTER
+	}
+
+	States
+	{
+		Select:
+			FPCH A 1 A_Raise;
+			Loop;
+			
+		Deselect:
+			FPCH A 1 A_Lower;
+			Loop;
+			
+		Ready:
+			FPCH A 1 A_WeaponReady(WRF_ALLOWUSER1);
+			Loop;
+			
+		Reload:
+			FPCH B 1 Offset (5, 40);
+			FPCH C 1 Offset (5, 40) A_MeleeBlock;
+			FPCH D 1 Offset (5, 40);
+			TNT1 A 0 A_MeleeCheckBlock(2);
+			FPCH D 1 Offset (5, 40);
+			FPCH C 1 Offset (5, 40) A_MeleeUnblock;
+			FPCH B 1 Offset (5, 40) A_WeaponReady(WRF_NOBOB | WRF_ALLOWUSER1);
+			Goto Ready;
+			
+		User1:
+			TNT1 A 0 A_PlaySound("FighterPunchMiss", CHAN_WEAPON);
+			FPCH B 3 Offset (5, 40);
+			FPCH C 2 Offset (5, 40) A_Melee("FistBox", 20, 10, 3, 64, -10, -10, minForw: -32);
+			FPCH D 2 Offset (5, 40);
+			FPCH C 2 Offset (5, 40) A_WeaponReady(WRF_NOBOB);
+			FPCH B 3 Offset (5, 40) A_WeaponReady(WRF_NOBOB);
+			Goto Ready;
+			
+		Fire:
+			TNT1 A 0 A_PlaySound("FighterPunchMiss", CHAN_WEAPON);
+			TNT1 A 0 A_CheckSwing;
+			FPCH B 4 Offset (5, 40);
+			FPCH C 3 Offset (5, 40)
+			{
+				class<HurtBox> type = "FistBox";
+				double minAng = -10;
+				double maxAng = -20;
+				
+				if (player.refire % 2)
+				{
+					type = "FistBox2";
+					minAng *= -1;
+					maxAng *= -1;
+				}
+				
+				A_Melee(type, 23, 9, 4, 64, minAng, maxAng, minForw: -32);
+			}
+			FPCH D 3 Offset (5, 40);
+			FPCH C 3 Offset (5, 40);
+			FPCH B 4 Offset (5, 40) A_ReFire;
+			Goto Ready;
+			
+		FireLeft:
+			FPCH B 4 Offset (5, 40);
+			FPCH C 3 Offset (5, 40) A_Melee("FistBox", 23, 9, 4, 64, 30, -30, minForw: -32);
+			FPCH D 3 Offset (5, 40);
+			FPCH C 3 Offset (5, 40);
+			FPCH B 4 Offset (5, 40) A_ReFire;
+			Goto Ready;
+			
+		FireRight:
+			FPCH B 4 Offset (5, 40);
+			FPCH C 3 Offset (5, 40) A_Melee("FistBox2", 23, 9, 4, 64, -30, 30, minForw: -32);
+			FPCH D 3 Offset (5, 40);
+			FPCH C 3 Offset (5, 40);
+			FPCH B 4 Offset (5, 40) A_ReFire;
+			Goto Ready;
+			
+		FireUp:
+			FPCH B 4 Offset (5, 40);
+			FPCH C 3 Offset (5, 40) A_Melee("FistBox", 23, 9, 4, 64, 10, -20, 20, -10, minForw: -32);
+			FPCH D 3 Offset (5, 40);
+			FPCH C 3 Offset (5, 40);
+			FPCH B 4 Offset (5, 40) A_ReFire;
+			Goto Ready;
+			
+		FireDown:
+			FPCH B 4 Offset (5, 40);
+			FPCH C 3 Offset (5, 40) A_Melee("FistBox2", 23, 9, 4, 64, -10, 20, -10, 20, minForw: -32);
+			FPCH D 3 Offset (5, 40);
+			FPCH C 3 Offset (5, 40);
+			FPCH B 4 Offset (5, 40) A_ReFire;
+			Goto Ready;
+			
+		AltFire:
+			TNT1 A 0 A_PlaySound("FighterPunchMiss", CHAN_WEAPON);
+			TNT1 A 0 A_CheckSwing(true);
+			TNT1 A 0
+			{
+				class<HurtBox> type = "HeavyFistBox";
+				double minAng = -10;
+				double maxAng = -30;
+				
+				if (player.refire % 2)
+				{
+					type = "HeavyFistBox2";
+					minAng *= -1;
+					maxAng *= -1;
+				}
+				
+				A_Melee(type, 35, 15, 6, 64, minAng, maxAng, minForw: -32);
+			}
+			FPCH DE 5 Offset (5, 40);
+			FPCH E 1 Offset (15, 50);
+			FPCH E 1 Offset (25, 60);
+			FPCH E 1 Offset (35, 70);
+			FPCH E 1 Offset (45, 80);
+			FPCH E 1 Offset (55, 90);
+			FPCH E 1 Offset (65, 100);
+			FPCH E 10 Offset (0, 150);
+			TNT1 A 0 A_ReFire;
+			Goto Ready;
+			
+		AltFireLeft:
+			TNT1 A 0 A_Melee("HeavyFistBox", 30, 15, 6, 64, 45, -50, minForw: -32);
+			FPCH DE 5 Offset (5, 40);
+			FPCH E 1 Offset (15, 50);
+			FPCH E 1 Offset (25, 60);
+			FPCH E 1 Offset (35, 70);
+			FPCH E 1 Offset (45, 80);
+			FPCH E 1 Offset (55, 90);
+			FPCH E 1 Offset (65, 100);
+			FPCH E 10 Offset (0, 150);
+			TNT1 A 0 A_ReFire;
+			Goto Ready;
+			
+		AltFireRight:
+			TNT1 A 0 A_Melee("HeavyFistBox2", 30, 15, 6, 64, -45, 50, minForw: -32);
+			FPCH DE 5 Offset (5, 40);
+			FPCH E 1 Offset (15, 50);
+			FPCH E 1 Offset (25, 60);
+			FPCH E 1 Offset (35, 70);
+			FPCH E 1 Offset (45, 80);
+			FPCH E 1 Offset (55, 90);
+			FPCH E 1 Offset (65, 100);
+			FPCH E 10 Offset (0, 150);
+			TNT1 A 0 A_ReFire;
+			Goto Ready;
+			
+		AltFireUp:
+			TNT1 A 0 A_Melee("HeavyFistBox", 30, 15, 6, 64, 20, -30, 20, -20, minForw: -32);
+			FPCH DE 5 Offset (5, 40);
+			FPCH E 1 Offset (15, 50);
+			FPCH E 1 Offset (25, 60);
+			FPCH E 1 Offset (35, 70);
+			FPCH E 1 Offset (45, 80);
+			FPCH E 1 Offset (55, 90);
+			FPCH E 1 Offset (65, 100);
+			FPCH E 10 Offset (0, 150);
+			TNT1 A 0 A_ReFire;
+			Goto Ready;
+			
+		AltFireDown:
+			TNT1 A 0 A_Melee("HeavyFistBox3", 30, 15, 6, 64, -10, 30, -20, 20, minForw: -32);
+			FPCH DE 5 Offset (5, 40);
+			FPCH E 1 Offset (15, 50);
+			FPCH E 1 Offset (25, 60);
+			FPCH E 1 Offset (35, 70);
+			FPCH E 1 Offset (45, 80);
+			FPCH E 1 Offset (55, 90);
+			FPCH E 1 Offset (65, 100);
+			FPCH E 10 Offset (0, 150);
+			TNT1 A 0 A_ReFire;
+			Goto Ready;
+	}
+}
+
+class FistBox : HurtBox
+{
+	Default
+	{
+		Radius 3;
+		Height 6;
+		AttackSound "FighterPunchHitThing";
+		ActiveSound "FighterPunchHitWall";
+		DamageType "Blunt";
+		HurtBox.AilmentPower 35;
+		HurtBox.AilmentType "Stumble";
+		HurtBox.BonusDamageType "Pierce";
+		HurtBox.BonusAilmentPower 50;
+		HurtBox.BonusAilmentType "Flinch";
+		HurtBox.SideOffset 8;
+		HurtBox.UpOffset 4;
+		
+		+HURTBOX.NOREVERSE
+		+HURTBOX.DIEONHIT
+	}
+}
+
+class FistBox2 : FistBox
+{
+	Default
+	{
+		Hurtbox.SideOffset -8;
+	}
+}
+
+class HeavyFistBox : FistBox
+{
+	Default
+	{
+		-HURTBOX.DIEONHIT
+	}
+}
+
+class HeavyFistBox2 : HeavyFistBox
+{
+	Default
+	{
+		Hurtbox.SideOffset -8;
+	}
+}
+
+class HeavyFistBox3 : HeavyFistBox2
+{
+	override int DoSpecialDamage(Actor victim, int damage, name damagetype)
+	{
+		if (victim.bIsMonster || victim.player)
+			victim.vel.z += 4;
+		
+		return damage;
+	}
+}

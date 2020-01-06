@@ -1,0 +1,40 @@
+class XPHandler : EventHandler
+{
+	override void WorldThingDied(WorldEvent e)
+	{
+		if (e.thing is 'RPGMonster')
+		{
+			for (int i = 0; i < players.Size(); ++i)
+			{
+				if (!playerInGame[i])
+					continue;
+				
+				let rpg = RPGPlayer(players[i].mo);
+				if (rpg)
+				{
+					if (rpg.currentLevel >= rpg.maxLevel)
+						rpg.currentXP += min(RPGMonster(e.thing).XP, rpg.nextLevelXP - rpg.currentXP);
+					else
+						rpg.currentXP += RPGMonster(e.thing).XP;
+				}
+			}
+		}
+		else if (e.thing.bIsMonster && e.inflictor && !e.thing.IsFriend(e.inflictor))
+		{
+			for (int i = 0; i < players.Size(); ++i)
+			{
+				if (!playerInGame[i])
+					continue;
+				
+				let rpg = RPGPlayer(players[i].mo);
+				if (rpg)
+				{
+					if (rpg.currentLevel >= rpg.maxLevel)
+						rpg.currentXP += min(e.thing.default.health/4, rpg.nextLevelXP - rpg.currentXP);
+					else
+						rpg.currentXP += e.thing.default.health/4;
+				}
+			}
+		}
+	}
+}

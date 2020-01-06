@@ -1,0 +1,179 @@
+class ColdSnap : HurtBox
+{
+	Default
+	{
+		Radius 8;
+		Height 4;
+		DamageType "Ice";
+		HurtBox.AilmentPower 100;
+		HurtBox.AilmentType "Chill";
+		HurtBox.ForwardOffset 16;
+		
+		+HURTBOX.NOCRIT
+		+HURTBOX.FREEZER
+	}
+}
+
+class ReforgedFrost : RPGWeapon replaces MWeapFrost
+{
+	Default
+	{
+		Weapon.SelectionOrder 1700;
+		Weapon.KickBack 150;
+		Weapon.YAdjust 20;
+		Weapon.AmmoType1 "BlueMana";
+		Inventory.PickupMessage "$TXT_WEAPON_M2";
+		Obituary "$OB_MPMWEAPFROST";
+		Tag "$TAG_MWEAPFROST";
+		
+		+BLOODSPLATTER
+	}
+
+	States
+	{
+		Spawn:
+			WMCS ABC 8 Bright;
+			Loop;
+			
+		Select:
+			CONE A 1 A_Raise;
+			Loop;
+			
+		Deselect:
+			CONE A 1 A_Lower;
+			Loop;
+			
+		Ready:
+			CONE A 1 A_WeaponReady(WRF_ALLOWUSER1);
+			Loop;
+			
+		User1:
+			CONE B 3;
+			CONE C 4;
+			CONE D 3;
+			CONE E 5;
+			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
+			CONE F 3 A_Melee("ColdSnap", 100, 0, 1, 32);
+			CONE G 3;
+			CONE A 9;
+			Goto Ready;
+			
+		Fire:
+			CONE B 3;
+			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
+			CONE C 1 A_FireShards(-24, 5);
+			CONE C 1 A_FireShards(-21, 4.375);
+			CONE C 1 A_FireShards(-18, 3.75);
+			CONE D 1 A_FireShards(-15, 3.125);
+			CONE D 1 A_FireShards(-12, 2.5);
+			CONE D 1 A_FireShards(-9, 1.875);
+			CONE E 1 A_FireShards(-6, 1.25);
+			CONE E 1 A_FireShards(-3, .625);
+			CONE E 1 A_FireShards;
+			CONE F 1 A_FireShards(3, -.625);
+			CONE F 1 A_FireShards(6, -1.25);
+			CONE F 1 A_FireShards(9, -1.875);
+			CONE G 1 A_FireShards(12, -2.5);
+			CONE G 1 A_FireShards(15, -3.125);
+			CONE G 1 A_FireShards(18, -3.75);
+			CONE A 1 A_FireShards(2, -4.375);
+			CONE A 1 A_FireShards(24, -5);
+			CONE A 7;
+			CONE A 5 A_ReFire;
+			Goto Ready;
+			
+		AltFire:
+			CONE B 3;
+			CONE C 4;
+			CONE D 3;
+			CONE E 5;
+			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
+			CONE F 3 A_FireProjectile("FrostPiercer");
+			CONE G 3;
+			CONE A 5;
+			CONE A 5 A_ReFire;
+			Goto Ready;
+	}
+
+	action void A_FireShards(double offset = 0, double angOfs = 0)
+	{
+		if (!player)
+			return;
+
+		Weapon weapon = player.ReadyWeapon;
+		if (weapon != null)
+		{
+			if (!weapon.DepleteAmmo (weapon.bAltFire))
+				return;
+		}
+
+		A_FireProjectile("FrostShard", angOfs, true, offset+frandom(-2, 2), frandom(-8, 8));
+	}
+}
+
+class FrostShard : RPGMissile
+{
+	Default
+	{
+		RPGMissile.AilmentPower 10;
+		RPGMissile.AilmentType "Chill";
+		Speed 48;
+		Radius 2;
+		Height 4;
+		YScale 0.5;
+		Damage 15;
+		DamageType "Ice";
+		DeathSound "MageShardsExplode";
+		Obituary "$OB_MPMWEAPFROST";
+		
+		+RPGMissile.NOBLOCKWARN
+	}
+
+	States
+	{
+		Spawn:
+			SHRD A 2 Bright;
+			SHRD A 3 Bright;
+			SHRD B 3 Bright;
+			SHRD C 3 Bright;
+			Loop;
+			
+		Death:
+			SHEX ABCDE 5 Bright;
+			Stop;
+	}
+}
+
+class FrostPiercer : RPGMissile
+{
+	Default
+	{
+		RPGMissile.AilmentPower 50;
+		RPGMissile.AilmentType "Chill";
+		RPGMissile.MaxPenetration 2;
+		Speed 128;
+		Radius 2;
+		Height 4;
+		Damage 80;
+		DamageType "Ice";
+		DeathSound "MageShardsExplode";
+		Obituary "$OB_MPMWEAPFROST";
+		
+		+RPGMISSILE.PENETRATING
+		+RPGMISSILE.SHATTERER
+	}
+
+	States
+	{
+		Spawn:
+			SHRD A 2 Bright;
+			SHRD A 3 Bright;
+			SHRD B 3 Bright;
+			SHRD C 3 Bright;
+			Loop;
+			
+		Death:
+			SHEX ABCDE 5 Bright;
+			Stop;
+	}
+}

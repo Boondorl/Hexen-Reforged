@@ -1,0 +1,256 @@
+class StaffBox : HurtBox
+{
+	Default
+	{
+		Radius 6;
+		Height 6;
+		DamageType "Electric";
+		HurtBox.AilmentPower 100;
+		HurtBox.AilmentType "Shock";
+		
+		+HURTBOX.NOREVERSE
+		+HURTBOX.DIEONHIT
+	}
+}
+
+
+class ReforgedStaff : RPGWeapon replaces CWeapStaff
+{
+	Default
+	{
+		Weapon.SelectionOrder 1600;
+		Weapon.KickBack 150;
+		Weapon.YAdjust 10;
+		Weapon.AmmoType1 "BlueMana";
+		Inventory.PickupMessage "$TXT_WEAPON_C2";
+		Obituary "$OB_MPCWEAPSTAFFM";
+		Tag "$TAG_CWEAPSTAFF";
+	}
+
+	States
+	{
+		Spawn:
+			WCSS A -1;
+			Stop;
+			
+		Select:
+			CSSF CCCC 1 A_Raise;
+			CSSF BBB 1 A_Raise;
+			CSSF C 1 A_Raise;
+			Goto Select+7;
+			
+		Deselect:
+			CSSF BBB 1 A_Lower;
+			CSSF CCCC 1 A_Lower;
+			CSSF C 1 A_Lower;
+			Wait;
+			
+		Ready:
+			TNT1 A 0 A_CStaffInitBlink;
+			CSSF AAAAAAA 1 A_WeaponReady(WRF_ALLOWUSER1);
+			CSSF A 1 A_CStaffCheckBlink;
+			Goto Ready + 1;
+			
+		Blink:
+			CSSF BBBCCCCCBBB 1 A_WeaponReady(WRF_ALLOWUSER1);
+			Goto Ready + 1;
+			
+		User1:
+			CSSF K 18 Offset (0, 36) A_Melee("StaffBox", 10, 0, 9, 96, minForw: -64);
+			Goto Ready + 1;
+			
+		Fire:
+			CSSF J 1 Offset (0, 50) A_CStaffAttack;
+			CSSF J 2 Offset (0, 50);
+			CSSF J 2 Offset (0, 45);
+			CSSF A 2 Offset (0, 40);
+			CSSF A 3 Offset (0, 36);
+			TNT1 A 0 A_ReFire;
+			Goto Ready + 1;
+			
+		AltFire:
+			CSSF K 1 Offset (0, 36) A_FireProjectile("PoisonFX1");
+			TNT1 A 0 A_ReFire;
+			Goto Ready + 1;
+	}
+
+	action void A_CStaffAttack()
+	{
+		if (player == null)
+		{
+			return;
+		}
+
+		Weapon weapon = player.ReadyWeapon;
+		if (weapon != null)
+		{
+			if (weapon.ammo1.amount <= 0)
+				return;
+			
+			--weapon.ammo1.amount;
+		}
+		Actor mo, missile;
+		[mo, missile] = SpawnPlayerMissile ("RCStaffMissile");
+		if (missile)
+		{
+			RCStaffMissile(missile).direction = -1;
+		}
+		[mo, missile] = SpawnPlayerMissile ("RCStaffMissile");
+		A_PlaySound ("ClericCStaffFire", CHAN_WEAPON);
+	}
+
+	action void A_CStaffInitBlink()
+	{
+		weaponspecial = (random[CStaffBlink]() >> 1) + 20;
+	}
+
+	action void A_CStaffCheckBlink()
+	{
+		if (player && player.ReadyWeapon)
+		{
+			if (!--weaponspecial)
+			{
+				player.SetPsprite(PSP_WEAPON, player.ReadyWeapon.FindState ("Blink"));
+				weaponspecial = (random[CStaffBlink]() + 50) >> 2;
+			}
+			else 
+			{
+				A_WeaponReady(WRF_ALLOWUSER1);
+			}
+		}
+	}
+}
+
+class RCStaffMissile : RPGMissile
+{
+	int angTimer;
+	int direction;
+	
+	Default
+	{
+		RPGMissile.AilmentPower 25;
+		RPGMissile.AilmentType "Poison";
+		RPGMissile.AilmentDamage 10;
+		Speed 32;
+		Radius 4;
+		Height 8;
+		Damage 20;
+		DamageType "Poison";
+		RenderStyle "Add";
+		DeathSound "ClericCStaffExplode";
+		Obituary "$OB_MPCWEAPSTAFFR";
+		
+		+RPGMISSILE.PENETRATING
+		+RPGMISSILE.SHIELDBUSTER
+	}
+	
+	States
+	{
+		Spawn:
+			CSSF DDEE 1 Bright A_Snake;
+			Loop;
+			
+		Death:
+			CSSF FG 4 Bright;
+			CSSF HI 3 Bright;
+			Stop;
+	}
+	
+	void A_Snake()
+	{
+		if (angTimer >= 6)
+			direction = -1;
+		else if (!direction || angTimer <= -6)
+			direction = 1;
+		
+		Vector3 right = (AngleToVector(angle-90), 0);
+		
+		vel = (vel.Unit() + right*tan(direction)).Unit() * speed;
+		
+		angTimer += direction;
+		
+		Spawn("StaffTail", pos, ALLOW_REPLACE);
+	}
+}
+
+class StaffTail : Actor
+{
+	Default
+	{
+		Scale 0.5;
+		Radius 4;
+		Height 8;
+		RenderStyle "Add";
+	
+		+NOINTERACTION
+	}
+	
+	States
+	{
+		Spawn:
+			CSSF DDEE 1 Bright
+			{
+				alpha -= 0.1;
+				A_SetScale(scale.x - 0.05);
+			}
+			TNT1 A 0
+			{
+				if (alpha > 0.2)
+					SetState(SpawnState);
+			}
+			Stop;
+	}
+}
+
+class PoisonFX1 : RPGMissile
+{
+	Default
+	{
+		RPGMissile.AilmentPower 10;
+		RPGMissile.AilmentType "Poison";
+		RPGMissile.AilmentDamage 5;
+		Speed 16;
+		Radius 4;
+		Height 8;
+		Damage 5;
+		DamageType "Poison";
+		RenderStyle "Translucent";
+		Alpha 0.3;
+		SeeSound "DemonMissileFire";
+		DeathSound "DemonMissileExplode";
+		Scale 0.2;
+		Threshold 16;
+		
+		+RPGMISSILE.PENETRATING
+		+RPGMISSILE.NOCRIT
+		+RPGMISSILE.SHIELDBUSTER
+		+SPAWNSOUNDSOURCE
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+			D2FX ABCDEF 3 Bright;
+			Stop;
+			
+		Death:
+			D2FX GHIJ 4 Bright;
+			D2FX KL 3 Bright;
+			Stop;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (globalfreeze || level.frozen)
+			return;
+		
+		if (radius < threshold && !InStateSequence(CurState, FindState("Death")))
+		{
+			A_SetScale(scale.x + 0.2);
+			A_SetSize(radius+1, height+1);
+		}
+	}
+}
