@@ -21,7 +21,11 @@ class ReforgedStaff : RPGWeapon replaces CWeapStaff
 		Weapon.SelectionOrder 1600;
 		Weapon.KickBack 150;
 		Weapon.YAdjust 10;
+		RPGWeapon.BashCost 3;
+		Weapon.AmmoUse1 2;
+		Weapon.AmmoUse2 2;
 		Weapon.AmmoType1 "BlueMana";
+		Weapon.AmmoType2 "RedMana";
 		Inventory.PickupMessage "$TXT_WEAPON_C2";
 		Obituary "$OB_MPCWEAPSTAFFM";
 		Tag "$TAG_CWEAPSTAFF";
@@ -47,12 +51,12 @@ class ReforgedStaff : RPGWeapon replaces CWeapStaff
 			
 		Ready:
 			TNT1 A 0 A_CStaffInitBlink;
-			CSSF AAAAAAA 1 A_WeaponReady(WRF_ALLOWUSER1);
+			CSSF AAAAAAA 1 A_BashWeaponReady();
 			CSSF A 1 A_CStaffCheckBlink;
 			Goto Ready + 1;
 			
 		Blink:
-			CSSF BBBCCCCCBBB 1 A_WeaponReady(WRF_ALLOWUSER1);
+			CSSF BBBCCCCCBBB 1 A_BashWeaponReady();
 			Goto Ready + 1;
 			
 		User1:
@@ -69,7 +73,11 @@ class ReforgedStaff : RPGWeapon replaces CWeapStaff
 			Goto Ready + 1;
 			
 		AltFire:
-			CSSF K 1 Offset (0, 36) A_FireProjectile("PoisonFX1");
+			CSSF J 1 Offset (0, 50) A_CStaffAttack2;
+			CSSF J 2 Offset (0, 50);
+			CSSF J 2 Offset (0, 45);
+			CSSF A 2 Offset (0, 40);
+			CSSF A 6 Offset (0, 36);
 			TNT1 A 0 A_ReFire;
 			Goto Ready + 1;
 	}
@@ -81,14 +89,13 @@ class ReforgedStaff : RPGWeapon replaces CWeapStaff
 			return;
 		}
 
-		Weapon weapon = player.ReadyWeapon;
-		if (weapon != null)
+		Weapon weap = player.ReadyWeapon;
+		if (weap)
 		{
-			if (weapon.ammo1.amount <= 0)
+			if (!weap.DepleteAmmo(weap.bAltFire, true, 1))
 				return;
-			
-			--weapon.ammo1.amount;
 		}
+		
 		Actor mo, missile;
 		[mo, missile] = SpawnPlayerMissile ("RCStaffMissile");
 		if (missile)
@@ -96,6 +103,27 @@ class ReforgedStaff : RPGWeapon replaces CWeapStaff
 			RCStaffMissile(missile).direction = -1;
 		}
 		[mo, missile] = SpawnPlayerMissile ("RCStaffMissile");
+		A_PlaySound ("ClericCStaffFire", CHAN_WEAPON);
+	}
+	
+	action void A_CStaffAttack2()
+	{
+		if (!player)
+			return;
+
+		Weapon weap = player.ReadyWeapon;
+		if (weap)
+		{
+			if (!weap.DepleteAmmo(weap.bAltFire, true, 1))
+				return;
+		}
+		
+		double ang = -7;
+		for (uint i = 0; i < 7; ++i)
+		{
+			A_FireProjectile("RCStaffDart", ang, false);
+			ang += 2;
+		}
 		A_PlaySound ("ClericCStaffFire", CHAN_WEAPON);
 	}
 
@@ -170,6 +198,50 @@ class RCStaffMissile : RPGMissile
 		angTimer += direction;
 		
 		Spawn("StaffTail", pos, ALLOW_REPLACE);
+	}
+}
+
+class RCStaffDart : RPGMissile
+{
+	Default
+	{
+		RPGMissile.Length 4;
+		RPGMissile.AilmentPower 50;
+		RPGMissile.AilmentType "Poison";
+		RPGMissile.AilmentDamage 10;
+		Speed 128;
+		Radius 2;
+		Height 2;
+		Damage 10;
+		Scale 0.5;
+		DamageType "Poison";
+		RenderStyle "Add";
+		DeathSound "ClericCStaffExplode";
+		Obituary "$OB_MPCWEAPSTAFFR";
+		BounceFactor 1;
+		WallBounceFactor 1;
+		BounceCount 3;
+		
+		+RPGMISSILE.ORIENTED
+		+BOUNCEONWALLS
+		+BOUNCEONFLOORS
+		+BOUNCEONCEILINGS
+		+ALLOWBOUNCEONACTORS
+		+BOUNCEONACTORS
+		+DONTBOUNCEONSHOOTABLES
+		+DONTBOUNCEONSKY
+	}
+	
+	States
+	{
+		Spawn:
+			CSSF DDEE 1 Bright;
+			Loop;
+			
+		Death:
+			CSSF FG 4 Bright;
+			CSSF HI 3 Bright;
+			Stop;
 	}
 }
 

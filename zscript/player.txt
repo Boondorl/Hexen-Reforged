@@ -27,8 +27,8 @@ class RPGPlayer : PlayerPawn abstract
 	
 	Default
 	{
-		Player.MaxHealth 50;
-		Health 50;
+		Player.MaxHealth 100;
+		Health 100;
 		Speed 0.85;
 		PainChance 256;
 		ReactionTime 0;
@@ -54,6 +54,10 @@ class RPGPlayer : PlayerPawn abstract
 			LevelUp();
 		
 		CheckSkill();
+		
+		// Someone probably cleared our inventory
+		if (!FirstInv() && currentCapacity > 0)
+			currentCapacity = 0;
 	}
 	
 	void UseSkill(uint index)
@@ -62,7 +66,7 @@ class RPGPlayer : PlayerPawn abstract
 			return;
 		
 		if (!activeSkills[index])
-			A_Log("No skill");
+			Console.Printf("No skill");
 		else
 		{
 			let skill = FindInventory(activeSkills[index]);
@@ -87,7 +91,7 @@ class RPGPlayer : PlayerPawn abstract
 			currentXP -= nextLevelXP;
 		
 		++currentLevel;
-		nextLevelXP += default.nextLevelXP;
+		nextLevelXP += default.nextLevelXP*0.75;
 		++points;
 			
 		switch (currentLevel)
@@ -209,7 +213,79 @@ class RPGPlayer : PlayerPawn abstract
 			points += amount;
 			return;
 		}
+		else if (name ~== "all" || name ~== "everything")
+		{
+			for (int i = currentLevel; i < maxLevel; ++i)
+			{
+				LevelUp();
+			}
+			
+			points = 0;
+			currentXP = nextLevelXP;
+			
+			for (let probe = inv; probe != null; probe = probe.inv)
+			{
+				let stat = Stat(probe);
+				if (stat)
+					stat.LevelUp(stat.maxLevel - stat.level);
+			}
+			
+			GiveBody(-100);
+			
+			let chest = FindInventory("ChestPiece");
+			if (chest)
+				chest.health = chest.default.health;
+			else
+				GiveInventory("ChestPiece", 1);
+			
+			let helm = FindInventory("HelmetPiece");
+			if (helm)
+				helm.health = helm.default.health;
+			else
+				GiveInventory("HelmetPiece", 1);
+			
+			let amu = FindInventory("AmuletPiece");
+			if (amu)
+				amu.health = amu.default.health;
+			else
+				GiveInventory("AmuletPiece", 1);
+			
+			let brace = FindInventory("BracerPiece");
+			if (brace)
+				brace.health = brace.default.health;
+			else
+				GiveInventory("BracerPiece", 1);
+			
+			let shield = FindInventory("ShieldPiece");
+			if (shield)
+				shield.health = shield.default.health;
+			else
+				GiveInventory("ShieldPiece", 1);
+		}
 		
 		super.CheatGive(name, amount);
+	}
+	
+	override void MovePlayer()
+	{
+		let wpn = RPGMelee(player.ReadyWeapon);
+		if (wpn && wpn.bCancelled)
+		{
+			if (abs(player.cmd.forwardmove) > gameinfo.normforwardmove[0]*256)
+				player.cmd.forwardmove = gameinfo.normforwardmove[0]*256*GetSign(player.cmd.forwardmove);
+					
+			if (abs(player.cmd.sidemove) > gameinfo.normsidemove[0]*256)
+				player.cmd.sidemove = gameinfo.normsidemove[0]*256*GetSign(player.cmd.sidemove);
+		}
+		
+		super.MovePlayer();
+	}
+	
+	private int GetSign(double num)
+	{
+		if (num >= 0)
+			return 1;
+		else
+			return -1;
 	}
 }

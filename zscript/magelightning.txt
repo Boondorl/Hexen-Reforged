@@ -37,7 +37,10 @@ class ReforgedLightning : RPGWeapon replaces MWeapLightning
 		Weapon.SelectionOrder 1100;
 		Weapon.KickBack 0;
 		Weapon.YAdjust 20;
+		Weapon.AmmoUse1 5;
+		Weapon.AmmoUse2 10;
 		Weapon.AmmoType1 "GreenMana";
+		Weapon.AmmoType2 "RedMana";
 		Inventory.PickupMessage "$TXT_WEAPON_M3";
 		Tag "$TAG_MWEAPLIGHTNING";
 		
@@ -112,12 +115,14 @@ class ReforgedLightning : RPGWeapon replaces MWeapLightning
 
 class LightningMissile : Actor
 {
+	Vector3 dir;
 	int duration;
 	bool bHitTarget;
 	bool bKill;
 	
 	Default
 	{
+		Radius 16;
 		Speed 32;
 		Damage 8;
 		DamageType "Electric";
@@ -128,46 +133,11 @@ class LightningMissile : Actor
 		+NOINTERACTION
 	}
 	
-	void CheckTracer(double ang = 3, double range = 0, double sightAngle = 0)
+	override void PostBeginPlay()
 	{
-		if (range <= 0)
-			range = 1024;
+		super.PostBeginPlay();
 		
-		if (sightAngle <= 0)
-			sightAngle = 60;
-		
-		// If we have nothing to seek than look for the next closest enemy
-		if (!tracer)
-		{
-			double rangeSq = range**2;
-			double closestDist = 3221243536.;
-			BlockThingsIterator it = BlockThingsIterator.Create(self, range);
-			Actor mo;
-			
-			while (it.Next())
-			{
-				mo = it.thing;
-				if (!mo || mo == target || !mo.bIsMonster || !mo.bShootable || mo.health <= 0 || mo.FindInventory("LightningHit"))
-					continue;
-				
-				double distSq = Distance3DSquared(mo);
-				if (distSq <= rangeSq && distSq < closestDist && AbsAngle(angle, AngleTo(mo)) <= sightAngle && CheckSight(mo))
-				{
-					tracer = mo;
-					closestDist = distSq;
-				}
-			}
-		}
-		else if (tracer.health <= 0 || AbsAngle(angle, AngleTo(tracer)) > sightAngle || tracer.FindInventory("LightningHit") || !CheckSight(tracer))
-			tracer = null;
-		else
-		{
-			double rel = DeltaAngle(angle, AngleTo(tracer));
-			if (rel < 0)
-				angle += min(ang, rel);
-			else if (rel > 0)
-				angle -= min(ang, -rel);
-		}
+		dir = (AngleToVector(angle), 0);
 	}
 	
 	void Move()
@@ -176,33 +146,32 @@ class LightningMissile : Actor
 		if (lt)
 		{
 			lt.maxDistance = speed;
-			Vector3 dir = (AngleToVector(angle), 0);
 			lt.Trace(pos, level.PointInSector(pos.xy), dir, speed, 0);
 			
 			Vector3 newPos = pos + dir*lt.results.distance;
 			newPos.z = GetZAt(newPos.x, newPos.y, flags: GZF_ABSOLUTEPOS);
 			SetXYZ(newPos);
 			
-			if (tracer)
-			{
-				BlockThingsIterator it = BlockThingsIterator.Create(self, tracer.radius);
-				Actor mo;
+			BlockThingsIterator it = BlockThingsIterator.Create(self);
+			Actor mo;
 				
-				while (it.Next())
+			while (it.Next())
+			{
+				mo = it.thing;
+				if (!mo || mo.health <= 0 || !(mo.bIsMonster || mo.player) || target.IsFriend(mo) ||
+					mo.FindInventory("LightningHit") || Distance2DSquared(mo) > (radius+mo.radius)**2)
 				{
-					mo = it.thing;
-					if (!mo || mo != tracer || Distance2D(mo) > tracer.radius)
-						continue;
-					
-					master = tracer;
-					master.GiveInventoryType("LightningHit");
-					let ail = Ailment(master.FindInventory("Shock"));
-					if (ail)
-						ail.AddAilment(target, 100);
-					duration = 175;
-					bHitTarget = true;
-					break;
+					continue;
 				}
+					
+				master = mo;
+				master.GiveInventoryType("LightningHit");
+				let ail = Ailment(master.FindInventory("Shock"));
+				if (ail)
+					ail.AddAilment(target, 100);
+				duration = 175;
+				bHitTarget = true;
+				break;
 			}
 			
 			if (!master && lt.results.distance < speed)
@@ -231,7 +200,6 @@ class LightningMissile : Actor
 		}
 		else if (!bHitTarget)
 		{
-			CheckTracer();
 			Move();
 			
 			if (bKill)
@@ -341,8 +309,8 @@ class RLightningCeiling : Actor
 			Vector3 move = (master.pos.x, master.pos.y, GetZAt(master.pos.x, master.pos.y, flags: GZF_ABSOLUTEPOS | GZF_CEILING) - height);
 			SetXYZ(move);
 		}
-		else
-			Destroy();
+		else if (!InStateSequence(CurState, FindState("Death")))
+			SetState(FindState("Death"));
 	}
 }
 
@@ -385,8 +353,8 @@ class RLightningFloor : Actor
 			Vector3 move = (master.pos.x, master.pos.y, GetZAt(master.pos.x, master.pos.y, flags: GZF_ABSOLUTEPOS));
 			SetXYZ(move);
 		}
-		else
-			Destroy();
+		else if (!InStateSequence(CurState, FindState("Death")))
+			SetState(FindState("Death"));
 	}
 }
 
@@ -422,8 +390,6 @@ class RLightningZap : FastProjectile
 		
 		if (master && !InStateSequence(CurState, FindState("Death")))
 			vel.xy = master.vel.xy;
-		else if (!master)
-			Destroy();
 	}
 	
 	override int SpecialMissileHit(Actor thing)

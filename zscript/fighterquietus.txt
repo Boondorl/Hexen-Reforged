@@ -31,20 +31,12 @@ class SwordBox : HurtBox
 		HurtBox.BonusAilmentType "Burn";
 		HurtBox.BonusAilmentDamage 15;
 		HurtBox.BonusType "RedMana";
-		HurtBox.BonusCost 1;
+		HurtBox.BonusCost 2;
 		HurtBox.ForwardOffset 16;
 		ActiveSound "FighterHammerHitWall";
 		AttackSound "FighterAxeHitThing";
 		
 		+HURTBOX.NOBONUSMULTI
-	}
-}
-
-class HeavySwordBox : SwordBox
-{
-	Default
-	{
-		HurtBox.BonusCost 2;
 	}
 }
 
@@ -54,16 +46,16 @@ class ReforgedQuietus : RPGMelee replaces FWeapQuietus
 	{
 		RPGMelee.ShieldType "SwordBlock";
 		Weapon.SelectionOrder 2900;
-		Weapon.AmmoGive1 20;
-		Weapon.AmmoGive2 20;
 		Weapon.KickBack 150;
 		Weapon.YAdjust 10;
+		Weapon.AmmoUse2 5;
 		Weapon.AmmoType1 "RedMana";
 		Inventory.PickupMessage "$TXT_WEAPON_F4";
 		Inventory.PickupSound "WeaponBuild";
 		Tag "$TAG_FWEAPQUIETUS";
 		
 		+INVENTORY.NOATTENPICKUPSOUND
+		+WEAPON.ALT_AMMO_OPTIONAL
 	}
 
 	States
@@ -110,7 +102,7 @@ class ReforgedQuietus : RPGMelee replaces FWeapQuietus
 			
 		AltFire:
 			FSRD DE 3 Bright Offset (5, 36);
-			FSRD F 2 Bright Offset (5, 36) A_Melee("HeavySwordBox", 300, 150, 5, 112, 90, -90, minForw: -32);
+			FSRD F 2 Bright Offset (5, 36) A_Melee("SwordBox", 250, 75, 5, 112, 90, -90, minForw: -32);
 			FSRD G 3 Bright Offset (5, 36) A_FSwordAttack;
 			FSRD H 2 Bright Offset (5, 36);
 			FSRD I 2 Bright Offset (5, 36);
@@ -130,7 +122,7 @@ class ReforgedQuietus : RPGMelee replaces FWeapQuietus
 			return;
 
 		Weapon weapon = player.ReadyWeapon;
-		if (!weapon || weapon != invoker || weapon.ammo1.amount <= 0)
+		if (!weapon || weapon != invoker || !weapon.DepleteAmmo(weapon.bAltfire, true))
 			return;
 		
 		let qt = QuietusThinker(Spawn("QuietusThinker", pos));
@@ -176,16 +168,9 @@ class ReforgedQuietus : RPGMelee replaces FWeapQuietus
 		double angInterval = ang / 10;
 		double pchInterval = pch / 10;
 		Vector3 spawn = pos + (0,0,height/2 - floorclip + player.mo.AttackZOffset*player.crouchFactor);
-		for (int i = 1; i <= 20; ++i)
+		
+		for (int i = 0; i < 21; ++i)
 		{
-			if (!(i % 4))
-			{
-				if (weapon.ammo1.amount < 1)
-					break;
-				else
-					--weapon.ammo1.amount;
-			}
-			
 			let missile = RPGMissile(Spawn("RFSwordMissile", spawn, ALLOW_REPLACE));
 			if (missile)
 			{

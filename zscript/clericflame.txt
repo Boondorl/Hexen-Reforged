@@ -2,10 +2,14 @@ class ReforgedFlame : RPGWeapon replaces CWeapFlame
 {
 	Default
 	{
+		RPGWeapon.BashCost 2;
 		Weapon.SelectionOrder 1000;
 		Weapon.KickBack 150;
 		Weapon.YAdjust 10;
+		Weapon.AmmoUse1 3;
+		Weapon.AmmoUse2 5;
 		Weapon.AmmoType1 "GreenMana";
+		Weapon.AmmoType2 "RedMana";
 		Inventory.PickupMessage "$TXT_WEAPON_C3";
 		Tag "$TAG_CWEAPFLAME";
 		
@@ -27,7 +31,7 @@ class ReforgedFlame : RPGWeapon replaces CWeapFlame
 			Loop;
 			
 		Ready:
-			CFLM AAAABBBBCCCC 1 A_WeaponReady(WRF_ALLOWUSER1);
+			CFLM AAAABBBBCCCC 1 A_BashWeaponReady();
 			Loop;
 			
 		User1:
@@ -74,7 +78,7 @@ class ReforgedFlame : RPGWeapon replaces CWeapFlame
 		Weapon weapon = player.ReadyWeapon;
 		if (weapon != null)
 		{
-			if (!weapon.DepleteAmmo (weapon.bAltFire))
+			if (!weapon.DepleteAmmo(weapon.bAltFire))
 				return;
 		}
 		
@@ -85,7 +89,8 @@ class ReforgedFlame : RPGWeapon replaces CWeapFlame
 			missile = Spawn("RCFlameMissile", (t.hitActor.pos.x, t.hitActor.pos.y, t.hitActor.floorz), ALLOW_REPLACE);
 		else
 		{
-			Vector3 spawnPos = (t.hitLocation.x, t.hitLocation.y, GetZAt(t.hitLocation.x, t.hitLocation.y, flags: GZF_ABSOLUTEPOS));
+			Vector2 hit = t.hitLocation.xy - t.hitDir.xy*1;
+			Vector3 spawnPos = (hit, GetZAt(hit.x, hit.y, flags: GZF_ABSOLUTEPOS));
 			missile = Spawn("RCFlameMissile", spawnPos, ALLOW_REPLACE);
 		}
 		
@@ -108,7 +113,7 @@ class ReforgedFlame : RPGWeapon replaces CWeapFlame
 		Weapon weapon = player.ReadyWeapon;
 		if (weapon != null)
 		{
-			if (!weapon.DepleteAmmo (weapon.bAltFire))
+			if (!weapon.DepleteAmmo(weapon.bAltFire))
 				return;
 		}
 		
@@ -119,7 +124,8 @@ class ReforgedFlame : RPGWeapon replaces CWeapFlame
 			missile = Spawn("FlameBlast", (t.hitActor.pos.x, t.hitActor.pos.y, t.hitActor.floorz), ALLOW_REPLACE);
 		else
 		{
-			Vector3 spawnPos = (t.hitLocation.x, t.hitLocation.y, GetZAt(t.hitLocation.x, t.hitLocation.y, flags: GZF_ABSOLUTEPOS));
+			Vector2 hit = t.hitLocation.xy - t.hitDir.xy*1;
+			Vector3 spawnPos = (hit, GetZAt(hit.x, hit.y, flags: GZF_ABSOLUTEPOS));
 			missile = Spawn("FlameBlast", spawnPos, ALLOW_REPLACE);
 		}
 		
@@ -137,13 +143,6 @@ class ReforgedFlame : RPGWeapon replaces CWeapFlame
 		if (player == null)
 		{
 			return;
-		}
-
-		Weapon weapon = player.ReadyWeapon;
-		if (weapon != null)
-		{
-			if (!weapon.DepleteAmmo (weapon.bAltFire))
-				return;
 		}
 		
 		for (int i = 0; i < 8; ++i)
@@ -169,13 +168,13 @@ class RCFlameMissile : RPGMissile
 {
 	Default
 	{
-		Radius 64;
+		Radius 48;
 		Damage 180;
 		DamageType "Fire";
 		RPGMissile.AilmentPower 100;
 		RPGMissile.AilmentType "Burn";
 		RPGMissile.AilmentDamage 10;
-		XScale 2;
+		XScale 2.5;
 		YScale 4;
 		RenderStyle "Add";
 		
@@ -240,6 +239,36 @@ class FlamePillar : RPGMissile
 	}
 }
 
+class FlameFX : Actor
+{
+	Default
+	{
+		YScale 2;
+		RenderStyle "Add";
+		
+		+ZDOOMTRANS
+		+NOINTERACTION
+	}
+	
+	States
+	{
+		Spawn:
+			CFFX A 1 Bright;
+			CFFX ABC 3 Bright;
+			CFFX D 4 Bright;
+			CFFX E 3 Bright;
+			CFFX F 4 Bright;
+			CFFX G 3 Bright;
+			CFFX H 4 Bright;
+			CFFX I 3 Bright;
+			CFFX J 4 Bright;
+			CFFX K 3 Bright;
+			CFFX L 4 Bright;
+			CFFX M 3 Bright;
+			Stop;
+	}
+}
+
 class FlameBlast : RPGMissile
 {
 	Default
@@ -271,16 +300,9 @@ class FlameBlast : RPGMissile
 				for (int i = 0; i < 8; ++i)
 				{
 					FLineTraceData t;
-					LineTrace(i*45, 64, 0, TRF_THRUACTORS | TRF_THRUHITSCAN, data: t);
-					if (t.distance >= 64)
-					{
-						let pillar = Spawn("FlamePillar", t.hitLocation, ALLOW_REPLACE);
-						if (pillar)
-						{
-							pillar.target = target;
-							pillar.ExplodeMissile();
-						}
-					}
+					LineTrace(i*45, 128, 0, TRF_THRUACTORS | TRF_THRUHITSCAN, data: t);
+					if (t.distance >= 128)
+						Spawn("FlameFX", t.hitLocation, ALLOW_REPLACE);
 				}
 			}
 			CFFX A 1 Bright A_Explode(damage, radius, 0, false, radius, damagetype: damageType);
@@ -299,8 +321,18 @@ class FlameBlast : RPGMissile
 	}
 }
 
+class FlameFX2 : FlameFX
+{
+	Default
+	{
+		Scale 0.25;
+	}
+}
+
 class GroundFire : AreaOfEffect
 {
+	int fireTimer;
+	
 	Default
 	{
 		AreaOfEffect.AilmentPower 25;
@@ -308,13 +340,26 @@ class GroundFire : AreaOfEffect
 		AreaOfEffect.AilmentDamage 10;
 		AreaOfEffect.CoolDownToken "GroundFireHit";
 		Height 4;
-		Radius 256;
+		Radius 128;
 		Damage 10;
 		DamageType "Fire";
 		Threshold 350;
 		
 		+AREAOFEFFECT.SHATTERER
 		+AREAOFEFFECT.GROUNDED
+	}
+	
+	override void Effect()
+	{
+		if (++fireTimer > 2)
+		{
+			fireTimer = 0;
+			
+			double rad = frandom(0, radius);
+			double theta = frandom(0, 359.9999);
+			Vector2 ofs = Vec2Offset(rad*cos(theta), rad*sin(theta));
+			Spawn("FlameFX2", (ofs, floorz));
+		}
 	}
 }
 

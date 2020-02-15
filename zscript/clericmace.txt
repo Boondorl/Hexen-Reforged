@@ -65,7 +65,7 @@ class ReforgedMace : RPGMelee
 		User1:
 			TNT1 A 0 A_PlaySound("FighterPunchMiss", CHAN_WEAPON);
 			CMCE B 6 Offset (60, 20);
-			CMCE C 4 Offset (8, 45) A_Melee("MaceJabBox", 10, 5, 4, 96, 0, -10, minForw: -64);
+			CMCE C 4 Offset (8, 45) A_Melee("MaceJabBox", 5, 10, 4, 96, 0, -10, minForw: -64);
 			CMCE D 4 Offset (8, 45);
 			CMCE E 4 Offset (8, 45) A_WeaponReady(WRF_NOBOB);
 			CMCE F 6 Offset (8, 45) A_WeaponReady(WRF_NOBOB);
@@ -345,12 +345,10 @@ class MaceJabBox : HurtBox
 		Height 6;
 		ActiveSound "FighterHammerHitWall";
 		AttackSound "FighterHammerHitThing";
-		DamageType "Blunt";
-		HurtBox.AilmentPower 65;
-		HurtBox.AilmentType "Stumble";
-		HurtBox.BonusDamageType "Pierce";
-		HurtBox.BonusAilmentPower 100;
-		HurtBox.BonusAilmentType "Flinch";
+		DamageType "Pierce";
+		HurtBox.AilmentPower 100;
+		HurtBox.AilmentType "Flinch";
+		HurtBox.BonusDamageType "Blunt";
 		HurtBox.SideOffset 8;
 		HurtBox.UpOffset 4;
 		

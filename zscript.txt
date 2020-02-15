@@ -2,6 +2,7 @@ version "3.7"
 
 #include "zscript/melee.txt"
 #include "zscript/weapon.txt"
+#include "zscript/projectile.txt"
 #include "zscript/fighterfist.txt"
 #include "zscript/fighteraxe.txt"
 #include "zscript/fighterquietus.txt"

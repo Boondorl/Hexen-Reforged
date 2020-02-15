@@ -6,11 +6,25 @@ enum EExtendedDmgFlags
 
 class RPGWeapon : Weapon
 {
+	bool bBash;
+	
 	int bashCost;
-	class<Ammo> bashType;
-	class<Ammo> reserveBashType;
-	double bashAilment;
-	double bashAilmentType;
+	
+	property BashCost : bashCost;
+	
+	action void A_BashWeaponReady(int flags = 0)
+	{
+		flags |= WRF_ALLOWUSER1;
+		if (player.cmd.buttons & BT_USER1)
+		{
+			invoker.bBash = true;
+			if (!invoker.DepleteAmmo(false, true, 1))
+				flags &= ~WRF_ALLOWUSER1;
+			invoker.bBash = false;
+		}
+		
+		A_WeaponReady(flags);
+	}
 
 	action void A_WandBlast(int dmg, Name dmgType = 'None', int blastflags = 0, double rad = 128, double speed = 15, double maxAng = 35, sound blastsound = "BlastRadius")
 	{
@@ -81,452 +95,107 @@ class RPGWeapon : Weapon
 			hb.forwardOffsets.Push(maxForw);
 		}
 	}
+	
+	override bool CheckAmmo(int fireMode, bool autoSwitch, bool requireAmmo, int ammocount)
+	{
+		int count1, count2;
+
+		if (sv_infiniteammo || owner.FindInventory('PowerInfiniteAmmo'))
+			return true;
+		
+		if (fireMode == EitherFire)
+		{
+			bool gotSome = CheckAmmo(PrimaryFire, false) || CheckAmmo(AltFire, false);
+			if (!gotSome)
+			{
+				bBash = true;
+				gotSome = CheckAmmo(PrimaryFire, false);
+				bBash = false;
+			}
+			
+			if (!gotSome && autoSwitch)
+				PlayerPawn(owner).PickNewWeapon(null);
+			
+			return gotSome;
+		}
+		
+		let altFire = (fireMode == AltFire);
+		let optional = (altFire ? bAlt_Ammo_Optional : bAmmo_Optional);
+
+		if (!bBash && !requireAmmo && optional)
+			return true;
+		
+		int use = altFire ? AmmoUse2 : AmmoUse1;
+		
+		count1 = Ammo1 ? Ammo1.Amount : 0;
+		count2 = Ammo2 ? Ammo2.Amount : 0;
+
+		if (bBash)
+		{
+			if (count1 + count2 >= bashCost)
+				return true;
+		}
+		else if (count1 + count2 >= use)
+			return true;
+		
+		// out of ammo, pick a weapon to change to
+		if (autoSwitch)
+			PlayerPawn(owner).PickNewWeapon(null);
+		
+		return false;
+	}
+	
+	override bool DepleteAmmo(bool altFire, bool checkEnough, int ammouse)
+	{
+		if (sv_infiniteammo || owner.FindInventory('PowerInfiniteAmmo'))
+			return true;
+		
+		if (checkEnough && !CheckAmmo(altFire ? AltFire : PrimaryFire, false, true, ammouse))
+			return false;
+		
+		if (bBash)
+		{
+			if (Ammo1)
+			{
+				int use = bashCost > Ammo1.Amount ? bashCost - Ammo1.Amount : 0;
+				Ammo1.Amount -= bashCost;
+				if (Ammo2)
+					Ammo2.Amount -= use;
+			}
+		}
+		else if (!altFire)
+		{
+			if (Ammo1)
+			{
+				int use = AmmoUse1 > Ammo1.Amount ? AmmoUse1 - Ammo1.Amount : 0;
+				Ammo1.Amount -= AmmoUse1;
+				if (Ammo2)
+					Ammo2.Amount -= use;
+			}
+		}
+		else
+		{
+			if (Ammo1)
+			{
+				int use = AmmoUse2 > Ammo1.Amount ? AmmoUse2 - Ammo1.Amount : 0;
+				Ammo1.Amount -= AmmoUse2;
+				if (Ammo2)
+					Ammo2.Amount -= use;
+			}
+		}
+		
+		if (Ammo1 && Ammo1.Amount < 0)
+			Ammo1.Amount = 0;
+		if (Ammo2 && Ammo2.Amount < 0)
+			Ammo2.Amount = 0;
+			
+		return true;
+	}
 }
 
 class CastWeapon : RPGWeapon
 {
 	Weapon prevWeapon;
-}
-
-// Send a warning to block
-class WarningTracer : LineTracer
-{
-	Actor owner;
-	Actor master;
-	
-	override ETraceStatus TraceCallback()
-	{
-		switch (results.HitType)
-		{
-			case TRACE_HitWall:
-				if (!(results.hitLine.flags & Line.ML_BLOCKEVERYTHING) &&
-					(results.hitLine.flags & Line.ML_TWOSIDED) &&
-					results.tier == TIER_Middle)
-				{
-					break;
-				}
-			case TRACE_HasHitSky:
-			case TRACE_HitFloor:
-			case TRACE_HitCeiling:
-				return TRACE_Stop;
-				break;
-			
-			case TRACE_HitActor:
-				if ((owner && results.hitActor == owner) ||
-					(master && results.hitActor == master) ||
-					results.hitActor.health <= 0 ||
-					(results.hitActor.bShootable && !(results.hitActor.bIsMonster || results.hitActor.player)))
-				{
-					results.hitActor = null;
-					break;
-				}
-				return TRACE_Stop;
-				break;
-		}
-		
-		return TRACE_Skip;
-	}
-}
-
-class RPGMissile : FastProjectile
-{
-	Array<Actor> alreadyHit;
-	
-	double ailmentPower;
-	class<Ailment> ailmentType;
-	int ailmentDamage;
-	bool bCriticalHit;
-	int maxPenetration;
-	double length;
-	double warnDistance;
-	
-	protected double damageMultiplier;
-	protected int currentPenetration;
-	
-	Vector3 prevVel;
-	
-	Vector3 forward;
-	Vector3 up;
-	Vector3 right;
-	
-	property Length : length;
-	property MaxPenetration : maxPenetration;
-	property AilmentPower : ailmentPower;
-	property AilmentType : ailmentType;
-	property AilmentDamage : ailmentDamage;
-	property WarnDistance : warnDistance;
-	
-	deprecated("3.7") private int rpgMissileFlags;
-	flagdef Penetrating: rpgMissileFlags, 0;
-	flagdef ThruObjects: rpgMissileFlags, 1;
-	flagdef Oriented: rpgMissileFlags, 2;
-	flagdef Freezer: rpgMissileFlags, 3;
-	flagdef Shatterer: rpgMissileFlags, 4;
-	flagdef NoCrit: rpgMissileFlags, 5;
-	flagdef NoBlockWarn: rpgMissileFlags, 6;
-	flagdef ShieldBuster: rpgMissileFlags, 7;
-	
-	Default
-	{
-		RPGMissile.WarnDistance 512;
-	}
-	
-	override int SpecialMissileHit(Actor victim)
-	{
-		if (victim == target || victim.bGhost || alreadyHit.Find(victim) != alreadyHit.Size())
-			return 1;
-		
-		if (bOriented && !CheckOBB(victim, forward, right, up, length))
-			return 1;
-		
-		if (victim.health <= 0)
-		{
-			if (victim.bIceCorpse)
-				victim.DamagemObj(self, target, 1, 'None'); // Make sure corpses shatter
-			
-			return 1;
-		}
-		
-		bool isShield = (victim is 'BlockBox');
-		if (isShield && victim.master == target)
-			return 1;
-		
-		if (isShield && alreadyHit.Find(victim.master) != alreadyHit.Size())
-		{
-			alreadyHit.Push(victim);
-			
-			if (!bPenetrating)
-				return -1;
-			
-			return 1;
-		}
-		
-		if (victim.bShootable && !(victim.bIsMonster || victim.player))
-		{
-			if (isShield && CheckOBB(victim, forward, right, up, bOriented ? length : radius))
-			{
-				victim.DamageMobj(self, target, damage, damageType);
-				alreadyHit.Push(victim);
-				alreadyHit.Push(victim.master);
-				
-				if (!bPenetrating)
-					return -1;
-			}
-			else if (!isShield)
-			{
-				victim.DamageMobj(self, target, damage, damageType);
-				alreadyHit.Push(victim);
-			}
-			
-			return 1;
-		}
-		else if (!victim.bShootable)
-		{
-			if (!victim.bSolid)
-				return 1;
-			else if (bThruObjects && victim.bSolid)
-			{
-				if (bPenetrating)
-				{
-					if (maxPenetration > 0 && currentPenetration-- <= 0)
-						return -1;
-					
-					alreadyHit.Push(victim);
-				}
-					
-				return 1;
-			}
-			
-			return -1;
-		}
-		
-		bool doDamage = true;
-		let rpgm = RPGMonster(victim);
-		if (rpgm && rpgm.collisionBoxes.Size())
-		{
-			// Check critical boxes first
-			CollisionBox bestBox;
-			int bestDamage;
-			for (int i = 0; i < rpgm.collisionBoxes.Size(); ++i)
-			{
-				let cBox = rpgm.collisionBoxes[i];
-				if (!cBox || cBox.bDead || !cBox.bCriticalZone)
-					continue;
-							
-				bool crit;
-				if (cBox.bOriented || bOriented)
-					crit = CheckOBB(cBox, forward, right, up, bOriented ? length : radius);
-				else
-					crit = CheckCollision(cBox);
-							
-				if (crit)
-				{
-					int dmg;
-					if (!bNoCrit)
-					{
-						bCriticalHit = true;
-						dmg = damage * cBox.multi;
-					}
-					else
-						dmg = damage;
-					
-					if (dmg > bestDamage)
-					{
-						bestBox = cBox;
-						bestDamage = dmg;
-					}
-				}
-			}
-			
-			if (!bestBox)
-			{
-				for (int i = 0; i < rpgm.collisionBoxes.Size(); ++i)
-				{
-					let box = rpgm.collisionBoxes[i];
-					if (!box || box.bDead || box.bCriticalZone)
-						continue;
-					
-					bool hit;
-					if (box.bOriented || bOriented)
-						hit = CheckOBB(box, forward, right, up, bOriented ? length : radius);
-					else
-						hit = CheckCollision(box);
-					
-					if (hit)
-					{
-						int dmg = damage * box.multi;
-						if (dmg > bestDamage)
-						{
-							bestBox = box;
-							bestDamage = dmg;
-						}
-					}
-				}
-			}
-			
-			if (bestBox)
-			{
-				if (bestBox.bCriticalZone && bNoCrit)
-					damageMultiplier = 1;
-				else
-					damageMultiplier = bestBox.multi;
-			}
-			else
-				doDamage = false;
-		}
-		
-		if (doDamage)
-		{
-			if (!rpgm)
-				damageMultiplier = 1;
-			
-			int flags = bCriticalHit ? DMG_CRIT : 0;
-			victim.DamageMobj(self, target, round(damage*damageMultiplier), damageType, flags);
-			if (victim.bIceCorpse)
-			{
-				if (bShatterer)
-					victim.DamageMobj(self, target, 1, 'None');
-				else if (!bFreezer)
-				{
-					victim.SetState(victim.FindState("Death"));
-					victim.A_StopSound(CHAN_BODY);
-					victim.bSolid = victim.bShootable = victim.bNoBlood = victim.bIceCorpse = victim.bPushable = victim.bTelestomp = victim.bCanPass = victim.bSlidesOnWalls = victim.bCrashed = false;
-				}
-			}
-			
-			alreadyHit.Push(victim);
-			
-			if (bPenetrating)
-			{
-				if (maxPenetration > 0 && currentPenetration-- <= 0)
-					return -1;
-					
-				return 1;
-			}
-			
-			return -1;
-		}
-		
-		return 1;
-	}
-	
-	override void Tick()
-	{
-		super.Tick();
-		
-		if (bOriented && prevVel != vel)
-		{
-			forward = vel.Unit();
-			
-			double ang = VectorAngle(forward.x, forward.y);
-			double pch = -VectorAngle(forward.xy.Length(), forward.z);
-			
-			double angCos, angSin, pchCos, pchSin, rolCos, rolSin;
-			angCos = cos(ang);
-			angSin = sin(ang);
-			pchCos = cos(pch);
-			pchSin = sin(pch);
-			rolCos = cos(roll);
-			rolSin = sin(roll);
-			
-			right = (-1*rolSin*pchSin*angCos + -1*rolCos*-angSin, -1*rolSin*pchSin*angSin + -1*rolCos*angCos, -1*rolSin*pchCos);
-			up = (rolCos*pchSin*angCos + -rolSin*-angsin, rolCos*pchSin*angSin + -rolSin*angCos, rolCos*pchCos);
-			
-			prevVel = vel;
-		}
-		else if (!bOriented)
-		{
-			forward = (1,0,0);
-			right = (0,1,0);
-			up = (0,0,1);
-		}
-		
-		if (!globalfreeze && !level.frozen)
-		{
-			double len = radius;
-			if (bOriented)
-				len = length;
-			
-			Spawn("Marker", pos + forward*len + right*radius);
-			Spawn("Marker", pos + forward*len - right*radius);
-			Spawn("Marker", pos - forward*len + right*radius);
-			Spawn("Marker", pos - forward*len - right*radius);
-			Spawn("Marker", pos + forward*len + right*radius + up*height);
-			Spawn("Marker", pos + forward*len - right*radius + up*height);
-			Spawn("Marker", pos - forward*len + right*radius + up*height);
-			Spawn("Marker", pos - forward*len - right*radius + up*height);
-			
-			if (!bNoBlockWarn && !(GetAge() % 17) && InStateSequence(CurState, SpawnState))
-			{
-				let warn = WarningTracer(new("WarningTracer"));
-				if (warn)
-				{
-					warn.master = self;
-					warn.owner = target;
-					warn.Trace(pos+up*height/2, level.PointInSector(pos.xy), vel.Unit(), warnDistance, 0);
-					if (warn.results.hitActor is 'RPGMonster')
-					{
-						let rpgm = RPGMonster(warn.results.hitActor);
-						rpgm.Block(self);
-					}
-				}
-			}
-		}
-	}
-	
-	override int DoSpecialDamage(Actor victim, int damage, name damagetype)
-	{
-		if (alreadyHit.Find(victim) != alreadyHit.Size())
-			return -1;
-		
-		if (ailmentPower > 0 && ailmentType)
-		{
-			let ail = Ailment(victim.FindInventory(ailmentType));
-			if (ail)
-				ail.AddAilment(target, ailmentPower, ailmentDamage);
-		}
-		
-		return damage;
-	}
-	
-	// We can do faster checking if mo is axis aligned
-	bool CheckCollision(Actor mo)
-	{
-		if (!mo)
-			return false;
-		
-		double moLength = mo.radius;
-		if (mo is 'CollisionBox')
-			moLength = CollisionBox(mo).length;
-		
-		Vector3 min = (pos.x - radius, pos.y - radius, pos.z);
-		Vector3 max = (pos.x + radius, pos.y + radius, pos.z + height);
-		
-		Vector3 moMin = (mo.pos.x - moLength, mo.pos.y - mo.radius, mo.pos.z);
-		Vector3 moMax = (mo.pos.x + moLength, mo.pos.y + mo.radius, mo.pos.z + mo.height);
-		
-		return (min.x <= moMax.x && max.x >= moMin.x) &&
-				(min.y <= moMax.y && max.y >= moMin.y) &&
-				(min.z <= moMax.z && max.z >= moMin.z);
-	}
-	
-	// Things get a bit more complicated if the mo can orient itself
-	bool CheckOBB(Actor mo, Vector3 forward, Vector3 right, Vector3 up, double length)
-	{
-		if (!mo)
-			return false;
-		
-		double depth = height / 2;
-		double moDepth = mo.height / 2;
-		double moLength = mo.radius;
-		
-		Vector3 center = pos + (up*depth);
-		Vector3 moCenter = mo.pos + (0,0,moDepth);
-		
-		Vector3 moForward = (1,0,0);
-		Vector3 moRight = (0,1,0);
-		Vector3 moUp = (0,0,1);
-		
-		if (mo is 'CollisionBox')
-		{
-			let box = CollisionBox(mo);
-			moLength = box.length;
-			moForward = box.forward;
-			moRight = box.right;
-		}
-		else if (mo is 'BlockBox')
-		{
-			let box = BlockBox(mo);
-			moLength = box.length;
-			moForward = box.forward;
-			moRight = box.right;
-			moUp = box.up;
-		}
-		
-		Vector3 t = moCenter - center;
-		
-		if (ProjectEdge(t, forward, length, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
-			ProjectEdge(t, right, radius, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
-			ProjectEdge(t, up, depth, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
-			ProjectEdge(t, moForward, moLength, length, radius, depth, forward, right, up) ||
-			ProjectEdge(t, moRight, mo.radius, length, radius, depth, forward, right, up) ||
-			ProjectEdge(t, moUp, moDepth, length, radius, depth, forward, right, up))
-		{
-			return false;
-		}
-		
-		if (ProjectPlane(t, forward, radius, depth, moForward, mo.radius, moDepth, up, right, moUp, moRight) ||
-			ProjectPlane(t, forward, radius, depth, moRight, moLength, moDepth, up, right, moUp, moForward) ||
-			ProjectPlane(t, forward, radius, depth, moUp, moLength, mo.radius, up, right, moRight, moForward) ||
-			ProjectPlane(t, right, length, depth, moForward, mo.radius, moDepth, up, forward, moUp, moRight) ||
-			ProjectPlane(t, right, length, depth, moRight, moLength, moDepth, up, forward, moUp, moForward) ||
-			ProjectPlane(t, right, length, depth, moUp, moLength, mo.radius, up, forward, moRight, moForward) ||
-			ProjectPlane(t, up, length, radius, moForward, mo.radius, moDepth, right, forward, moUp, moRight) ||
-			ProjectPlane(t, up, length, radius, moRight, moLength, moDepth, right, forward, moUp, moForward) ||
-			ProjectPlane(t, up, length, radius, moUp, moLength, mo.radius, right, forward, moRight, moForward))
-		{
-			return false;
-		}
-		
-		return true;
-	}
-	
-	bool ProjectEdge(Vector3 t, Vector3 axis, double aR, double bL, double bR, double bD, Vector3 forward, Vector3 right, Vector3 up)
-	{
-		return abs(t dot axis) > (aR + abs(axis dot (bL*forward)) + abs(axis dot (bR*right)) + abs(axis dot (bD*up)));
-	}
-	
-	bool ProjectPlane(Vector3 t, Vector3 a1, double aR, double aD, Vector3 b1, double bR, double bD, Vector3 a2, Vector3 a3, Vector3 b2, Vector3 b3)
-	{
-		return abs(((t dot a2)*(a3 dot b1)) - ((t dot a3)*(a2 dot b1))) > (abs((aR*a2) dot b1) + abs((aD*a3) dot b1) + abs(a1 dot (bR*b2)) + abs(a1 dot (bD*b3)));
-	}
-	
-	override void BeginPlay()
-	{
-		super.BeginPlay();
-		
-		currentPenetration = maxPenetration;
-	}
 }
 
 class AreaOfEffect : Actor

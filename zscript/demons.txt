@@ -45,7 +45,7 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 		Melee:
 			DEMN E 6 A_MonsterFaceTarget;
 			DEMN F 8 A_MonsterFaceTarget;
-			DEMN G 6 A_MonsterMelee("SerpentBite", 10, 0, 1, 64);
+			DEMN G 6 A_MonsterMelee("SerpentBite", 40, 0, 1, 64);
 			Goto See;
 			
 		Missile:
@@ -124,7 +124,9 @@ class SerpentBite : HurtBox
 		Height 4;
 		ActiveSound "FighterPunchHitWall";
 		DamageType "Cleave";
-		HurtBox.AilmentPower 25;
+		HurtBox.AilmentType "Bleed";
+		HurtBox.AilmentPower 50;
+		HurtBox.AilmentDamage 10;
 		HurtBox.UpOffset 14;
 	}
 }
@@ -136,8 +138,11 @@ class SerpentRFX1 : RPGMissile
 		Speed 16;
 		Radius 5;
 		Height 10;
-		Damage 15;
-		DamageType "Fire";
+		Damage 30;
+		DamageType "Poison";
+		RPGMissile.AilmentType "Poison";
+		RPGMissile.AilmentPower 35;
+		RPGMissile.AilmentDamage 10;
 		RenderStyle "Add";
 		SeeSound "DemonMissileFire";
 		DeathSound "DemonMissileExplode";
@@ -149,200 +154,12 @@ class SerpentRFX1 : RPGMissile
 	States
 	{
 		Spawn:
-			DMFX ABC 4 Bright;
+			D2FX ABCDEF 4 Bright;
 			Loop;
 			
 		Death:
-			DMFX DE 4 Bright;
-			DMFX FGH 3 Bright;
+			D2FX GHIJ 4 Bright;
+			D2FX KL 3 Bright;
 			Stop;
 	}
 }
-
-// Demon, type 2 (brown) ----------------------------------------------------
-
-/*class Demon2 : Demon1
-{
-	Default
-	{
-		Obituary "$OB_DEMON2";
-		Species "Demon2";
-	}
-	States
-	{
-	Spawn:
-		DEM2 AA 10 A_Look;
-		Loop;
-	See:
-		DEM2 ABCD 4 A_Chase;
-		Loop;
-	Pain:
-		DEM2 E 4;
-		DEM2 E 4 A_Pain;
-		Goto See;
-	Melee:
-		DEM2 E 6 A_FaceTarget;
-		DEM2 F 8 A_FaceTarget;
-		DEM2 G 6 A_CustomMeleeAttack(random[DemonAttack1](1,8)*2);
-		Goto See;
-	Missile:
-		DEM2 E 5 A_FaceTarget;
-		DEM2 F 6 A_FaceTarget;
-		DEM2 G 5 A_SpawnProjectile("Demon2FX1", 62, 0);
-		Goto See;
-	Death:
-		DEM2 HI 6;
-		DEM2 J 6 A_Scream;
-		DEM2 K 6 A_NoBlocking;
-		DEM2 L 6 A_QueueCorpse;
-		DEM2 MNO 6;
-		DEM2 P -1;
-		Stop;
-	XDeath:
-		DEM2 H 6;
-		DEM2 I 6
-		{
-			static const class<Actor> chunks[] = { "Demon2Chunk1", "Demon2Chunk2", "Demon2Chunk3", "Demon2Chunk4", "Demon2Chunk5" };
-			for(int i = 0; i < 5; i++)
-				A_SpawnItemEx(chunks[i], 0,0,45, frandom[DemonChunks](1,4.984375)*cos(Angle+90), frandom[DemonChunks](1,4.984375)*sin(Angle+90), 8, 90, ChunkFlags);
-		}
-		Goto Death+2;
-	}
-}
-
-// Demon, type 2, mashed ----------------------------------------------------
-
-class Demon2Mash : Demon2
-{
-	Default
-	{
-		+NOBLOOD
-		+BLASTED
-		-TELESTOMP
-		+NOICEDEATH
-		RenderStyle "Translucent";
-		Alpha 0.4;
-	}
-	States
-	{
-	Death:
-	XDeath:
-	Ice:
-		Stop;
-	}
-}
-
-// Demon, type 2, chunk 1 ---------------------------------------------------
-
-class Demon2Chunk1 : DemonChunk
-{
-	States
-	{
-	Spawn:
-		DMBA A 4;
-		DMBA A 10 A_QueueCorpse;
-		DMBA A 20;
-		Wait;
-	Death:
-		DMBA A -1;
-		Stop;
-	}
-}
-
-// Demon, type 2, chunk 2 ---------------------------------------------------
-
-class Demon2Chunk2 : DemonChunk
-{
-	States
-	{
-	Spawn:
-		DMBB A 4;
-		DMBB A 10 A_QueueCorpse;
-		DMBB A 20;
-		Wait;
-	Death:
-		DMBB A -1;
-		Stop;
-	}
-}
-
-// Demon, type 2, chunk 3 ---------------------------------------------------
-
-class Demon2Chunk3 : DemonChunk
-{
-	States
-	{
-	Spawn:
-		DMBC A 4;
-		DMBC A 10 A_QueueCorpse;
-		DMBC A 20;
-		Wait;
-	Death:
-		DMBC A -1;
-		Stop;
-	}
-}
-
-// Demon, type 2, chunk 4 ---------------------------------------------------
-
-class Demon2Chunk4 : DemonChunk
-{
-	States
-	{
-	Spawn:
-		DMBD A 4;
-		DMBD A 10 A_QueueCorpse;
-		DMBD A 20;
-		Wait;
-	Death:
-		DMBD A -1;
-		Stop;
-	}
-}
-
-// Demon, type 2, chunk 5 ---------------------------------------------------
-
-class Demon2Chunk5 : DemonChunk
-{
-	States
-	{
-	Spawn:
-		DMBE A 4;
-		DMBE A 10 A_QueueCorpse;
-		DMBE A 20;
-		Wait;
-	Death:
-		DMBE A -1;
-		Stop;
-	}
-}
-
-// Demon, type 2, projectile ------------------------------------------------
-
-class Demon2FX1 : Actor
-{
-	Default
-	{
-		Speed 15;
-		Radius 10;
-		Height 6;
-		Damage 5;
-		DamageType "Fire";
-		Projectile;
-		+SPAWNSOUNDSOURCE
-		+ZDOOMTRANS
-		RenderStyle "Add";
-		SeeSound "DemonMissileFire";
-		DeathSound "DemonMissileExplode";
-	}
-	States
-	{
-	Spawn:
-		D2FX ABCDEF 4 Bright;
-		Loop;
-	Death:
-		D2FX GHIJ 4 Bright;
-		D2FX KL 3 Bright;
-		Stop;
-	}
-}*/

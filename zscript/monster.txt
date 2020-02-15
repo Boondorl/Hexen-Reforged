@@ -157,6 +157,9 @@ class RPGMonster : Actor
 	double turnSpeed;
 	double missileCheckHeight;
 	
+	int rageTimer;
+	int searchTimer;
+	
 	private bool bBlocking;
 	private bool bSawTarget;
 	private int missileCoolDown;
@@ -188,12 +191,14 @@ class RPGMonster : Actor
 		RPGMonster.TrackRange 256;
 		RPGMonster.TrackAccuracy 0.75;
 		RPGMonster.TurnSpeed 10;
+		MeleeRange 32;
 		
 		+QUICKTORETALIATE
 		+TELESTOMP
 		+FLOORCLIP
 		+SEEINVISIBLE
 		+NOPAIN
+		+NOICEDEATH
 		+RPGMONSTER.TRACKER
 	}
 	
@@ -207,17 +212,27 @@ class RPGMonster : Actor
 		if (target && target.health <= 0)
 			target = null;
 		
-		if (!target && !bAmbush && !bFriendly && GetAge() > delay)
+		if (!target && !bFriendly && GetAge() > delay)
 		{
 			ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
 			Actor mo;
 			while (mo = Actor(it.Next()))
 			{
-				if (!mo || !mo.bIsMonster || mo.bFriendly || mo.health <= 0 || !mo.target || mo.target.health <= 0)
+				if (!mo || !mo.bIsMonster || mo.health <= 0)
 					continue;
 				
-				if ((!mo.target.bIsMonster || mo.target.bFriendly) && !mo.target.bShadow &&
-					AbsAngle(angle, AngleTo(mo)) <= 180 && CheckSight(mo))
+				if (mo.bFriendly && !mo.bShadow &&
+					AbsAngle(angle, AngleTo(mo)) <= 90 && CheckSight(mo))
+				{
+					target = mo;
+					break;
+				}
+				
+				if (bAmbush || mo.bFriendly || !mo.target || mo.target.health <= 0)
+					continue;
+				
+				if ((mo.target.player || mo.target.bFriendly) && !mo.target.bShadow &&
+					AbsAngle(angle, AngleTo(mo)) <= 90 && CheckSight(mo))
 				{
 					target = mo.target;
 					break;
@@ -280,12 +295,26 @@ class RPGMonster : Actor
 			{
 				A_Wander();
 				idealAngle = movedir * 45;
-				A_LookEx();
+				
+				ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
+				Actor mo;
+				while (mo = Actor(it.Next()))
+				{
+					if (!mo || !mo.bIsMonster || mo.bFriendly || mo.player || mo.health <= 0 ||
+						mo.bShadow || mo.bInvulnerable)
+					{
+						continue;
+					}
+					
+					if (AbsAngle(angle, AngleTo(mo)) <= 90 && CheckSight(mo))
+					{
+						target = mo;
+						break;
+					}
+				}
 			}
 			else if (SpawnState)
 				SetState(SpawnState);
-			
-			return;
 		}
 	}
 	
@@ -310,7 +339,9 @@ class RPGMonster : Actor
 		if (missile)
 		{
 			missile.target = self;
-			missile.tracer = target;
+			if (bSeekerMissile)
+				missile.tracer = target;
+			
 			if (missile.bSpawnSoundSource)
 				A_PlaySound(missile.SeeSound, CHAN_WEAPON);
 			else
@@ -404,6 +435,9 @@ class RPGMonster : Actor
 	virtual bool Block(Actor mo, double maxAng = 90, bool fromDamage = false)
 	{
 		if (!mo || !bBlocker || bDontBlock || bBlocking || blockCoolDown > 0 || health <= 0)
+			return false;
+		
+		if (InStateSequence(CurState, SpawnState) || InStateSequence(CurState, FindState("Parry")))
 			return false;
 		
 		if (AbsAngle(idealAngle, AngleTo(mo)) > maxAng)
@@ -521,6 +555,47 @@ class RPGMonster : Actor
 		GiveInventoryType(ailment);
 	}
 	
+	override void Die(Actor source, Actor inflictor, int dmgflags, Name MeansOfDeath)
+	{
+		Name mod = MeansOfDeath;
+		if (MeansOfDeath == "Ice")
+		{
+			if (inflictor is "RPGMissile")
+			{
+				let missile = RPGMissile(inflictor);
+				if (!missile.bFreezer)
+				{
+					DamageType = 'None';
+					mod = 'None';
+				}
+			}
+			else if (inflictor is "HurtBox")
+			{
+				let melee = HurtBox(inflictor);
+				if (!melee.bFreezer)
+				{
+					DamageType = 'None';
+					mod = 'None';
+				}
+			}
+			else
+			{
+				DamageType = 'None';
+				mod = 'None';
+			}
+		}
+		
+		super.Die(source, inflictor, dmgflags, mod);
+	}
+	
+	override bool CanCollideWith(Actor toucher, bool passive)
+	{
+		if (master && master.player && toucher.IsFriend(self))
+			return false;
+		
+		return super.CanCollideWith(toucher, passive);
+	}
+	
 	override void Tick()
 	{
 		super.Tick();
@@ -546,15 +621,19 @@ class RPGMonster : Actor
 			A_MonsterUnblock();
 		
 		if (health > 0)
+		{
 			Rotate();
 		
-		if (bJustAttacked)
-		{
-			if (tics > -1 && !FacingIdeal())
-				++tics;
-			else
-				bJustAttacked = false;
+			if (bJustAttacked)
+			{
+				if (tics > -1 && !FacingIdeal())
+					++tics;
+				else
+					bJustAttacked = false;
+			}
 		}
+		else
+			bJustAttacked = false;
 	}
 	
 	void Rotate()
@@ -579,7 +658,7 @@ class RPGMonster : Actor
 	
 	override int DamageMobj(Actor inflictor, Actor source, int damage, Name mod, int flags, double angle)
 	{
-		if (source && !source.bDoHarmSpecies && source is GetClass())
+		if (source && !source.bDoHarmSpecies && source is GetClass() && bFriendly == source.bFriendly)
 			return -1;
 			
 		Vector3 prevVel = vel;
@@ -599,13 +678,26 @@ class RPGMonster : Actor
 						searchCoolDown = 0;
 					}
 					
-					if (source.target == self && source is 'ReforgedHereticMonster')
+					if (source.target == self && source is 'RPGMonster')
 					{
-						let mo = ReforgedHereticMonster(source);
+						let mo = RPGMonster(source);
 						mo.rageTimer = 350;
 						mo.searchCoolDown = 0;
 					}	
 				}*/
+				
+				if (source && source.player)
+				{
+					let res = RaiseDead(source.FindInventory("RaiseDead"));
+					if (res)
+					{
+						for (uint i = 0; i < res.minions.Size(); ++i)
+						{
+							if (res.minions[i] && !res.minions[i].target)
+								res.minions[i].target = self;
+						}
+					}
+				}
 				
 				// Always wake up when taking damage
 				if (SeeState && target && InStateSequence(CurState, SpawnState))
@@ -613,7 +705,7 @@ class RPGMonster : Actor
 					A_PlaySound(SeeSound, CHAN_VOICE, 1, false, bBoss ? ATTN_NONE : ATTN_NORM);   
 					SetState(SeeState);
 				}
-				else if (!(flags & DMG_NOBLOCK))
+				else if (!(flags & DMG_NOBLOCK) && source && !source.IsFriend(self))
 					Block(inflictor, 180, true);
 			}
 			

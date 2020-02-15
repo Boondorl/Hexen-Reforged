@@ -212,7 +212,7 @@ class BlockBox : Actor
 	
 	override int DamageMobj(Actor inflictor, Actor source, int damage, Name mod, int flags, double angle)
 	{
-		if (alreadyHit.Find(inflictor) != alreadyHit.Size())
+		if ((flags & DMG_EXPLOSION) || alreadyHit.Find(inflictor) != alreadyHit.Size())
 			return -1;
 		
 		double reduction = 1 - (parryWindow > 0 ? parryReduction : blockReduction);
@@ -422,10 +422,10 @@ class HurtBox : Actor
 			while (it.Next())
 			{
 				mo = it.thing;
-				if (!mo || mo == target || !mo.bIsMonster || mo.health <= 0)
+				if (!mo || mo == target || !mo.bIsMonster || mo.health <= 0 || mo.bFriendly == target.bFriendly)
 					continue;
 				
-				if (mo is 'RPGMonster' && AbsAngle(target.angle, target.AngleTo(mo)) <= 75)
+				if (mo is 'RPGMonster' && AbsAngle(target.angle, target.AngleTo(mo)) <= 90)
 				{
 					let rpgm = RPGMonster(mo);
 					rpgm.Block(self);
@@ -541,8 +541,11 @@ class HurtBox : Actor
 		while (it.Next())
 		{
 			mo = it.thing;
-			if (!mo || mo == target || mo.bGhost || !mo.bShootable || (!mo.bIceCorpse && mo.health <= 0) || alreadyHit.Find(mo) != alreadyHit.Size())
+			if (!mo || mo == target || !mo.bShootable || (!mo.bIceCorpse && mo.health <= 0) || alreadyHit.Find(mo) != alreadyHit.Size() ||
+				(mo.master && mo.master.player && target.isFriend(mo)) || (target.master && target.master.player && mo.IsFriend(target)))
+			{
 				continue;
+			}
 			
 			if (CheckOBB(mo, hbForward, hbRight, hbUp, hbLength) && CheckHitBoxes(mo))
 			{
@@ -558,8 +561,13 @@ class HurtBox : Actor
 				}
 				else
 				{
-					if (isShield && mo.master == target)
+					if (isShield &&
+						(mo.master == target ||
+						(mo.master.master && mo.master.master.player && target.isFriend(mo.master)) ||
+						(target.master && target.master.player && mo.master.IsFriend(target))))
+					{
 						continue;
+					}
 					
 					mo.A_PlaySound(AttackSound, CHAN_AUTO);
 					
@@ -573,7 +581,7 @@ class HurtBox : Actor
 						Ammo normal;
 						Ammo reserve;
 						
-						if (bonusCost > 0)
+						if (bonusCost > 0 && !sv_infiniteammo && !target.FindInventory("PowerInfiniteAmmo"))
 						{
 							normal = Ammo(target.FindInventory(bonusType));
 							reserve = Ammo(target.FindInventory(reserveBonusType));
@@ -601,9 +609,8 @@ class HurtBox : Actor
 								modDmg = round(modDmg * damageMultiplier);
 							
 							int dmg = mo.DamageMobj(self, target, modDmg, bonusDamageType, bNoBonusMulti ? 0 : flags);
-							if (dmg > 0 && (mo.bIsMonster || mo.player))
+							if (isShield || (dmg > 0 && (mo.bIsMonster || mo.player)))
 							{
-								BonusAttack(mo);
 								if (useNormal || useReserve)
 								{
 									int cost = bonusCost;
@@ -618,34 +625,17 @@ class HurtBox : Actor
 									if (reserve && useReserve)
 										reserve.amount -= cost;
 								}
+								BonusAttack(mo);
 							}
 							
-							if (mo.bIceCorpse)
-							{
-								if (bShatterer)
-									mo.DamageMobj(self, target, 1, 'None');
-								else if (!bFreezer)
-								{
-									mo.SetState(mo.FindState("Death"));
-									mo.A_StopSound(CHAN_BODY);
-									mo.bSolid = mo.bShootable = mo.bNoBlood = mo.bIceCorpse = mo.bPushable = mo.bTelestomp = mo.bCanPass = mo.bSlidesOnWalls = mo.bCrashed = false;
-								}
-							}
+							if (mo.bIceCorpse && bShatterer)
+								mo.DamageMobj(self, target, 1, 'None');
 						}
 					}
 					
 					mo.DamageMobj(self, target, round(damage*damageMultiplier), damageType, flags);
-					if (mo.bIceCorpse)
-					{
-						if (bShatterer)
-							mo.DamageMobj(self, target, 1, 'None');
-						else if (!bFreezer)
-						{
-							mo.SetState(mo.FindState("Death"));
-							mo.A_StopSound(CHAN_BODY);
-							mo.bSolid = mo.bShootable = mo.bNoBlood = mo.bIceCorpse = mo.bPushable = mo.bTelestomp = mo.bCanPass = mo.bSlidesOnWalls = mo.bCrashed = false;
-						}
-					}
+					if (mo.bIceCorpse && bShatterer)
+						mo.DamageMobj(self, target, 1, 'None');
 							
 					alreadyHit.Push(mo);
 					if (isShield)
@@ -799,9 +789,6 @@ class HurtBox : Actor
 	
 	override int DoSpecialDamage(Actor victim, int damage, name damagetype)
 	{
-		if (alreadyHit.Find(victim) != alreadyHit.Size())
-			return -1;
-		
 		if (damageType == self.damageType)
 		{
 			if (ailmentPower > 0 && ailmentType)
@@ -873,10 +860,9 @@ class RPGMelee : RPGWeapon
 	BlockBox shield;
 	class<BlockBox> shieldType;
 	
-	bool bBlocking;
-	
 	int direction;
 	bool bCancelled;
+	bool bReadyToBlock;
 	private int dirTimer;
 	private int blockTimer;
 	
@@ -947,20 +933,37 @@ class RPGMelee : RPGWeapon
 		}
 	}
 	
+	override State GetUpState()
+	{
+		bReadyToBlock = false;
+		return super.GetUpState();
+	}
+	
+	override State GetDownState()
+	{
+		bReadyToBlock = false;
+		return super.GetDownState();
+	}
+	
+	override State GetReadyState()
+	{
+		bReadyToBlock = true;
+		return super.GetReadyState();
+	}
+	
 	override void OwnerDied()
 	{
 		blockTimer = 0;
 		bCancelled = false;
-		bBlocking = false;
 	}
 	
 	override void DoEffect()
 	{
 		super.DoEffect();
 		
-		if (owner.health > 0 && owner.player.ReadyWeapon == self)
+		if (owner.health > 0 && owner.player && owner.player.ReadyWeapon == self)
 		{
-			if ((owner.player.cmd.buttons & BT_RELOAD) && !bCancelled && blockTimer <= 0 && owner.player.PendingWeapon == WP_NOCHANGE)
+			if ((owner.player.cmd.buttons & BT_RELOAD) && !bCancelled && blockTimer <= 0 && bReadyToBlock)
 			{
 				State block = FindState("Reload");
 				if (block)
@@ -981,21 +984,24 @@ class RPGMelee : RPGWeapon
 				direction = 0;
 		}
 		
-		double fm = owner.player.cmd.forwardmove;
-		double sm  = owner.player.cmd.sidemove;
-		
-		if (fm || sm)
+		if (owner.player)
 		{
-			if (sm > 0)
-				direction = DIR_RIGHT;
-			else if (sm < 0)
-				direction = DIR_LEFT;
-			else if (fm > 0)
-				direction = DIR_FORW;
-			else
-				direction = DIR_BACK;
+			double fm = owner.player.cmd.forwardmove;
+			double sm  = owner.player.cmd.sidemove;
 			
-			dirTimer = 9;
+			if (fm || sm)
+			{
+				if (sm > 0)
+					direction = DIR_RIGHT;
+				else if (sm < 0)
+					direction = DIR_LEFT;
+				else if (fm > 0)
+					direction = DIR_FORW;
+				else
+					direction = DIR_BACK;
+				
+				dirTimer = 9;
+			}
 		}
 	}
 }

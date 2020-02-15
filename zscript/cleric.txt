@@ -13,8 +13,8 @@ class ReforgedCleric : RPGPlayer
 		Player.ScoreIcon "CLERFACE";
 		Player.StartItem "ReforgedMace";
 		Player.StartItem "HelmetPiece";
-		Player.StartItem "BlueMana", 50;
-		Player.StartItem "GreenMana", 50;
+		Player.StartItem "BlueMana", 100;
+		Player.StartItem "GreenMana", 100;
 		Player.StartItem "RedMana", 0;
 		Player.Portrait "P_CWALK1";
 		Player.WeaponSlot 1, "ReforgedMace";

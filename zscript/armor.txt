@@ -8,7 +8,7 @@ class ArmorPieceManager : Inventory
 	
 	Default
 	{
-		ArmorPieceManager.PercentAC 4;
+		ArmorPieceManager.PercentAC 3;
 		
 		+INVENTORY.UNDROPPABLE
 	}
@@ -16,7 +16,7 @@ class ArmorPieceManager : Inventory
 	ui int GetCurrentAC()
 	{
 		double sp = 0;
-		for (int i = 0; i < pieces.Size(); ++i)
+		for (uint i = 0; i < pieces.Size(); ++i)
 		{
 			let piece = pieces[i];
 			if (!piece || !piece.savePercent || piece.health <= 0)
@@ -62,7 +62,7 @@ class ArmorPieceManager : Inventory
 		
 		if (!owner)
 		{
-			A_Log("Well that shouldn't happen");
+			Console.Printf("Well that shouldn't happen");
 			return;
 		}
 		
@@ -72,6 +72,26 @@ class ArmorPieceManager : Inventory
 			if (ap)
 				pieces.Push(ap);
 		}
+		
+		// TODO: Fix ugly sorting hack (use methods with better complexity times)
+		for (uint i = 0; i < pieces.Size(); ++i)
+		{
+			if (!pieces[i])
+				continue;
+			
+			for (uint j = 0; j < pieces.Size(); ++j)
+			{
+				if (!pieces[j])
+					continue;
+				
+				if (pieces[i].priority < pieces[j].priority)
+				{
+					let temp = pieces[j];
+					pieces[j] = pieces[i];
+					pieces[i] = temp;
+				}
+			}
+		}
 	}
 	
 	override void BeginPlay()
@@ -79,7 +99,7 @@ class ArmorPieceManager : Inventory
 		super.BeginPlay();
 		
 		if (percentAC <= 0)
-			percentAC = 4;
+			percentAC = 3;
 	}
 	
 	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
@@ -151,11 +171,13 @@ class ArmorPiece : Armor abstract
 	int breakPoints;
 	double lossPercent;
 	double criticalFactor;
+	uint priority;
 	
 	property SavePercent : savePercent;
 	property BreakPoints : breakPoints;
 	property LossPercent : lossPercent;
 	property CriticalFactor : criticalFactor;
+	property Priority : priority;
 	
 	deprecated("3.7") private int armorPieceFlags;
 	flagdef BlockPiercing: armorPieceFlags, 0;
@@ -165,7 +187,6 @@ class ArmorPiece : Armor abstract
 	Default
 	{
 		ArmorPiece.BreakPoints 3;
-		ArmorPiece.LossPercent 0.2;
 		
 		+INVENTORY.ALWAYSPICKUP
 	}
@@ -215,8 +236,9 @@ class BracerPiece : ArmorPiece replaces ArtiBoostArmor
 {
 	Default
 	{
-		ArmorPiece.SavePercent 0.15;
-		Health 250;
+		ArmorPiece.SavePercent 0.1;
+		ArmorPiece.Priority 2;
+		Health 200;
 		Inventory.PickupMessage "$TXT_ARTIBOOSTARMOR";
 		Inventory.Icon "BRACA0";
 		DamageFactor "Cleave", 0.75;
@@ -236,8 +258,9 @@ class ChestPiece : ArmorPiece replaces MeshArmor
 {
 	Default
 	{
-		ArmorPiece.SavePercent 0.2;
-		Health 400;
+		ArmorPiece.SavePercent 0.15;
+		ArmorPiece.Priority 1;
+		Health 600;
 		Inventory.PickupMessage "$TXT_ARMOR1";
 		Inventory.Icon "AR_1A0";
 		DamageFactor "Blunt", 1.25;
@@ -258,8 +281,9 @@ class ShieldPiece : ArmorPiece replaces FalconShield
 {
 	Default
 	{
-		ArmorPiece.SavePercent 0.2;
-		Health 500;
+		ArmorPiece.SavePercent 0.15;
+		ArmorPiece.Priority 0;
+		Health 600;
 		Inventory.PickupMessage "$TXT_ARMOR2";
 		Inventory.Icon "AR_2A0";
 		
@@ -279,9 +303,10 @@ class HelmetPiece : ArmorPiece replaces PlatinumHelm
 {
 	Default
 	{
-		ArmorPiece.SavePercent 0.15;
+		ArmorPiece.SavePercent 0.1;
 		ArmorPiece.CriticalFactor 0.8;
-		Health 300;
+		ArmorPiece.Priority 4;
+		Health 200;
 		Inventory.PickupMessage "$TXT_ARMOR3";
 		Inventory.Icon "AR_3A0";
 		DamageFactor "Blunt", 1.25;
@@ -303,9 +328,9 @@ class AmuletPiece : ArmorPiece replaces AmuletOfWarding
 {
 	Default
 	{
-		ArmorPiece.LossPercent 0;
 		ArmorPiece.SavePercent 0.1;
-		Health 250;
+		ArmorPiece.Priority 3;
+		Health 200;
 		Inventory.PickupMessage "$TXT_ARMOR4";
 		Inventory.Icon "AR_4A0";
 		DamageFactor "Blunt", 1.25;

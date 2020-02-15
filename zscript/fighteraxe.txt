@@ -197,7 +197,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 					rol *= -1;
 				}
 				
-				A_Melee("HeavyAxeHurtBox", 75, 50, 5, 48, minAng, maxAng, 10, -15, rol, rol);
+				A_Melee("HeavyAxeHurtBox", 75, 25, 5, 48, minAng, maxAng, 10, -15, rol, rol);
 			}
 			FAXE D 2 Offset (-25, 90);
 			FAXE E 1 Offset (15, 32);
@@ -217,7 +217,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 			FAXE C 3 Offset (15, 32);
 			FAXE D 2 Offset (15, 32);
 			TNT1 A 0 A_PlaySound("FighterHammerMiss", CHAN_WEAPON);
-			FAXE D 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 50, 50, 5, 48, 45, -45, 0, 0, 90, 90);
+			FAXE D 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 50, 25, 5, 48, 45, -45, 0, 0, 90, 90);
 			FAXE D 2 Offset (-25, 90);
 			FAXE E 1 Offset (15, 32);
 			FAXE E 2 Offset (10, 54);
@@ -236,7 +236,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 			FAXE C 3 Offset (15, 32);
 			FAXE D 2 Offset (15, 32);
 			TNT1 A 0 A_PlaySound("FighterHammerMiss", CHAN_WEAPON);
-			FAXE D 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 50, 50, 5, 48, -45, 45, 0, 0, -90, -90);
+			FAXE D 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 50, 25, 5, 48, -45, 45, 0, 0, -90, -90);
 			FAXE D 2 Offset (-25, 90);
 			FAXE E 1 Offset (15, 32);
 			FAXE E 2 Offset (10, 54);
@@ -255,7 +255,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 			FAXE C 3 Offset (15, 32);
 			FAXE D 2 Offset (15, 32);
 			TNT1 A 0 A_PlaySound("FighterHammerMiss", CHAN_WEAPON);
-			FAXE D 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 100, 50, 5, 48, 0, 0, 45, -10);
+			FAXE D 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 100, 25, 5, 48, 0, 0, 45, -10);
 			FAXE D 2 Offset (-25, 90);
 			FAXE E 1 Offset (15, 32);
 			FAXE E 2 Offset (10, 54);
@@ -274,7 +274,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 			FAXE C 3 Offset (15, 32);
 			FAXE D 2 Offset (15, 32);
 			TNT1 A 0 A_PlaySound("FighterHammerMiss", CHAN_WEAPON);
-			FAXE D 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 100, 50, 5, 48, -20, 10, -10, 45, -160, -160);
+			FAXE D 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 100, 25, 5, 48, -20, 10, -10, 45, -160, -160);
 			FAXE D 2 Offset (-25, 90);
 			FAXE E 1 Offset (15, 32);
 			FAXE E 2 Offset (10, 54);
@@ -445,7 +445,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 			FAXE O 3 Offset (15, 32);
 			FAXE P 2 Offset (15, 32);
 			TNT1 A 0 A_PlaySound("FighterHammerMiss", CHAN_WEAPON);
-			FAXE P 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 50, 50, 5, 48, 45, -45, 0, 0, 90, 90);
+			FAXE P 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 50, 25, 5, 48, 45, -45, 0, 0, 90, 90);
 			FAXE P 2 Offset (-25, 90);
 			FAXE Q 1 Offset (15, 32);
 			FAXE Q 2 Offset (10, 54);
@@ -464,7 +464,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 			FAXE O 3 Offset (15, 32);
 			FAXE P 2 Offset (15, 32);
 			TNT1 A 0 A_PlaySound("FighterHammerMiss", CHAN_WEAPON);
-			FAXE P 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 50, 50, 5, 48, -45, 45, 0, 0, -90, -90);
+			FAXE P 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 50, 25, 5, 48, -45, 45, 0, 0, -90, -90);
 			FAXE P 2 Offset (-25, 90);
 			FAXE Q 1 Offset (15, 32);
 			FAXE Q 2 Offset (10, 54);
@@ -483,7 +483,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 			FAXE O 3 Offset (15, 32);
 			FAXE P 2 Offset (15, 32);
 			TNT1 A 0 A_PlaySound("FighterHammerMiss", CHAN_WEAPON);
-			FAXE P 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 100, 50, 5, 48, 0, 0, 45, -10);
+			FAXE P 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 100, 25, 5, 48, 0, 0, 45, -10);
 			FAXE P 2 Offset (-25, 90);
 			FAXE Q 1 Offset (15, 32);
 			FAXE Q 2 Offset (10, 54);
@@ -502,7 +502,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 			FAXE O 3 Offset (15, 32);
 			FAXE P 2 Offset (15, 32);
 			TNT1 A 0 A_PlaySound("FighterHammerMiss", CHAN_WEAPON);
-			FAXE P 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 100, 50, 5, 48, -20, 10, -10, 45, -160, -160);
+			FAXE P 1 Offset (-5, 70) A_Melee("HeavyAxeHurtBox", 100, 25, 5, 48, -20, 10, -10, 45, -160, -160);
 			FAXE P 2 Offset (-25, 90);
 			FAXE Q 1 Offset (15, 32);
 			FAXE Q 2 Offset (10, 54);
@@ -518,16 +518,19 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 	
 	override State GetUpState ()
 	{
+		super.GetUpState();
 		return (Ammo1.Amount || Ammo2.Amount) ? FindState ("SelectGlow") : Super.GetUpState();
 	}
 
 	override State GetDownState ()
 	{
+		super.GetDownState();
 		return (Ammo1.Amount || Ammo2.Amount) ? FindState ("DeselectGlow") : Super.GetDownState();
 	}
 
 	override State GetReadyState ()
 	{
+		super.GetReadyState();
 		return (Ammo1.Amount || Ammo2.Amount) ? FindState ("ReadyGlow") : Super.GetReadyState();
 	}
 
@@ -673,27 +676,14 @@ class ShieldBash : HurtBox
 		Radius 16;
 		Height 16;
 		DamageType "Blunt";
+		HurtBox.AilmentType "Stumble";
+		HurtBox.AilmentPower 100;
 		HurtBox.ForwardOffset 16;
 		HurtBox.SideOffset -4;
 		AttackSound "FighterPunchHitThing";
 		ActiveSound "FighterPunchHitWall";
 		
 		+HURTBOX.DONTINTERPOLATE
-	}
-	
-	override int DoSpecialDamage(Actor victim, int damage, name damagetype)
-	{
-		if (victim.bIsMonster || victim.player)
-		{
-			Vector3 dir = (AngleToVector(target.AngleTo(victim), cos(target.pitch)), -sin(target.pitch));
-			victim.vel += dir.Unit() * 10;
-			
-			State pain = victim.FindState("Pain");
-			if (pain)
-				victim.SetState(pain);
-		}
-		
-		return damage;
 	}
 }
 
@@ -704,9 +694,9 @@ class AxeHurtBox : HurtBox
 		Radius 2;
 		Height 8;
 		DamageType "Cleave";
-		HurtBox.AilmentPower 25;
+		HurtBox.AilmentPower 50;
 		HurtBox.AilmentType "Bleed";
-		HurtBox.AilmentDamage 3;
+		HurtBox.AilmentDamage 10;
 		HurtBox.BonusDamageType "Electric";
 		HurtBox.BonusAilmentPower 50;
 		HurtBox.BonusAilmentType "Shock";
@@ -719,26 +709,67 @@ class AxeHurtBox : HurtBox
 		
 		+HURTBOX.NOBONUSMULTI
 	}
-	
+}
+
+class HeavyAxeHurtBox : AxeHurtBox
+{
 	override void BonusAttack(Actor mo)
 	{
 		if (!mo)
 			return;
 		
-		let ex = Spawn("AxeExplosion", mo.pos+(0,0,mo.default.height/2), ALLOW_REPLACE);
-		if (ex)
+		bool useNormal = false;
+		bool useReserve = false;
+		bool spawnExplosion = true;
+						
+		Ammo normal;
+		Ammo reserve;
+						
+		if (!sv_infiniteammo && !target.FindInventory("PowerInfiniteAmmo"))
 		{
-			ex.target = target;
-			ex.ExplodeMissile();
+			normal = Ammo(target.FindInventory(bonusType));
+			reserve = Ammo(target.FindInventory(reserveBonusType));
+							
+			if (normal && normal.amount < 4)
+			{
+				if (!reserve || (reserve.amount+normal.amount) < 4)
+					spawnExplosion = false;
+				else
+				{
+					if (normal.amount > 0)
+						useNormal = true;
+									
+					useReserve = true;
+				}
+			}
+			else if (normal)
+				useNormal = true;
 		}
-	}
-}
-
-class HeavyAxeHurtBox : AxeHurtBox
-{
-	Default
-	{
-		HurtBox.BonusCost 4;
+		
+		if (spawnExplosion)
+		{
+			if (useNormal || useReserve)
+			{
+				int cost = 4;
+										
+				if (normal && useNormal)
+				{
+					int take = min(normal.amount, 4);
+					cost -= take;
+					normal.amount -= take;
+				}
+										
+				if (reserve && useReserve)
+					reserve.amount -= cost;
+			}
+			
+			let ex = Spawn("AxeExplosion", mo.pos+(0,0,mo.default.height/2), ALLOW_REPLACE);
+			if (ex)
+			{
+				ex.target = target;
+				ex.ExplodeMissile();
+			}
+		}
 	}
 }
 
@@ -747,7 +778,7 @@ class AxeExplosion : RPGMissile
 	Default
 	{
 		Radius 64;
-		Damage 40;
+		Damage 50;
 		DamageType "Electric";
 		RPGMissile.AilmentPower 25;
 		RPGMissile.AilmentType "Shock";

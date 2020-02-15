@@ -101,7 +101,7 @@ class Skill : Inventory abstract
 			Effect();
 		}
 		
-		if (drain && bCurToggle)
+		if (drain && drainType && bCurToggle && !sv_infiniteammo && !owner.FindInventory("PowerInfiniteAmmo"))
 		{
 			if (drainTimer++ >= drainInterval)
 			{
@@ -131,23 +131,23 @@ class Skill : Inventory abstract
 		if (bInCast)
 		{
 			if (messageTimer <= 0)
-				A_Log("Currently casting this spell");
+				Console.Printf("Currently casting this spell");
 			
 			useSkill = false;
 		}
 		else if (bInCoolDown)
 		{
 			if (messageTimer <= 0)
-				A_Log("Spell on cool down");
+				Console.Printf("Spell on cool down");
 			
 			useSkill = false;
 		}
 			
-		if (useSkill && cost > 0 && !bCurToggle &&
+		if (useSkill && cost > 0 && !sv_infiniteammo && !owner.FindInventory("PowerInfiniteAmmo") && !bCurToggle &&
 			((type == 'Health' && owner.health <= cost) || !owner.CheckInventory(type, cost)))
 		{
 			if (messageTimer <= 0)
-				A_Log("You do not have enough resources to cast this");
+				Console.Printf("You do not have enough resources to cast this");
 			
 			useSkill = false;
 		}
@@ -155,7 +155,7 @@ class Skill : Inventory abstract
 		if (useSkill && activeWeapon && (!owner.player.ReadyWeapon || owner.player.ReadyWeapon.GetClass() != activeWeapon))
 		{
 			if (messageTimer <= 0)
-				A_Log("You must have "..weaponName.." out to use this");
+				Console.Printf("You must have "..weaponName.." out to use this");
 			
 			useSkill = false;
 		}
@@ -177,7 +177,7 @@ class Skill : Inventory abstract
 				bInCoolDown = true;
 			}
 			
-			bool useAmmo = true;
+			bool useAmmo = (!sv_infiniteammo && !owner.FindInventory("PowerInfiniteAmmo"));
 			if (bToggle)
 			{
 				bCurToggle = !bCurToggle;

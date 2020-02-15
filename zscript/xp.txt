@@ -2,6 +2,9 @@ class XPHandler : EventHandler
 {
 	override void WorldThingDied(WorldEvent e)
 	{
+		if (!e.thing)
+			return;
+		
 		if (e.thing is 'RPGMonster')
 		{
 			for (int i = 0; i < players.Size(); ++i)

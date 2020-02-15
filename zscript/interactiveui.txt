@@ -16,6 +16,11 @@ class InteractiveBox : Object ui
 	bool bKeepAspectRatio;
 	bool bCenter;
 	
+	int leftBoundary;
+	int rightBoundary;
+	int topBoundary;
+	int bottomBoundary;
+	
 	protected uint attachTimer;
 	protected double wRatio;
 	protected double hRatio;
@@ -24,6 +29,60 @@ class InteractiveBox : Object ui
 	protected int currentAction;
 	protected uint deltatime;
 	private uint prevTime;
+	
+	void DrawTexture(TextureID texture, Vector2 pos, Vector2 scale = (1,1), bool clip = false)
+	{
+		if (bInvisible || !scale.x || !scale.y)
+			return;
+		
+		if (clip)
+			Screen.SetClipRect(leftBoundary, topBoundary, rightBoundary - leftBoundary, bottomBoundary - topBoundary);
+			
+		Vector2 size = TexMan.GetScaledSize(texture);
+		size.y *= 1.2;
+			
+		size.x *= scale.x;
+		size.y *= scale.y;
+			
+		int w, h;
+		if (bKeepAspectRatio)
+			size *= min(wRatio, hRatio);
+		else
+		{
+			size.x *= wRatio;
+			size.y *= hRatio;
+		}
+			
+		w = size.x;
+		h = size.y;
+		pos.y += size.y/scale.y;
+		Screen.DrawTexture(texture, false, pos.x, pos.y, DTA_CenterBottomOffset, true, DTA_DestWidth, w, DTA_DestHeight, h);
+			
+		if (clip)
+			Screen.ClearClipRect();
+	}
+	
+	void DrawText(Font fnt, int color, Vector2 pos, string text, Vector2 offset = (0,0), double scale = 1)
+	{
+		if (bInvisible || !scale)
+			return;
+		
+		int vWidth = Screen.GetWidth();
+		int vHeight = Screen.GetHeight();
+		
+		double ratio = min(wRatio, hRatio) * scale;
+		vWidth /= ratio;
+		vHeight /= ratio;
+		
+		offset *= ratio;
+		
+		pos.x += offset.x;
+		pos.y += offset.y;
+		
+		pos /= ratio;
+				
+		Screen.DrawText(fnt, color, pos.x, pos.y, text, DTA_VirtualWidth, vWidth, DTA_VirtualHeight, vHeight, DTA_KeepRatio, true);
+	}
 	
 	virtual void Initialize()
 	{
@@ -199,28 +258,15 @@ class ItemBox : InteractiveBox
 		if (!bSelected)
 			Screen.DrawFrame(center.x-scaledW/2, center.y-scaledH/2, scaledW, scaledH);
 		
-		Font font = "BIGUPPER";
-		int fHeight = font.GetHeight();
-		string title = item.GetTag();
-		int titleLength = font.StringWidth(title);
-		Vector2 pos = center;
-		
-		/*if (bKeepAspectRatio)
+		if (item)
 		{
-			double ratio = min(wRatio, hRatio);
-			fHeight *= ratio;
-			titleLength *= ratio;
+			Font fnt = "BIGUPPER";
+			string title = item.GetTag();
+			int titleLength = fnt.StringWidth(title);
+			int fHeight = fnt.GetHeight();
+			
+			DrawText(fnt, Font.CR_WHITE, center-(0, scaledH/2), title, (-titleLength / 2, -fHeight));
 		}
-		else
-		{
-			fHeight *= hRatio;
-			titleLength *= wRatio;
-		}*/
-		
-		pos.y -= (scaledH/2 + fHeight);
-		pos.x -= titleLength / 2;
-				
-		Screen.DrawText(font, Font.CR_WHITE, pos.x, pos.y, title);
 		
 		if (!bLeftClicked && !bRightClicked)
 		{
@@ -236,51 +282,19 @@ class ItemBox : InteractiveBox
 	{
 		super.Execute();
 		
-		if (item && !bInvisible && item.icon)
+		if (item)
 		{
-			Vector2 size = TexMan.GetScaledSize(item.icon);
-			size.y *= 1.2;
-			size *= 2;
-			Vector2 pos = bAttached ? (mouseX, mouseY) : center;
-			
-			int w, h;
-			if (bKeepAspectRatio)
-				size *= min(wRatio, hRatio);
-			else
-			{
-				size.x *= wRatio;
-				size.y *= hRatio;
-			}
-			
-			w = size.x;
-			h = size.y;
-			pos.y += size.y/2;
-			Screen.DrawTexture(item.icon, false, pos.x, pos.y, DTA_CenterBottomOffset, true, DTA_DestWidth, w, DTA_DestHeight, h);
-			
+			if (item.icon)
+				DrawTexture(item.icon, bAttached ? (mouseX, mouseY) : center, (2,2));
+		
 			if (!bAttached)
 			{
-				Vector2 corner = center;
-				Font font = "BIGUPPER";
-				int fHeight = font.GetHeight();
+				Font fnt = "BIGUPPER";
+				int fHeight = fnt.GetHeight();
 				string amount = String.Format("%d", item.amount);
-				int amtLength = font.StringWidth(amount);
+				int amtLength = fnt.StringWidth(amount);
 				
-				/*if (bKeepAspectRatio)
-				{
-					double ratio = min(wRatio, hRatio);
-					fHeight *= ratio;
-					amtLength *= ratio;
-				}
-				else
-				{
-					fHeight *= hRatio;
-					amtLength *= wRatio;
-				}*/
-				
-				corner.x += (scaledW/2 - amtLength);
-				corner.y += (scaledH/2 - fHeight);
-				
-				Screen.DrawText(font, Font.CR_WHITE, corner.x, corner.y, amount);
+				DrawText(fnt, Font.CR_WHITE, center+(scaledW/2, scaledH/2), amount, (-amtLength, -fHeight));
 			}
 		}
 		
@@ -372,53 +386,8 @@ class KeyItemBox : InteractiveBox
 	{
 		super.Execute();
 		
-		if (item && !bInvisible && item.icon)
-		{
-			Vector2 size = TexMan.GetScaledSize(item.icon);
-			size.y *= 1.2;
-			size *= 2;
-			Vector2 pos = bAttached ? (mouseX, mouseY) : center;
-			
-			int w, h;
-			if (bKeepAspectRatio)
-				size *= min(wRatio, hRatio);
-			else
-			{
-				size.x *= wRatio;
-				size.y *= hRatio;
-			}
-			
-			w = size.x;
-			h = size.y;
-			pos.y += size.y/2;
-			Screen.DrawTexture(item.icon, false, pos.x, pos.y, DTA_CenterBottomOffset, true, DTA_DestWidth, w, DTA_DestHeight, h);
-			
-			if (!bAttached)
-			{
-				Vector2 corner = center;
-				Font font = "BIGUPPER";
-				int fHeight = font.GetHeight();
-				string amount = String.Format("%d", item.amount);
-				int amtLength = font.StringWidth(amount);
-				
-				/*if (bKeepAspectRatio)
-				{
-					double ratio = min(wRatio, hRatio);
-					fHeight *= ratio;
-					amtLength *= ratio;
-				}
-				else
-				{
-					fHeight *= hRatio;
-					amtLength *= wRatio;
-				}*/
-				
-				corner.x += (scaledW/2 - amtLength);
-				corner.y += (scaledH/2 - fHeight);
-				
-				Screen.DrawText(font, Font.CR_WHITE, corner.x, corner.y, amount);
-			}
-		}
+		if (item && item.icon)
+			DrawTexture(item.icon, bAttached ? (mouseX, mouseY) : center, (2,2));
 	}
 	
 	override void OnAttached()
@@ -430,28 +399,15 @@ class KeyItemBox : InteractiveBox
 	{
 		Screen.DrawFrame(center.x-scaledW/2, center.y-scaledH/2, scaledW, scaledH);
 		
-		Font font = "BIGUPPER";
-		int fHeight = font.GetHeight();
-		string title = item.GetTag();
-		int titleLength = font.StringWidth(title);
-		Vector2 pos = center;
-		
-		/*if (bKeepAspectRatio)
+		if (item)
 		{
-			double ratio = min(wRatio, hRatio);
-			fHeight *= ratio;
-			titleLength *= ratio;
-		}
-		else
-		{
-			fHeight *= hRatio;
-			titleLength *= wRatio;
-		}*/
-		
-		pos.y -= (scaledH/2 + fHeight);
-		pos.x -= titleLength / 2;
-				
-		Screen.DrawText(font, Font.CR_WHITE, pos.x, pos.y, title);				
+			Font fnt = "BIGUPPER";
+			string title = item.GetTag();
+			int titleLength = fnt.StringWidth(title);
+			int fHeight = fnt.GetHeight();
+			
+			DrawText(fnt, Font.CR_WHITE, center-(0, scaledH/2), title, (-titleLength / 2, -fHeight));
+		}			
 		
 		if (!bLeftClicked && !bRightClicked)
 		{
@@ -511,11 +467,13 @@ class PassiveBox : InteractiveBox
 	{
 		super.Execute();
 		
-		if (item && !bInvisible)
+		if (item)
 		{
 			Font font = "BIGUPPER";
+			int fHeight = font.GetHeight() / 2;
 			string sign = increment ? ">" : "<";
-			Screen.DrawText(confont, Font.CR_WHITE, center.x, center.y, sign);
+			
+			DrawText(confont, Font.CR_WHITE, center, sign, (-confont.StringWidth(sign)/2, -confont.GetHeight()/2), 3);
 			
 			if (!increment)
 			{
@@ -528,18 +486,11 @@ class PassiveBox : InteractiveBox
 					else if (stat.tempLevel > stat.level)
 						levelColor = font.CR_GREEN;
 					
-					Screen.DrawText(font, levelColor, center.x+100*wRatio, center.y, String.Format("%d", stat.tempLevel));
-					
-					string title;
-					if (stat.title)
-						title = stat.title;
-					else
-						title = stat.GetClassName();
-					
-					Screen.DrawText(font, Font.CR_FIRE, center.x+300*wRatio, center.y, title);
-					Screen.DrawText(font, Font.CR_TAN, center.x+500*wRatio, center.y, stat.description);
+					DrawText(font, levelColor, center, String.Format("%d", stat.tempLevel), (100, -fHeight));
+					DrawText(font, Font.CR_FIRE, center, stat.GetTag(), (300, -fHeight));
+					DrawText(font, Font.CR_TAN, center, stat.description, (500, -fHeight));
 					if (stat.currentBonus != "")
-						Screen.DrawText(confont, Font.CR_WHITE, center.x+1100*wRatio, center.y, stat.currentBonus);
+						DrawText(confont, Font.CR_WHITE, center, stat.currentBonus, (750, -confont.GetHeight()/2), 1.5);
 				}
 			}
 		}
@@ -555,7 +506,7 @@ class PassiveBox : InteractiveBox
 			{
 				if (!increment)
 				{
-					if (it.tempLevel > it.baseLevel)
+					if (it.tempLevel > it.minLevel)
 					{
 						it.tempLevel -= 1;
 						++owner.tempPoints;
@@ -592,13 +543,10 @@ class ConfirmStatsButton : InteractiveBox
 	{
 		super.Execute();
 		
-		if (!bInvisible)
-		{
-			Font font = "BIGUPPER";
-			int fHeight = font.GetHeight();
-			int w = font.StringWidth("Center");
-			Screen.DrawText(font, Font.CR_WHITE, center.x-w/2, center.y-fHeight/2, "Confirm");
-		}
+		Font fnt = "BIGUPPER";
+		int fHeight = fnt.GetHeight() / 2;
+		int w = fnt.StringWidth("Center") / 2;
+		DrawText(fnt, Font.CR_WHITE, center, "Confirm", (-w, -fHeight));
 	}
 	
 	override void OnLeftRelease()

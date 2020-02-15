@@ -2,6 +2,9 @@ class GlobalEventsHandler : EventHandler
 {
 	override void WorldThingSpawned(WorldEvent e)
 	{
+		if (!e.thing)
+			return;
+		
 		if (e.thing.bMissile && e.thing.target && e.thing.target.player)
 		{
 			for (int i = 0; i < players.Size(); ++i)
@@ -20,11 +23,11 @@ class GlobalEventsHandler : EventHandler
 				}
 			}
 		}
-		else if (e.thing is "Inventory" && !(e.thing is "RPGItem"))
+		else if (e.thing is "Inventory")
 		{
-			if (e.thing is "ArtiEgg" || e.thing is "ArtiHealingRadius")
+			if (e.thing is "ArtiEgg" || e.thing is "ArtiHealingRadius" || e.thing is "ArtiDarkServant")
 				e.thing.Destroy();
-			else
+			else if (e.thing is "PuzzleItem")
 				Inventory(e.thing).bInvBar = false;
 		}
 	}

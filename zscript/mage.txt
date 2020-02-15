@@ -13,8 +13,8 @@ class ReforgedMage : RPGPlayer
 		Player.ScoreIcon "MAGEFACE";
 		Player.StartItem "ReforgedWand";
 		Player.StartItem "AmuletPiece";
-		Player.StartItem "BlueMana", 50;
-		Player.StartItem "GreenMana", 50;
+		Player.StartItem "BlueMana", 100;
+		Player.StartItem "GreenMana", 100;
 		Player.StartItem "RedMana", 0;
 		Player.Portrait "P_MWALK1";
 		Player.WeaponSlot 1, "ReforgedWand";
@@ -102,6 +102,15 @@ class ReforgedMage : RPGPlayer
 			Stop;
 	}
 	
+	override void InitializeSkills()
+	{
+		SetSkill(0, "RaiseDead", true);
+		SetSkill(1, "IceBomb", true);
+		
+		SetActiveSkill(0, "RaiseDead");
+		SetActiveSkill(1, "IceBomb");
+	}
+	
 	override void InitializeStats()
 	{
 		super.InitializeStats();
@@ -113,5 +122,234 @@ class ReforgedMage : RPGPlayer
 		let intel = Stat(FindInventory("Intelligence"));
 		if (intel)
 			intel.LevelUp(2, true);
+	}
+}
+
+class UndeadTracer : LineTracer
+{
+	Actor master;
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				int blockFlags = Line.ML_BLOCKEVERYTHING;
+				if (!(results.hitLine.flags & blockFlags) &&
+					(results.hitLine.flags & Line.ML_TWOSIDED) &&
+					results.tier == TIER_Middle)
+				{
+					results.hitType = TRACE_HitNone;
+					break;
+				}
+			case TRACE_HasHitSky:
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (results.hitActor != master && !results.hitActor.bFriendly &&
+					results.hitActor.bIsMonster && results.hitActor.health <= 0 && results.hitActor.tics == -1)
+				{
+					return TRACE_Stop;
+				}
+				results.hitType = TRACE_HitNone;
+				results.hitActor = null;
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
+class RaiseDead : Skill
+{
+	const MAX_MINIONS = 7;
+	
+	Array<Actor> minions;
+	
+	Array<class<Actor> > minionName;
+	Array<int> minionHealth;
+	
+	int prevLevelNum;
+	
+	Default
+	{
+		Skill.CastTime 35;
+	}
+	
+	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
+	{
+		if (passive)
+		{
+			if (source && damage > 0 && source.bIsMonster && !source.bFriendly)
+			{
+				for (uint i = 0; i < minions.Size(); ++i)
+				{
+					if (minions[i] && !minions[i].target)
+						minions[i].target = source;
+				}
+			}
+		}
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (!prevLevelNum)
+			prevLevelNum = level.levelNum;
+		
+		if (level.levelNum != prevLevelNum)
+		{
+			ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
+			Actor mo;
+			
+			while (mo = Actor(it.Next()))
+			{
+				if (mo && mo.bIsMonster && mo.master == owner && minions.Find(mo) == minions.Size())
+					mo.Destroy();
+			}
+		}
+		
+		prevLevelNum = level.levelNum;
+		
+		for (uint i = 0; i < minions.Size(); ++i)
+		{
+			if (minions[i])
+				minionHealth[i] = minions[i].health;
+			else
+			{
+				let monster = Spawn(minionName[i], owner.pos);
+				if (monster)
+				{
+					minions[i] = monster;
+					monster.bFriendly = true;
+					monster.master = owner;
+					monster.health = minionHealth[i];
+					monster.SetState(monster.SeeState);
+				}
+			}
+		}
+		
+		for (uint i = 0; i < minionHealth.Size(); ++i)
+		{
+			if (minionHealth[i] <= 0)
+			{
+				minions.Delete(i);
+				minionHealth.Delete(i);
+				minionName.Delete(i);
+				--i;
+			}
+		}
+	}
+	
+	override void UseSkill()
+	{
+		let tracer = new("UndeadTracer");
+		if (tracer)
+		{
+			Vector3 start = owner.pos + (0,0, owner.player.mo.viewheight - owner.floorclip);
+			Vector3 dir = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch));
+			tracer.master = owner;
+			tracer.Trace(start, CurSector, dir, 128, 0);
+			
+			if (tracer.results.hitActor)
+			{
+				if (tracer.results.hitActor.A_RaiseSelf())
+				{
+					uint currentMinions;
+					for (uint i = 0; i < minions.Size(); ++i)
+					{
+						if (minions[i])
+							++currentMinions;
+					}
+					
+					if (currentMinions >= MAX_MINIONS)
+					{
+						uint index;
+						int minHealth = 0x7FFFFFFF;
+						for (uint i = 0; i < minions.Size(); ++i)
+						{
+							if (minions[i] && minionHealth[i] < minHealth)
+							{
+								index = i;
+								minHealth = minionHealth[i];
+							}
+						}
+					
+						if (minions[index])
+							minions[index].DamageMobj(null, null, TELEFRAG_DAMAGE, "Telefrag");
+						
+						minions.Delete(index);
+						minionHealth.Delete(index);
+						minionName.Delete(index);
+					}
+					
+					minions.Push(tracer.results.hitActor);
+					minionName.Push(tracer.results.hitActor.GetClass());
+					minionHealth.Push(tracer.results.hitActor.health);
+					
+					tracer.results.hitActor.master = owner;
+					tracer.results.hitActor.bFriendly = true;
+					tracer.results.hitActor.target = null;
+				}
+			}
+			else
+			{
+				for (uint i = 0; i < minions.Size(); ++i)
+				{
+					if (minions[i])
+					{
+						minions[i].SetOrigin(owner.pos, false);
+						minions[i].target = null;
+					}
+				}
+			}
+		}
+	}
+}
+
+class IceExplosion : RPGMissile
+{
+	Default
+	{
+		Radius 256;
+		Damage 200;
+		DamageType "Ice";
+		RPGMissile.AilmentPower 100;
+		RPGMissile.AilmentType "Chill";
+		
+		+RPGMISSILE.FREEZER
+		+ICESHATTER
+	}
+	
+	States
+	{
+		Spawn:
+		Death:
+			TNT1 A 1 A_Explode(damage, radius, 0, false, radius, damagetype: damageType);
+			Stop;
+	}
+}
+
+class IceBomb : Skill
+{
+	Default
+	{
+		Skill.Cost 45;
+		Skill.Type "BlueMana";
+		Skill.CoolDown 700;
+	}
+	
+	override void UseSkill()
+	{
+		let missile = Spawn("IceExplosion", owner.pos, ALLOW_REPLACE);
+		if (missile)
+		{
+			missile.target = owner;
+			missile.ExplodeMissile();
+		}
 	}
 }

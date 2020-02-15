@@ -84,7 +84,7 @@ class ReforgedEttin : RPGMonster replaces Ettin
 			
 		Melee:
 			ETTN EF 6 A_MonsterFaceTarget;
-			ETTN G 8 A_MonsterMelee("MaceBox", 6, 3, 5, 32, 10, -20, 15, -15, 20, 20);
+			ETTN G 8 A_MonsterMelee("MaceBox", 20, 10, 5, 32, 10, -20, 15, -15, 20, 20);
 			Goto See;
 			
 		Death:
@@ -95,6 +95,10 @@ class ReforgedEttin : RPGMonster replaces Ettin
 			ETTN NOP 4;
 			ETTN Q -1;
 			Stop;
+			
+		Raise:
+			ETTN PONMLKJI 4;
+			Goto See;
 			
 		XDeath:		
 			ETTB A 4;

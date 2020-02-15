@@ -1,5 +1,7 @@
 class ReforgedFighter : RPGPlayer
 {
+	Array<Actor> alreadyHit;
+	
 	Default
 	{
 		Radius 16;
@@ -13,14 +15,15 @@ class ReforgedFighter : RPGPlayer
 		Player.ScoreIcon "FITEFACE";
 		Player.StartItem "ReforgedFist";
 		Player.StartItem "ChestPiece";
-		Player.StartItem "BlueMana", 50;
-		Player.StartItem "GreenMana", 50;
+		Player.StartItem "BlueMana", 100;
+		Player.StartItem "GreenMana", 100;
 		Player.StartItem "RedMana", 0;
 		Player.Portrait "P_FWALK1";
 		Player.WeaponSlot 1, "ReforgedFist";
 		Player.WeaponSlot 2, "ReforgedAxe";
 		Player.WeaponSlot 3, "FWeapHammer";
 		Player.WeaponSlot 4, "ReforgedQuietus";
+		Damage 20;
 		
 		Player.ColorRange 246, 254;
 		Player.Colorset		0, "$TXT_COLOR_GOLD",		246, 254,    253;
@@ -102,6 +105,50 @@ class ReforgedFighter : RPGPlayer
 			Stop;
 	}
 	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (!player || !player.mo || player.mo != self)
+			return;
+		
+		if (!bSkullFly)
+		{
+			for (uint i = 0; i < alreadyHit.Size(); ++i)
+			{
+				if (!CheckIntersection(alreadyHit[i]))
+				{
+					alreadyHit.Delete(i);
+					--i;
+				}
+			}
+		}
+	}
+	
+	override bool CanCollideWith(Actor other, bool passive)
+	{
+		if (alreadyHit.Find(other) != alreadyHit.Size())
+			return false;
+		
+		return super.CanCollideWith(other, passive);
+	}
+	
+	bool CheckIntersection(Actor targ)
+	{
+		if (!targ)
+			return false;
+		
+		Vector3 orgMin = (pos.x - radius, pos.y - radius, pos.z);
+		Vector3 orgMax = (pos.x + radius, pos.y + radius, pos.z + height);
+		
+		Vector3 targMin = (targ.pos.x - targ.radius, targ.pos.y - targ.radius, targ.pos.z);
+		Vector3 targMax = (targ.pos.x + targ.radius, targ.pos.y + targ.radius, targ.pos.z + targ.height);
+		
+		return (orgMin.x <= targMax.x && orgMax.x >= targMin.x) &&
+			   (orgMin.y <= targMax.y && orgMax.y >= targMin.y) &&
+			   (orgMin.z <= targMax.z && orgMax.z >= targMin.z);
+	}
+	
 	override void InitializeSkills()
 	{
 		SetSkill(0, "BloodLust", true);
@@ -128,19 +175,23 @@ class ReforgedFighter : RPGPlayer
 	
 	override bool Slam(Actor victim)
 	{
-		//victim.vel += (10, 10, 0);
-		return true;
-	}
-	
-	override void MovePlayer()
-	{
-		if (bSkullFly)
+		if (!victim || !victim.bSolid || victim.bFriendly || alreadyHit.Find(victim) != alreadyHit.Size())
+			return true;
+		
+		if (!victim.bShootable)
 		{
-			player.cmd.forwardmove = 0;
-			player.cmd.sidemove = 0;
+			vel = (0,0,0);
+			return false;
 		}
 		
-		super.MovePlayer();
+		victim.DamageMobj(self, self, 20, 'Blunt');
+		let stum = Ailment(victim.FindInventory("Stumble"));
+		if (stum)
+			stum.AddAilment(self, 100);
+		
+		alreadyHit.Push(victim);
+		
+		return true;
 	}
 }
 
@@ -180,7 +231,7 @@ class BLBuff : Buff
 			!owner.IsFriend(thing) &&
 			owner.Distance3DSquared(thing) <= range**2)
 		{
-			owner.GiveBody(3);
+			owner.GiveBody(owner.player.mo.maxHealth*0.05);
 		}
 	}
 }
@@ -189,7 +240,7 @@ class LightningAxe : Skill
 {
 	Default
 	{
-		Skill.Cost 2;
+		Skill.Cost 5;
 		Skill.Type "BlueMana";
 		Skill.ActiveWeapon "ReforgedAxe";
 		Skill.WeaponName "Timon's Axe";
@@ -205,7 +256,7 @@ class LightningAxe : Skill
 
 class Charge : Skill
 {
-	Vector3 prevVel;
+	Vector2 launchVel;
 	int chargeTimer;
 	
 	Default
@@ -216,13 +267,16 @@ class Charge : Skill
 	
 	override void UseSkill()
 	{
-		if (owner.bSkullfly)
+		// Something in the map is probably happening
+		if (owner.player.cheats & (CF_TOTALLYFROZEN|CF_FROZEN))
 			return;
 		
 		owner.bSkullfly = true;
 		chargeTimer = 35;
-		owner.vel = (AngleToVector(owner.angle, 20), 0);
-		prevVel = owner.vel;
+		owner.VelFromAngle(17*owner.speed, owner.angle);
+		launchVel = owner.vel.xy;
+		owner.player.cheats |= CF_TOTALLYFROZEN;
+		owner.A_StartSound("minotaur/sight", CHAN_VOICE);
 	}
 	
 	override void Effect()
@@ -233,15 +287,23 @@ class Charge : Skill
 		if (chargeTimer > 0)
 			--chargeTimer;
 		
-		if (chargeTimer > 0 && owner.vel == prevVel)
-			castTimer = castTime;
-		else if (owner.bSkullfly)
+		if (launchVel == owner.vel.xy && chargeTimer > 0)
 		{
+			if (owner.pitch != 15)
+			{
+				if (owner.pitch > 0)
+					owner.A_SetPitch(owner.pitch - min(10, owner.pitch-15), SPF_INTERPOLATE);
+				else
+					owner.A_SetPitch(owner.pitch - max(-10, owner.pitch-15), SPF_INTERPOLATE);
+			}
+		}
+		else if (owner.player.cheats & CF_TOTALLYFROZEN)
+		{
+			owner.player.cheats &= ~CF_TOTALLYFROZEN;
 			owner.bSkullfly = false;
 			chargeTimer = 0;
 			owner.vel = (0,0,0);
+			owner.A_SetPitch(0, SPF_INTERPOLATE);
 		}
-		
-		prevVel = owner.vel;
 	}
 }

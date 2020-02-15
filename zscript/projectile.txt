@@ -1,0 +1,965 @@
+class FasterProjectile : Actor
+{
+	const MIN_UNIT = 1/65536.;
+	Vector3 lastPos;
+	
+	// Taken directly from XYMovement function
+	static const double windTab[] = {5/32., 10/32., 25/32.};
+	
+	Default
+	{
+		Projectile;
+		MissileHeight 0;
+	}
+	
+	virtual void Effect()
+	{
+		class<Actor> trail = MissileName;
+		if (trail != null)
+		{
+			double hitz = pos.z;
+
+			if (hitz < floorz)
+				hitz = floorz;
+			
+			// Do not clip this offset to the floor.
+			hitz += MissileHeight;
+			
+			let act = Spawn(trail, (pos.xy, hitz), ALLOW_REPLACE);
+			if (act)
+			{
+				if (bGetOwner && target)
+					act.target = target;
+				else
+					act.target = self;
+				
+				act.angle = angle;
+				act.pitch = pitch;
+			}
+		}
+	}
+	
+	override void Tick()
+	{
+		ClearInterpolation();
+		
+		lastPos = pos;
+		
+		if (isFrozen())
+			return;
+
+		if (vel != (0,0,0))
+		{
+			bool isMissile = bMissile;
+			
+			FCheckPosition tm;
+			tm.DoRipping = isMissile && bRipper;
+			
+			uint count, radCount, heightCount;
+			if (radius > 0)
+				radCount = ceil(vel.xy.Length() / radius);
+			
+			if (height > 0)
+				heightCount = ceil(abs(vel.z) / height);
+			
+			count = max(radCount, heightCount);
+			if (!count)
+				count = 1; // Why do you have something with no height and radius?
+		
+			Vector3 frac = vel / count;
+			uint ripCount;
+			for (uint i = 0; i < count; ++i)
+			{
+				if (!ripCount)
+					tm.ClearLastRipped();
+					
+				if (!TryMove(pos.xy + frac.xy, false, true, tm) && isMissile)
+				{
+					if (!bSkyExplode)
+					{
+						let l = tm.ceilingline;
+						if (l &&
+							l.backsector &&
+							l.backsector.GetTexture(sector.ceiling) == skyflatnum)
+						{
+							let posr = PosRelative(l.backsector);
+							if (pos.z >= l.backsector.ceilingplane.ZatPoint(posr.xy))
+							{
+								// Hack to prevent missiles exploding against the sky.
+								// Does not handle sky floors.
+								Destroy();
+								return;
+							}
+						}
+						
+						// [RH] Don't explode on horizon lines.
+						if (BlockingLine && BlockingLine.special == Line_Horizon)
+						{
+							Destroy();
+							return;
+						}
+					}
+					
+					if (BlockingMobj)
+					{
+						if (CheckReflective(BlockingMobj))
+						{
+							if (ReflectOnActor(BlockingMobj))
+								break;
+						}
+						else if (bAllowBounceOnActors && (bBounceOnActors || BlockingMobj.bNoBlood))
+						{
+							if (!BounceOnActor(BlockingLine, BlockingMobj))
+								return;
+									
+							break;
+						}
+						else
+						{
+							ExplodeMissile(BlockingLine, BlockingMobj);
+							ClearBounce();
+							return;
+						}
+					}
+					else if (BlockingLine)
+					{
+						if (bBounceOnWalls)
+						{
+							if (!BounceOnActor(BlockingLine, BlockingMobj))
+								return;
+							
+							break;
+						}
+						else
+						{
+							ExplodeMissile(BlockingLine, BlockingMobj);
+							ClearBounce();
+							return;
+						}
+					}
+				}
+					
+				AddZ(frac.z);
+				UpdateWaterLevel();
+				
+				// Did we hit the floor?
+				if (pos.z <= floorz)
+				{
+					SetZ(floorz);
+					
+					if (isMissile)
+					{
+						if (!bFloorHugger)
+						{
+							Destructible.ProjectileHitPlane(self, SECPART_Floor);
+							if (HitFloor() && !bCanBounceWater)
+							{
+								if (bExplodeOnWater)
+								{
+									ExplodeMissile(null, null);
+									ClearBounce();
+								}
+								else
+								{
+									Destroy();
+								}
+								
+								return;
+							}
+							
+							if (floorpic == skyflatnum &&
+								((bBounceOnFloors && bDontBounceOnSky) || (!bBounceOnFloors && !bSkyExplode)))
+							{
+								// [RH] Just remove the missile without exploding it
+								//		if this is a sky floor.
+								Destroy();
+								return;
+							}
+							
+							if (bBounceOnFloors)
+							{
+								if (!BounceOnPlane(true))
+									return;
+								
+								break;
+							}
+							else
+							{
+								ExplodeMissile(null, null);
+								ClearBounce();
+								return;
+							}
+						}
+					}
+					else
+						vel.z = 0;
+				}
+				
+				// Did we hit the ceiling?
+				if (pos.z + height >= ceilingz)
+				{
+					SetZ(ceilingz - height);
+					
+					if (isMissile)
+					{
+						if (!bCeilingHugger)
+						{
+							Destructible.ProjectileHitPlane(self, SECPART_Ceiling);
+							
+							if (ceilingpic == skyflatnum &&
+								((bBounceOnCeilings && bDontBounceOnSky) || (!bBounceOnCeilings && !bSkyExplode)))
+							{
+								Destroy();
+								return;
+							}
+							
+							if (bBounceOnCeilings)
+							{
+								if (!BounceOnPlane())
+									return;
+								
+								break;
+							}
+							else
+							{
+								ExplodeMissile(null, null);
+								ClearBounce();
+								return;
+							}
+						}
+					}
+					else
+						vel.z = 0;
+				}
+				
+				CheckPortalTransition();
+				
+				if (!ripCount)
+				{
+					if (isMissile)
+						Effect();
+					
+					ripCount = count / 8;
+				}
+				
+				--ripCount;
+			}
+		}
+		
+		if (!bFloorHugger && !bCeilingHugger)
+		{
+			if (pos.z > floorz)
+				vel.z -= GetGravity();
+		}
+		
+		if (bWindThrust && waterlevel < 2 && !bNoClip)
+		{
+			int special = CurSector.special;
+			switch (special)
+			{
+				case 40: case 41: case 42: // Wind_East
+					Thrust(0., windTab[special-40]);
+					break;
+				case 43: case 44: case 45: // Wind_North
+					Thrust(90., windTab[special-43]);
+					break;
+				case 46: case 47: case 48: // Wind_South
+					Thrust(270., windTab[special-46]);
+					break;
+				case 49: case 50: case 51: // Wind_West
+					Thrust(180., windTab[special-49]);
+					break;
+			}
+		}
+		
+		if (!CheckNoDelay())
+			return;
+		
+		// Advance the state
+		if (tics != -1)
+		{
+			if (tics > 0)
+				--tics;
+			
+			if (!tics)
+				SetState(CurState.NextState);
+		}
+	}
+	
+	protected bool CheckReflective(Actor mo)
+	{
+		if (!mo || !mo.bReflective || (mo.bShieldReflect && mo.AbsAngle(mo.angle, mo.AngleTo(self)) > 90))
+			return false;
+		
+		return true;
+	}
+	
+	protected bool ReflectOnActor(Actor mo)
+	{
+		if (!mo)
+			return false;
+		
+		if (mo.bAimReflect && target)
+		{
+			if (lastPos.z >= mo.pos.z + mo.height)
+				SetZ(mo.pos.z + mo.height);
+			else if (lastPos.z + height <= mo.pos.z)
+				SetZ(mo.pos.z - height);
+				
+			Vector3 diff = Vec3To(target) + (0,0,(target.height/2-floorclip) - height/2);
+			vel = diff.Unit() * vel.Length();
+		}
+		else
+		{
+			if (lastPos.z >= mo.pos.z + mo.height)
+			{
+				// We're on top of it
+				SetZ(mo.pos.z + mo.height);
+				Vector3 normal = (0,0,-1);
+				Vector3 u = (vel dot normal)*normal;
+		
+				vel = (vel - u) - u;
+			}
+			else if (lastPos.z + height <= mo.pos.z)
+			{
+				// We're below it
+				SetZ(mo.pos.z - height);
+				Vector3 normal = (0,0,-1);
+				Vector3 u = (vel dot normal)*normal;
+		
+				vel = (vel - u) - u;
+			}
+			
+			if (mo.bMirrorReflect)
+			{
+				vel.xy *= -1;
+			}
+			else if (mo.bShieldReflect || mo.bDeflect)
+			{
+				double ang = mo.angle;
+				if (mo.DeltaAngle(ang, mo.AngleTo(self)) < 0)
+					ang -= 45;
+				else
+					ang += 45;
+				
+				vel.xy = AngleToVector(ang, vel.xy.Length());
+			}
+			else
+			{
+				// Get the edges of the bounding box
+				double ang = mo.AngleTo(self);
+				if (ang < 0)
+					ang += 360;
+							
+				Vector2 normal;
+				if (ang > 315 || ang <= 45)
+					normal = (1,0);
+				else if (ang > 45 && ang <= 135)
+					normal = (0,1);
+				else if (ang > 135 && ang <= 225)
+					normal = (-1,0);
+				else
+					normal = (0,-1);
+				
+				Vector2 u = (vel.xy dot normal)*normal;
+				vel.xy = (vel.xy - u) - u;
+			}
+		}
+			
+		angle = VectorAngle(vel.xy.x, vel.xy.y);
+			
+		if (bSeekerMissile)
+			tracer = target;
+				
+		target = mo;
+		
+		return true;
+	}
+	
+	protected bool BounceOnActor(Line line, Actor mo)
+	{
+		if (bDontBounceOnShootables && mo && mo.bShootable)
+			bounceCount = 1;
+		
+		if (bounceCount > 0 && --bounceCount <= 0)
+		{
+			ExplodeMissile(BlockingLine, BlockingMobj);
+			ClearBounce();
+			return false;
+		}
+		
+		// Prioritize Actors
+		if (mo)
+		{
+			if (lastPos.z >= mo.pos.z + mo.height)
+			{
+				// We're on top of it
+				SetZ(mo.pos.z + mo.height);
+				Vector3 normal = (0,0,1);
+				Vector3 u = (vel dot normal)*normal;
+		
+				vel = (vel - u) - u;
+				vel *= BounceFactor;
+			}
+			else if (lastPos.z + height <= mo.pos.z)
+			{
+				// We're below it
+				SetZ(mo.pos.z - height);
+				Vector3 normal = (0,0,-1);
+				Vector3 u = (vel dot normal)*normal;
+		
+				vel = (vel - u) - u;
+				vel *= BounceFactor;
+			}
+			else
+			{
+				// Get the edges of the bounding box
+				double ang = mo.AngleTo(self);
+				if (ang < 0)
+					ang += 360;
+						
+				Vector2 normal;
+				if (ang > 315 || ang <= 45)
+					normal = (1,0);
+				else if (ang > 45 && ang <= 135)
+					normal = (0,1);
+				else if (ang > 135 && ang <= 225)
+					normal = (-1,0);
+				else
+					normal = (0,-1);
+				
+				Vector2 u = (vel.xy dot normal)*normal;
+				vel.xy = (vel.xy - u) - u;
+				
+				vel *= WallBounceFactor;
+			}
+			
+			if (bHitTarget)
+				target = mo;
+			if (bHitMaster)
+				master = mo;
+			if (bHitTracer)
+				tracer = mo;
+		}
+		else if (line)
+		{
+			Vector2 normal;
+			if (PointOnLineSide(pos.x, pos.y, line))
+				normal = (line.delta.y, -line.delta.x);
+			else
+				normal = (-line.delta.y, line.delta.x);
+			
+			Vector2 u = ((vel.xy dot normal) / (normal dot normal))*normal;
+			vel.xy = (vel.xy - u) - u;
+			
+			vel *= WallBounceFactor;
+		}
+		
+		angle = VectorAngle(vel.xy.x, vel.xy.y);
+		
+		if (!bNoWallBounceSnd && !bNoBounceSound)
+		{
+			if (WallBounceSound)
+				A_StartSound(WallBounceSound, attenuation: ATTN_IDLE);
+			else
+				A_StartSound(BounceSound, attenuation: ATTN_IDLE);
+		}
+		
+		return true;
+	}
+	
+	protected bool BounceOnPlane(bool floor = false)
+	{
+		if (bounceCount > 0 && --bounceCount <= 0)
+		{
+			ExplodeMissile(null, null);
+			ClearBounce();
+			return false;
+		}
+		
+		Secplane plane;
+		if (floor)
+			plane = CurSector.floorplane;
+		else
+			plane = CurSector.ceilingplane;
+		
+		Vector3 u = (vel dot plane.normal)*plane.normal;
+		
+		vel = (vel - u) - u;
+		vel *= BounceFactor;
+		
+		angle = VectorAngle(vel.xy.x, vel.xy.y);
+		
+		if (bBounceAutoOff && (floor || !bBounceAutoOffFloorOnly) && vel.z < 3.)
+			ClearBounce();
+		
+		if (!bNoBounceSound)
+			A_StartSound(BounceSound, attenuation: ATTN_IDLE);
+						
+		return true;
+	}
+	
+	private int PointOnLineSide(double x, double y, in Line ld)
+	{
+        return (y - ld.v1.p.y)*ld.delta.x + (ld.v1.p.x - x)*ld.delta.y > MIN_UNIT;
+    }
+}
+
+// Send a warning to block
+class WarningTracer : LineTracer
+{
+	Actor owner;
+	Actor master;
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				int blockFlags = Line.ML_BLOCKING | Line.ML_BLOCKEVERYTHING | Line.ML_BLOCKPROJECTILE;
+				if (!(results.hitLine.flags & blockFlags) &&
+					(results.hitLine.flags & Line.ML_TWOSIDED) &&
+					results.tier == TIER_Middle)
+				{
+					break;
+				}
+			case TRACE_HasHitSky:
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (results.hitActor == owner ||
+					results.hitActor == master ||
+					results.hitActor.health <= 0 ||
+					(results.hitActor.bShootable && !(results.hitActor.bIsMonster || results.hitActor.player)))
+				{
+					results.hitActor = null;
+					break;
+				}
+				return TRACE_Stop;
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
+class RPGMissile : FasterProjectile
+{
+	Array<Actor> alreadyHit;
+	
+	double ailmentPower;
+	class<Ailment> ailmentType;
+	int ailmentDamage;
+	bool bCriticalHit;
+	int maxPenetration;
+	double length;
+	double warnDistance;
+	
+	protected double damageMultiplier;
+	protected int currentPenetration;
+	
+	Vector3 prevVel;
+	
+	Vector3 forward;
+	Vector3 up;
+	Vector3 right;
+	
+	property Length : length;
+	property MaxPenetration : maxPenetration;
+	property AilmentPower : ailmentPower;
+	property AilmentType : ailmentType;
+	property AilmentDamage : ailmentDamage;
+	property WarnDistance : warnDistance;
+	
+	deprecated("3.7") private int rpgMissileFlags;
+	flagdef Penetrating: rpgMissileFlags, 0;
+	flagdef ThruObjects: rpgMissileFlags, 1;
+	flagdef Oriented: rpgMissileFlags, 2;
+	flagdef Freezer: rpgMissileFlags, 3;
+	flagdef Shatterer: rpgMissileFlags, 4;
+	flagdef NoCrit: rpgMissileFlags, 5;
+	flagdef NoBlockWarn: rpgMissileFlags, 6;
+	flagdef ShieldBuster: rpgMissileFlags, 7;
+	
+	Default
+	{
+		RPGMissile.WarnDistance 512;
+	}
+	
+	override int SpecialMissileHit(Actor victim)
+	{
+		SetDamage(default.damage);
+		if (victim == target || alreadyHit.Find(victim) != alreadyHit.Size())
+			return 1;
+		
+		if ((victim.master && victim.master.player && target.isFriend(victim)) || (target.master && target.master.player && victim.IsFriend(target)))
+			return 1;
+		
+		if (bOriented && !CheckOBB(victim, forward, right, up, length))
+			return 1;
+		
+		if (victim.health <= 0)
+		{
+			if (victim.bIceCorpse)
+				victim.DamagemObj(self, target, 1, 'None'); // Make sure corpses shatter
+			
+			return 1;
+		}
+		
+		bool isShield = (victim is 'BlockBox');
+		if (isShield &&
+			(victim.master == target ||
+			(victim.master.master && victim.master.master.player && target.isFriend(victim.master)) ||
+			(target.master && target.master.player && victim.master.IsFriend(target))))
+		{
+			return 1;
+		}
+		
+		if (isShield && alreadyHit.Find(victim.master) != alreadyHit.Size())
+		{
+			alreadyHit.Push(victim);
+			return 1;
+		}
+		
+		if (victim.bShootable && !(victim.bIsMonster || victim.player))
+		{
+			if (isShield && CheckOBB(victim, forward, right, up, bOriented ? length : radius))
+			{
+				victim.DamageMobj(self, target, damage, damageType);
+				alreadyHit.Push(victim);
+				alreadyHit.Push(victim.master);
+				
+				if (bPenetrating)
+				{
+					if (maxPenetration > 0 && currentPenetration-- <= 0)
+					{
+						SetDamage(0);
+						return -1;
+					}
+					
+					return 1;
+				}
+				
+				SetDamage(0);
+				return -1;
+			}
+			else if (!isShield)
+			{
+				victim.DamageMobj(self, target, damage, damageType);
+				alreadyHit.Push(victim);
+			}
+			
+			return 1;
+		}
+		else if (!victim.bShootable)
+		{
+			if (!victim.bSolid)
+				return 1;
+			else if (bThruObjects)
+			{
+				if (bPenetrating)
+				{
+					if (maxPenetration > 0 && currentPenetration-- <= 0)
+					{
+						SetDamage(0);
+						return -1;
+					}
+					
+					alreadyHit.Push(victim);
+				}
+					
+				return 1;
+			}
+			
+			SetDamage(0);
+			return -1;
+		}
+		
+		bool doDamage = true;
+		let rpgm = RPGMonster(victim);
+		if (rpgm && rpgm.collisionBoxes.Size())
+		{
+			// Check critical boxes first
+			CollisionBox bestBox;
+			int bestDamage;
+			for (uint i = 0; i < rpgm.collisionBoxes.Size(); ++i)
+			{
+				let cBox = rpgm.collisionBoxes[i];
+				if (!cBox || cBox.bDead || !cBox.bCriticalZone)
+					continue;
+							
+				bool crit;
+				if (cBox.bOriented || bOriented)
+					crit = CheckOBB(cBox, forward, right, up, bOriented ? length : radius);
+				else
+					crit = CheckCollision(cBox);
+							
+				if (crit)
+				{
+					int dmg;
+					if (!bNoCrit)
+					{
+						bCriticalHit = true;
+						dmg = damage * cBox.multi;
+					}
+					else
+						dmg = damage;
+					
+					if (dmg > bestDamage)
+					{
+						bestBox = cBox;
+						bestDamage = dmg;
+					}
+				}
+			}
+			
+			if (!bestBox)
+			{
+				for (uint i = 0; i < rpgm.collisionBoxes.Size(); ++i)
+				{
+					let box = rpgm.collisionBoxes[i];
+					if (!box || box.bDead || box.bCriticalZone)
+						continue;
+					
+					bool hit;
+					if (box.bOriented || bOriented)
+						hit = CheckOBB(box, forward, right, up, bOriented ? length : radius);
+					else
+						hit = CheckCollision(box);
+					
+					if (hit)
+					{
+						int dmg = damage * box.multi;
+						if (dmg > bestDamage)
+						{
+							bestBox = box;
+							bestDamage = dmg;
+						}
+					}
+				}
+			}
+			
+			if (bestBox)
+			{
+				if (bestBox.bCriticalZone && bNoCrit)
+					damageMultiplier = 1;
+				else
+					damageMultiplier = bestBox.multi;
+			}
+			else
+				doDamage = false;
+		}
+		
+		if (doDamage)
+		{
+			if (!rpgm)
+				damageMultiplier = 1;
+			
+			int flags = bCriticalHit ? DMG_CRIT : 0;
+			victim.DamageMobj(self, target, round(damage*damageMultiplier), damageType, flags);
+			if (victim.bIceCorpse && bShatterer)
+				victim.DamageMobj(self, target, 1, 'None');
+			
+			alreadyHit.Push(victim);
+			
+			if (bPenetrating)
+			{
+				if (maxPenetration > 0 && currentPenetration-- <= 0)
+				{
+					SetDamage(0);
+					return -1;
+				}
+					
+				return 1;
+			}
+			
+			SetDamage(0);
+			return -1;
+		}
+		
+		return 1;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (bOriented && prevVel != vel)
+		{
+			forward = vel.Unit();
+			
+			double ang = VectorAngle(forward.x, forward.y);
+			double pch = -VectorAngle(forward.xy.Length(), forward.z);
+			
+			double angCos, angSin, pchCos, pchSin, rolCos, rolSin;
+			angCos = cos(ang);
+			angSin = sin(ang);
+			pchCos = cos(pch);
+			pchSin = sin(pch);
+			rolCos = cos(roll);
+			rolSin = sin(roll);
+			
+			right = (-1*rolSin*pchSin*angCos + -1*rolCos*-angSin, -1*rolSin*pchSin*angSin + -1*rolCos*angCos, -1*rolSin*pchCos);
+			up = (rolCos*pchSin*angCos + -rolSin*-angsin, rolCos*pchSin*angSin + -rolSin*angCos, rolCos*pchCos);
+			
+			prevVel = vel;
+		}
+		else if (!bOriented)
+		{
+			forward = (1,0,0);
+			right = (0,1,0);
+			up = (0,0,1);
+		}
+		
+		if (!globalfreeze && !level.frozen)
+		{
+			double len = radius;
+			if (bOriented)
+				len = length;
+			
+			Spawn("Marker", pos + forward*len + right*radius);
+			Spawn("Marker", pos + forward*len - right*radius);
+			Spawn("Marker", pos - forward*len + right*radius);
+			Spawn("Marker", pos - forward*len - right*radius);
+			Spawn("Marker", pos + forward*len + right*radius + up*height);
+			Spawn("Marker", pos + forward*len - right*radius + up*height);
+			Spawn("Marker", pos - forward*len + right*radius + up*height);
+			Spawn("Marker", pos - forward*len - right*radius + up*height);
+			
+			if (!bNoBlockWarn && !(GetAge() % 17) && InStateSequence(CurState, SpawnState))
+			{
+				let warn = WarningTracer(new("WarningTracer"));
+				if (warn)
+				{
+					warn.master = self;
+					warn.owner = target;
+					warn.Trace(pos+up*height/2, level.PointInSector(pos.xy), vel.Unit(), warnDistance, 0);
+					if (warn.results.hitActor &&
+						warn.results.hitActor is 'RPGMonster' &&
+						warn.results.hitActor.bFriendly != target.bFriendly)
+					{
+						let rpgm = RPGMonster(warn.results.hitActor);
+						rpgm.Block(self);
+					}
+				}
+			}
+		}
+	}
+	
+	override int DoSpecialDamage(Actor victim, int damage, name damagetype)
+	{
+		if ((victim.master && victim.master.player && target.isFriend(victim)) || (target.master && target.master.player && victim.IsFriend(target)))
+			return -1;
+		
+		if (ailmentPower > 0 && ailmentType)
+		{
+			let ail = Ailment(victim.FindInventory(ailmentType));
+			if (ail)
+				ail.AddAilment(target, ailmentPower, ailmentDamage);
+		}
+		
+		return damage;
+	}
+	
+	// We can do faster checking if mo is axis aligned
+	bool CheckCollision(Actor mo)
+	{
+		if (!mo)
+			return false;
+		
+		double moLength = mo.radius;
+		if (mo is 'CollisionBox')
+			moLength = CollisionBox(mo).length;
+		
+		Vector3 min = (pos.x - radius, pos.y - radius, pos.z);
+		Vector3 max = (pos.x + radius, pos.y + radius, pos.z + height);
+		
+		Vector3 moMin = (mo.pos.x - moLength, mo.pos.y - mo.radius, mo.pos.z);
+		Vector3 moMax = (mo.pos.x + moLength, mo.pos.y + mo.radius, mo.pos.z + mo.height);
+		
+		return (min.x <= moMax.x && max.x >= moMin.x) &&
+				(min.y <= moMax.y && max.y >= moMin.y) &&
+				(min.z <= moMax.z && max.z >= moMin.z);
+	}
+	
+	// Things get a bit more complicated if the mo can orient itself
+	bool CheckOBB(Actor mo, Vector3 forward, Vector3 right, Vector3 up, double length)
+	{
+		if (!mo)
+			return false;
+		
+		double depth = height / 2;
+		double moDepth = mo.height / 2;
+		double moLength = mo.radius;
+		
+		Vector3 center = pos + (up*depth);
+		Vector3 moCenter = mo.pos + (0,0,moDepth);
+		
+		Vector3 moForward = (1,0,0);
+		Vector3 moRight = (0,1,0);
+		Vector3 moUp = (0,0,1);
+		
+		if (mo is 'CollisionBox')
+		{
+			let box = CollisionBox(mo);
+			moLength = box.length;
+			moForward = box.forward;
+			moRight = box.right;
+		}
+		else if (mo is 'BlockBox')
+		{
+			let box = BlockBox(mo);
+			moLength = box.length;
+			moForward = box.forward;
+			moRight = box.right;
+			moUp = box.up;
+		}
+		
+		Vector3 t = moCenter - center;
+		
+		if (ProjectEdge(t, forward, length, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, right, radius, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, up, depth, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, moForward, moLength, length, radius, depth, forward, right, up) ||
+			ProjectEdge(t, moRight, mo.radius, length, radius, depth, forward, right, up) ||
+			ProjectEdge(t, moUp, moDepth, length, radius, depth, forward, right, up))
+		{
+			return false;
+		}
+		
+		if (ProjectPlane(t, forward, radius, depth, moForward, mo.radius, moDepth, up, right, moUp, moRight) ||
+			ProjectPlane(t, forward, radius, depth, moRight, moLength, moDepth, up, right, moUp, moForward) ||
+			ProjectPlane(t, forward, radius, depth, moUp, moLength, mo.radius, up, right, moRight, moForward) ||
+			ProjectPlane(t, right, length, depth, moForward, mo.radius, moDepth, up, forward, moUp, moRight) ||
+			ProjectPlane(t, right, length, depth, moRight, moLength, moDepth, up, forward, moUp, moForward) ||
+			ProjectPlane(t, right, length, depth, moUp, moLength, mo.radius, up, forward, moRight, moForward) ||
+			ProjectPlane(t, up, length, radius, moForward, mo.radius, moDepth, right, forward, moUp, moRight) ||
+			ProjectPlane(t, up, length, radius, moRight, moLength, moDepth, right, forward, moUp, moForward) ||
+			ProjectPlane(t, up, length, radius, moUp, moLength, mo.radius, right, forward, moRight, moForward))
+		{
+			return false;
+		}
+		
+		return true;
+	}
+	
+	bool ProjectEdge(Vector3 t, Vector3 axis, double aR, double bL, double bR, double bD, Vector3 forward, Vector3 right, Vector3 up)
+	{
+		return abs(t dot axis) > (aR + abs(axis dot (bL*forward)) + abs(axis dot (bR*right)) + abs(axis dot (bD*up)));
+	}
+	
+	bool ProjectPlane(Vector3 t, Vector3 a1, double aR, double aD, Vector3 b1, double bR, double bD, Vector3 a2, Vector3 a3, Vector3 b2, Vector3 b3)
+	{
+		return abs(((t dot a2)*(a3 dot b1)) - ((t dot a3)*(a2 dot b1))) > (abs((aR*a2) dot b1) + abs((aD*a3) dot b1) + abs(a1 dot (bR*b2)) + abs(a1 dot (bD*b3)));
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		currentPenetration = maxPenetration;
+	}
+}

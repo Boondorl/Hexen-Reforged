@@ -9,23 +9,18 @@ class RPGItem : Inventory
 	Default
 	{
 		Inventory.MaxAmount 255;
+		Inventory.InterhubAmount 255;
 	}
 	
 	override void Touch(Actor toucher)
 	{
 		let rpg = RPGPlayer(toucher);
 		if (rpg && (rpg.carryCapacity - rpg.currentCapacity) < weight)
-		{
-			//A_Log("You cannot carry this");
 			return;
-		}
 		
 		let item = toucher.FindInventory(GetClass());
 		if (item && item.amount >= item.maxAmount)
-		{
-			//A_Log("You cannot carry any more of these");
 			return;
-		}
 		
 		super.Touch(toucher);
 	}
@@ -61,7 +56,11 @@ class RPGItem : Inventory
 			let rpg = RPGPlayer(owner);
 			let it = RPGItem(item);
 			if (rpg && it)
-				rpg.currentCapacity += it.weight*it.amount;
+			{
+				int amt = it.amount;
+				amt = min(amt, it.maxAmount - it.amount);
+				rpg.currentCapacity += it.weight*amt;
+			}
 		}
 		
 		return pickup;
@@ -198,8 +197,8 @@ class RPGFlask : RPGHealthPickup replaces ArtiHealth
 {
 	Default
 	{
-		RPGItem.Weight 2;
-		Health 15;
+		RPGItem.Weight 1;
+		Health 10;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIPTN2";
 		Inventory.PickupSound "misc/p_pkup";
@@ -222,8 +221,8 @@ class RPGUrn : RPGHealthPickup replaces ArtiSuperHealth
 {
 	Default
 	{
-		RPGItem.Weight 25;
-		Health 50;
+		RPGItem.Weight 7;
+		Health 100;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTISPHL";
 		Inventory.PickupSound "misc/p_pkup";
@@ -242,6 +241,66 @@ class RPGUrn : RPGHealthPickup replaces ArtiSuperHealth
 	}
 }
 
+class PowerDynamicTorch : Powerup
+{
+	Default
+	{
+		Powerup.Duration -120;
+	}
+	
+	override void AttachToOwner(Actor other)
+	{
+		super.AttachToOwner(other);
+		target = Spawn("TorchLight");
+		if (target && owner.player)
+			target.master = owner.player.mo;
+	}
+	
+	override void DetachFromOwner()
+	{
+		let light = TorchLight(target);
+		if (light)
+			light.bStartFade = true;
+		
+		super.DetachFromOwner();
+	}
+}
+
+class TorchLight : PointLightFlickerRandomAdditive
+{
+	bool bStartFade;
+	
+	override void Tick()
+	{
+		if (master)
+			SetOrigin(master.pos + (0,0,master.height/2 - master.floorclip), true);
+		else
+		{
+			Destroy();
+			return;
+		}
+		
+		if (bStartFade)
+		{
+			args[3] -= 8;
+			args[4] -= 8;
+			
+			if (args[3] <= 0 || args[4] <= 0)
+				Destroy();
+		}
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		args[0] = 122;
+		args[1] = 61;
+		args[3] = 512;
+		args[4] = 384;
+	}
+}
+
 class RPGTorch : RPGPowerupGiver replaces ArtiTorch
 {
 	Default
@@ -251,7 +310,7 @@ class RPGTorch : RPGPowerupGiver replaces ArtiTorch
 		Inventory.Icon "ARTITRCH";
 		Inventory.PickupMessage "$TXT_ARTITORCH";
 		Tag "$TAG_ARTITORCH";
-		RPGPowerupGiver.Type "PowerTorch";
+		RPGPowerupGiver.Type "PowerDynamicTorch";
 		
 		+FLOATBOB
 	}
@@ -287,27 +346,15 @@ class RPGRook : RPGPowerupGiver replaces ArtiInvulnerability2
 	}
 }
 
-class RPGFly : RPGPowerupGiver replaces ArtiFly
+class RPGFly : ArtiFly replaces ArtiFly
 {
 	Default
 	{
-		RPGItem.Weight 25;
-		Inventory.PickupFlash "PickupFlash";
-		Inventory.InterHubAmount 0;
-		Inventory.RespawnTics 4230;
-		Inventory.Icon "ARTISOAR";
-		Inventory.PickupMessage "$TXT_ARTIFLY";
-		Tag "$TAG_ARTIFLY";
-		RPGPowerupGiver.Type "PowerFlight";
+		Inventory.MaxAmount 0;
 		
-		+FLOATBOB
-	}
-	
-	States
-	{
-		Spawn:
-			SOAR ABCB 5;
-			Loop;
+		+INVENTORY.AUTOACTIVATE
+		+INVENTORY.ALWAYSPICKUP
+		-COUNTITEM
 	}
 }
 
@@ -315,7 +362,7 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 {
 	Default
 	{
-		RPGItem.Weight 2;
+		RPGItem.Weight 3;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIBLST";
 		Inventory.PickupSound "misc/p_pkup";
@@ -517,45 +564,6 @@ class RPGFlechette : RPGItem replaces ArtiPoisonBag
 	}
 }
 
-class RPGDarkServant : RPGItem replaces ArtiDarkServant
-{
-	Default
-	{
-		RPGItem.Weight 20;
-		Inventory.RespawnTics 4230;
-		Inventory.PickupFlash "PickupFlash";
-		Inventory.Icon "ARTISUMN";
-		Inventory.PickupSound "misc/p_pkup";
-		Inventory.PickupMessage "$TXT_ARTISUMMON";
-		Tag "$TAG_ARTISUMMON";
-		
-		+FLOATBOB
-		+INVENTORY.INVBAR 
-		+INVENTORY.FANCYPICKUPSOUND
-	}
-	
-	States
-	{
-		Spawn:
-			SUMN A 350;
-			Loop;
-	}
-
-	override bool Use (bool pickup)
-	{
-		Actor mo = owner.SpawnPlayerMissile("SummoningDoll");
-		if (mo)
-		{
-			mo.target = Owner;
-			mo.tracer = Owner;
-			mo.Vel.Z = 5;
-		}
-		
-		super.Use(pickup);
-		return true;
-	}
-}
-
 class RPGTeleport : RPGItem replaces ArtiTeleport
 {
 	Default
@@ -636,14 +644,12 @@ class RPGKrater : RPGItem replaces ArtiBoostMana
 	{
 		let bm = owner.FindInventory("BlueMana");
 		let gm = owner.FindInventory("GreenMana");
-		let rm = owner.FindInventory("RedMana");
 		
-		if (!bm || !gm || !rm ||
-			bm.amount < bm.maxAmount || gm.amount < gm.maxAmount || rm.amount < rm.maxAmount)
+		if (!bm || !gm ||
+			bm.amount < bm.maxAmount || gm.amount < gm.maxAmount)
 		{
-			owner.A_GiveInventory("BlueMana", 50);
-			owner.A_GiveInventory("GreenMana", 50);
-			owner.A_GiveInventory("RedMana", 50);
+			owner.GiveInventory("BlueMana", 100);
+			owner.GiveInventory("GreenMana", 100);
 			
 			super.Use(pickup);
 			return true;

@@ -13,7 +13,7 @@ class Ailment : Inventory abstract
 	bool bActive;
 	
 	protected int stacks;
-	private double status;
+	protected double status;
 	private int coolDownTimer;
 	private Array<int> durationTimer;
 	private int lossTimer;
@@ -48,14 +48,14 @@ class Ailment : Inventory abstract
 	{
 		super.DoEffect();
 		
-		if (globalfreeze || level.frozen)
-			return;
-		
 		if (owner.health <= 0)
 		{
 			Clear();
 			return;
 		}
+		
+		if (globalfreeze || level.frozen)
+			return;
 		
 		if (coolDownTimer > 0)
 		{
@@ -72,7 +72,7 @@ class Ailment : Inventory abstract
 		if (bActive)
 			Effect();
 		
-		for (int i = 0; i < durationTimer.Size(); ++i)
+		for (uint i = 0; i < durationTimer.Size(); ++i)
 		{
 			if (durationTimer[i]-- > 0)
 			{
@@ -82,7 +82,7 @@ class Ailment : Inventory abstract
 				if (bIsDOT && dotIntervalTimer[i]-- <= 0)
 				{
 					DOTTick();
-					dotIntervalTimer.Insert(i, dotInterval);
+					dotIntervalTimer[i] = dotInterval;
 				}
 			}
 			else
@@ -94,6 +94,8 @@ class Ailment : Inventory abstract
 				dotIntervalTimer.Delete(i);
 				damageValues.Delete(i);
 				--stacks;
+				
+				--i;
 			}
 		}
 		
@@ -131,9 +133,9 @@ class Ailment : Inventory abstract
 		bActive = false;
 	}
 	
-	bool AddAilment(Actor mast, double amt, int dmg = -1)
+	virtual bool AddAilment(Actor mast, double amt, int dmg = -1)
 	{
-		if (bInCoolDown || owner.health <= 0)
+		if (bInCoolDown || owner.health <= 0 || amt < 0)
 			return false;
 		
 		status += amt;
@@ -143,7 +145,7 @@ class Ailment : Inventory abstract
 		{
 			OnSet();
 			
-			if (bStackable)
+			if (bStackable || !stacks)
 			{
 				if (stacks < maxStacks)
 				{
@@ -163,16 +165,16 @@ class Ailment : Inventory abstract
 			}
 			else
 			{
-				durationTimer.Insert(0, duration);
-				ailmentOwner.Insert(0, mast);
+				durationTimer[0] = duration;
+				ailmentOwner[0] = mast;
 				
 				if (dmg > -1)
-					damageValues.Push(dmg);
+					damageValues[0] = dmg;
 				else
-					damageValues.Push(damage);
+					damageValues[0] = damage;
 					
 				if (bIsDOT)
-					dotIntervalTimer.Insert(0, dotInterval);
+					dotIntervalTimer[0] = dotInterval;
 				
 				stacks = 1;
 			}
@@ -207,7 +209,7 @@ class Burn : Ailment
 	
 	override void Effect()
 	{
-		if (owner.tics == 1)
+		if (owner.tics == 1 && owner.InStateSequence(owner.CurState, owner.SeeState))
 		{
 			owner.speed = owner.default.speed * 1.5;
 			owner.A_Wander();
@@ -222,15 +224,23 @@ class Burn : Ailment
 	{
 		if (!stacks)
 		{
-			owner.SetState(owner.SeeState, true);
-			owner.speed = owner.default.speed * 1.5;
-			owner.A_Wander();
 			let rpgm = RPGMonster(owner);
+			
+			if (!owner.InStateSequence(owner.CurState, owner.FindState("Shock")) &&
+				!owner.InStateSequence(owner.CurState, owner.FindState("Stumble")) &&
+				!owner.InStateSequence(owner.CurState, owner.FindState("Parry")))
+			{
+				owner.SetState(owner.SeeState, true);
+				owner.speed = owner.default.speed * 1.5;
+				owner.A_Wander();
+				if (rpgm)
+					rpgm.bCancelled = true;
+			}
+			
 			if (rpgm)
 			{
 				rpgm.bDontBlock = true;
 				rpgm.bDontAttack = true;
-				rpgm.bCancelled = true;
 			}
 		}
 	}
@@ -248,7 +258,7 @@ class Burn : Ailment
 	
 	override void DOTTick()
 	{
-		owner.DamageMobj(self, target, damage, damageType);
+		owner.DamageMobj(self, target, damage, damageType, DMG_NOBLOCK);
 	}
 }
 
@@ -294,12 +304,6 @@ class Shock : Ailment
 		State zap = owner.FindState("Shock");
 		if (zap)
 			owner.SetState(zap);
-		else
-		{
-			State pain = owner.FindState("Pain");
-			if (pain)
-				owner.SetState(pain);
-		}
 	}
 	
 	override void OnLoss()
@@ -325,33 +329,14 @@ class Poison : Ailment
 	
 	override void DOTTick()
 	{
-		owner.DamageMobj(self, target, damage, damageType);
-		if (owner.health > 0 && !owner.InStateSequence(owner.CurState, owner.FindState("Shock")))
-		{
-			State pain = owner.FindState("Pain");
-			if (pain)
-				owner.SetState(pain);
-		}
-	}
-	
-	override void OnSet()
-	{
-		let rpgm = RPGMonster(owner);
-		if (rpgm)
-			rpgm.bDontBlock = true;
-	}
-	
-	override void OnLoss()
-	{
-		let rpgm = RPGMonster(owner);
-		if (rpgm)
-			rpgm.bDontBlock = false;
+		owner.A_PlaySound(owner.PainSound, CHAN_BODY);
+		owner.DamageMobj(self, target, damage, damageType, DMG_NOBLOCK);
 	}
 	
 	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
 	{
 		if (!passive && bActive)
-			newdamage = round(newdamage * 0.75);
+			newdamage = ceil(newdamage * 0.75);
 	}
 }
 
@@ -386,6 +371,18 @@ class Stumble : Ailment
 		if (rpgm)
 			rpgm.bDontBlock = false;
 	}
+	
+	override bool AddAilment(Actor mast, double amt, int dmg)
+	{
+		if (owner.InStateSequence(owner.CurState, owner.FindState("Shock")))
+		{
+			amt = min((cap-1) - status, amt);
+			if (amt < 0)
+				amt = 0;
+		}
+		
+		return super.AddAilment(mast, amt, dmg);
+	}
 }
 
 class Flinch : Ailment
@@ -412,6 +409,20 @@ class Flinch : Ailment
 		let rpgm = RPGMonster(owner);
 		if (rpgm)
 			rpgm.bDontBlock = false;
+	}
+	
+	override bool AddAilment(Actor mast, double amt, int dmg)
+	{
+		if (owner.InStateSequence(owner.CurState, owner.FindState("Shock")) ||
+			owner.InStateSequence(owner.CurState, owner.FindState("Stumble")) ||
+			owner.InStateSequence(owner.CurState, owner.FindState("Parry")))
+		{
+			amt = min((cap-1) - status, amt);
+			if (amt < 0)
+				amt = 0;
+		}
+		
+		return super.AddAilment(mast, amt, dmg);
 	}
 }
 

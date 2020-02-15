@@ -2,15 +2,13 @@ class Stat : Inventory abstract
 {
 	int level;
 	int maxLevel;
-	string title;
 	string description;
 	int cost;
-	int baseLevel;
+	int minLevel;
 	
-	property BaseLevel : baseLevel;
+	property MinLevel : minLevel;
 	property Level : level;
 	property MaxLevel : maxLevel;
-	property Title : title;
 	property Description : description;
 	property Cost : cost;
 	
@@ -21,7 +19,7 @@ class Stat : Inventory abstract
 	
 	Default
 	{
-		Stat.BaseLevel 1;
+		Stat.MinLevel 1;
 		Stat.Level 1;
 		Stat.MaxLevel 6;
 		Stat.Cost 1000;
@@ -34,7 +32,7 @@ class Stat : Inventory abstract
 		level += levels;
 		displayLevel = level;
 		if (start)
-			baseLevel += levels;
+			minLevel += levels;
 	}
 	
 	override void BeginPlay()
@@ -49,7 +47,7 @@ class Agility : Stat
 {
 	Default
 	{
-		Stat.Title "Agility";
+		Tag "Agility";
 		Stat.Description "Increases movement speed, carrying capacity,\nand reduces skill cool downs";
 	}
 	
@@ -81,17 +79,17 @@ class Vitality : Stat
 {
 	Default
 	{
-		Stat.Title "Vitality";
-		Stat.Description "Grants extra maximum health";
+		Tag "Vitality";
+		Stat.Description "Increases maximum health";
 	}
 	
 	override void LevelUp(int levels, bool start)
 	{
 		super.LevelUp(levels, start);
 		
-		owner.player.mo.maxHealth += 20*levels;
+		owner.player.mo.maxHealth += 30*levels;
 		if (start)
-			owner.player.mo.GiveBody(20*levels);
+			owner.player.mo.GiveBody(30*levels);
 		else if (levels < 0)
 		{
 			int diff = owner.player.mo.health - owner.player.mo.maxHealth;
@@ -105,7 +103,7 @@ class Vitality : Stat
 		super.DoEffect();
 		
 		if (displayLevel > 1)
-			currentBonus = String.Format("+%d max health", 20*(displayLevel-1));
+			currentBonus = String.Format("+%d max health", 30*(displayLevel-1));
 		else
 			currentBonus = "";
 	}
@@ -115,8 +113,8 @@ class Wisdom : Stat
 {
 	Default
 	{
-		Stat.Title "Wisdom";
-		Stat.Description "Grants extra maximum blue, green, and\nred mana";
+		Tag "Wisdom";
+		Stat.Description "Increases maximum mana";
 	}
 	
 	override void LevelUp(int levels, bool start)
@@ -126,10 +124,10 @@ class Wisdom : Stat
 		let bmana = Ammo(owner.player.mo.FindInventory("BlueMana"));
 		if (bmana)
 		{
-			bmana.MaxAmount += 10*levels;
-			bmana.BackpackMaxAmount += 10*levels;
+			bmana.MaxAmount += 30*levels;
+			bmana.BackpackMaxAmount += 30*levels;
 			if (start)
-				bmana.amount += 10*levels;
+				bmana.amount += 30*levels;
 			else if (levels < 0)
 			{
 				int diff = bmana.amount - bmana.maxAmount;
@@ -141,10 +139,10 @@ class Wisdom : Stat
 		let gmana = Ammo(owner.player.mo.FindInventory("GreenMana"));
 		if (gmana)
 		{
-			gmana.MaxAmount += 10*levels;
-			gmana.BackpackMaxAmount += 10*levels;
+			gmana.MaxAmount += 30*levels;
+			gmana.BackpackMaxAmount += 30*levels;
 			if (start)
-				gmana.amount += 10*levels;
+				gmana.amount += 30*levels;
 			else if (levels < 0)
 			{
 				int diff = gmana.amount - gmana.maxAmount;
@@ -156,8 +154,8 @@ class Wisdom : Stat
 		let rmana = Ammo(owner.player.mo.FindInventory("RedMana"));
 		if (rmana)
 		{
-			rmana.MaxAmount += 10*levels;
-			rmana.BackpackMaxAmount += 10*levels;
+			rmana.MaxAmount += 30*levels;
+			rmana.BackpackMaxAmount += 30*levels;
 			if (levels < 0)
 			{
 				int diff = rmana.amount - rmana.maxAmount;
@@ -172,7 +170,7 @@ class Wisdom : Stat
 		super.DoEffect();
 		
 		if (displayLevel > 1)
-			currentBonus = String.Format("+%d maximum blue, green, and red mana", 10*(displayLevel-1));
+			currentBonus = String.Format("+%d maximum mana", 30*(displayLevel-1));
 		else
 			currentBonus = "";
 	}
@@ -184,7 +182,7 @@ class Intelligence : Stat
 	
 	Default
 	{
-		Stat.Title "Intelligence";
+		Tag "Intelligence";
 		Stat.Description "Shows mastery in the arcane by increasing\nmagic damage";
 	}
 	
@@ -223,11 +221,11 @@ class Intelligence : Stat
 
 class Strength : Stat
 {
-	static const Name bonus[] = {'Cleave', 'Pierce', 'Blunt', 'Bleed'};
+	static const Name bonus[] = {'Cleave', 'Pierce', 'Blunt', 'Bleed', 'Melee', 'Hitscan'};
 	
 	Default
 	{
-		Stat.Title "Strength";
+		Tag "Strength";
 		Stat.Description "Shows mastery in heavy weaponry by increasing\nphysical damage";
 	}
 	
@@ -266,19 +264,29 @@ class Strength : Stat
 
 class Dexterity : Stat
 {
-	State prevState;
-	int baseTicsToRemove;
-	int ticsToRemove;
-	int stateInterval;
-	int stateTracker;
-	int totalStates;
+	private State prevState;
+	private double prevOffset;
 	
-	double prevOffset;
+	private int ticsToRemove;
+	private double interval;
+	private int ticTimer;
 	
 	Default
 	{
-		Stat.Title "Dexterity";
+		Tag "Dexterity";
 		Stat.Description "Shows mastery of all weapons by reducing the\n time needed to swap weapons, attack, and cast spells";
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		if (owner && owner.player)
+		{
+			let psp = owner.player.GetPSprite(PSP_WEAPON);
+			if (psp)
+				prevOffset = psp.y;
+		}
 	}
 	
 	override void DoEffect()
@@ -286,7 +294,7 @@ class Dexterity : Stat
 		super.DoEffect();
 		
 		if (displayLevel > 1)
-			currentBonus = String.Format("-%d%% swap, attack, and cast time", 6*(displayLevel-1));
+			currentBonus = String.Format("-%d%% swap, attack, and cast time", 5*(displayLevel-1));
 		else
 			currentBonus = "";
 		
@@ -301,88 +309,111 @@ class Dexterity : Stat
 				{
 					State raising = weap.GetUpState();
 					State lowering = weap.GetDownState();
-					double modifier = 100 / 6.;
+					double modifier = (level-1) / (100 / 5.);
 					
-					if (psp.CurState.InStateSequence(raising))
+					if (psp.CurState.InStateSequence(raising) || psp.CurState.InStateSequence(lowering))
 					{
 						int diff = psp.y - prevOffset;
-						psp.y += diff*(level-1)/modifier;
-					}
-					else if (psp.CurState.InStateSequence(lowering))
-					{
-						int diff = psp.y - prevOffset;
-						psp.y += diff*(level-1)/modifier;
-					}
-					else
-					{
-						State ready = weap.GetReadyState();
-						int dist = 0;
-						if (!psp.CurState.InStateSequence(ready))
-						{
-							if (prevState && !prevState.InStateSequence(ready))
-								dist = abs(prevState.DistanceTo(psp.CurState));
-							else
-								dist = 2;
-						}
-						
-						if (dist > 1)
-						{
-							stateTracker = 0;
-							stateInterval = 0;
-							totalStates = 0;
-							
-							int totalTics = 0;
-							State thisState = psp.CurState;
-							State lastState;
-							do
-							{
-								totalTics += thisState.tics;
-								if (thisState.tics > 0)
-									++totalStates;
-								
-								lastState = thisState;
-								thisState = thisState.NextState;
-							} while (thisState && lastState.DistanceTo(thisState) == 1);
-							
-							baseTicsToRemove = round(totalTics * (level-1)/modifier);
-							ticsToRemove = baseTicsToRemove;
-							if (ticsToRemove > 0)
-								stateInterval = ceil(totalStates*1. / ticsToRemove);
-						}
-						
-						if (ticsToRemove > 0 && psp.CurState.tics > 0 && psp.CurState != prevState)
-						{
-							if (stateInterval < 1)
-								ticsToRemove = 0;
-							else if (!(stateTracker++ % stateInterval))
-							{
-								int remove = 1;
-								if (totalStates > 0 && baseTicsToRemove > totalStates)
-									remove = min(ticsToRemove, ceil(baseTicsToRemove*1. / totalStates));
-								
-								if (psp.tics > remove)
-									psp.tics -= remove;
-								else
-								{
-									int temp = remove;
-									do
-									{
-										int tempRemove = min(temp, psp.tics);
-										temp -= tempRemove;
-										psp.tics -= tempRemove;
-										if (psp.tics <= 0)
-											owner.player.SetPsprite(PSP_WEAPON, psp.CurState.NextState);
-									} while (temp > 0);
-								}
-								
-								ticsToRemove -= remove;
-							}
-						}
+						psp.y += diff*modifier;
 					}
 					
-					prevOffset = psp.y;
+					bool inParry = psp.CurState.InStateSequence(weap.FindState("Parry"));
+					bool inBlock = psp.CurState.InStateSequence(weap.FindState("Reload"));
+					if (inParry || inBlock)
+						ticsToRemove = 0;
+					
+					State ready = weap.GetReadyState();
+					int dist = 0;
+					if (!psp.CurState.InStateSequence(ready) && !inParry && !inBlock)
+					{
+						if (prevState && !prevState.InStateSequence(ready))
+							dist = abs(prevState.DistanceTo(psp.CurState));
+						else
+							dist = 2;
+					}
+						
+					if (dist > 1)
+					{
+						ticTimer = 0;
+						interval = 0;
+							
+						int totalTics = 0;
+						State thisState = psp.CurState;
+						State lastState;
+						do
+						{
+							totalTics += thisState.tics;
+								
+							lastState = thisState;
+							thisState = thisState.NextState;
+						} while (thisState && lastState.DistanceTo(thisState) == 1);
+							
+						ticsToRemove = round(totalTics * modifier);
+						ticsToRemove = min(ticsToRemove, totalTics);
+						
+						totalTics -= ticsToRemove;
+						
+						if (totalTics <= 0 && ticsToRemove > 0)
+							interval = -1.;
+						else if (ticsToRemove > 0)
+							interval = totalTics*1. / ticsToRemove;
+					}
+						
 					prevState = psp.CurState;
+					prevOffset = psp.y;
+					
+					RemoveTics();
 				}
+			}
+		}
+	}
+	
+	private void RemoveTics()
+	{
+		let psp = owner.player.GetPSprite(PSP_WEAPON);
+		if (!psp || !psp.CurState)
+		{
+			ticsToRemove = 0;
+			return;
+		}
+		
+		if (ticsToRemove > 0 && psp.CurState.tics > 0)
+		{
+			bool deleteAll = (interval == -1.);
+			if (deleteAll)
+				interval = 1.;
+			
+			if (interval <= 0)
+				ticsToRemove = 0;
+			else if (!(ticTimer++ % ceil(interval)))
+			{
+				int mod = 1;
+				if (deleteAll)
+					mod = ticsToRemove;
+				else if (interval < 1)
+					mod = ceil(1/interval);
+				
+				mod = min(ticsToRemove, mod);
+					
+				if (psp.tics > mod)
+					psp.tics -= mod;
+				else
+				{
+					int temp = mod;
+					do
+					{
+						int tempMod = min(temp, psp.tics);
+						temp -= tempMod;
+						psp.tics -= tempMod;
+						if (psp.tics <= 0)
+						{
+							prevState = psp.CurState;
+							owner.player.SetPsprite(PSP_WEAPON, psp.CurState.NextState);
+						}
+					} while (temp > 0);
+				}
+				
+				ticsToRemove -= mod;
 			}
 		}
 	}

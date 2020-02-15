@@ -264,7 +264,7 @@ class RPGMenuHandler : EventHandler
 			{
 				if (bStatsInitialized)
 				{
-					for (int i = 0; i < currentStats.Size(); ++i)
+					for (uint i = 0; i < currentStats.Size(); ++i)
 					{
 						let stat = currentStats[i];
 						if (!stat)
@@ -279,9 +279,32 @@ class RPGMenuHandler : EventHandler
 				currentSkills.Clear();
 				currentStats.Clear();
 				
+				for (uint i = 0; i < items.Size(); ++i)
+				{
+					if (items[i])
+						items[i].Destroy();
+				}
 				items.Clear();
+				
+				for (uint i = 0; i < keyItems.Size(); ++i)
+				{
+					if (keyItems[i])
+						keyItems[i].Destroy();
+				}
 				keyItems.Clear();
+				
+				for (uint i = 0; i < stats.Size(); ++i)
+				{
+					if (stats[i])
+						stats[i].Destroy();
+				}
 				stats.Clear();
+				
+				for (uint i = 0; i < skills.Size(); ++i)
+				{
+					if (skills[i])
+						skills[i].Destroy();
+				}
 				skills.Clear();
 				
 				bCleared = true;
@@ -347,7 +370,7 @@ class RPGMenuHandler : EventHandler
 			int wOffset = wOfs + w;
 			double ratio = min(w/1920., h/1080.);
 				
-			for (int i = 0; i < am.pieces.Size(); ++i)
+			for (uint i = 0; i < am.pieces.Size(); ++i)
 			{
 				let piece = am.pieces[i];
 				if (!piece)
@@ -375,11 +398,15 @@ class RPGMenuHandler : EventHandler
 	
 	ui void DrawItems(Font font, int fHeight)
 	{
+		let rpg = RPGPlayer(players[consoleplayer].mo);
+		if (rpg)
+			Screen.DrawText(font, Font.CR_RED, 0, 0, String.Format("Weight: %.1f/%.1f", rpg.currentCapacity/10., rpg.carryCapacity/10.));
+		
 		int hOffset = 150;
 		int wOffset = 150;
 		for (let probe = players[consoleplayer].mo.inv; probe != null; probe = probe.inv)
 		{
-			if (!probe || !(probe is "RPGItem"))
+			if (!probe || !probe.bInvBar)
 				continue;
 			
 			if (currentItems.Find(probe) == currentItems.Size())
@@ -569,7 +596,8 @@ class RPGMenuHandler : EventHandler
 		int wOfs, hOfs, w, h;
 		[wOfs, hOfs, w, h] = Screen.GetViewWindow();
 		
-		Screen.DrawText(font, Font.CR_WHITE, wOfs + w/2, hOfs+h-fHeight-20, String.Format("%d points available", rpg.tempPoints));
+		string points = String.Format("%d points available", rpg.tempPoints);
+		Screen.DrawText(font, Font.CR_WHITE, wOfs+w/2-font.StringWidth(points)/2, hOfs+h-fHeight, points);
 		
 		if (totalCost > 0)
 			Screen.DrawText(font, Font.CR_WHITE, wOfs + w/2, hOfs, String.Format("Requires %d XP", totalCost));
