@@ -11,7 +11,7 @@ class MeleeTracer : LineTracer
 			case TRACE_HitWall:
 				lines.Push(results.hitLine);
 				sides.Push(results.side);
-				int blockFlags = Line.ML_BLOCKHITSCAN | Line.ML_BLOCKEVERYTHING | Line.ML_BLOCKING;
+				int blockFlags = Line.ML_BLOCKHITSCAN | Line.ML_BLOCKEVERYTHING;
 				if (!(results.hitLine.flags & blockFlags) &&
 					(results.hitLine.flags & Line.ML_TWOSIDED) &&
 					results.tier == TIER_Middle)
