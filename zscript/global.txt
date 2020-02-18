@@ -25,8 +25,18 @@ class GlobalEventsHandler : EventHandler
 		}
 		else if (e.thing is "Inventory")
 		{
-			if (e.thing is "ArtiEgg" || e.thing is "ArtiHealingRadius" || e.thing is "ArtiDarkServant")
+			if (e.thing is "ArtiEgg" || e.thing is "ArtiHealingRadius")
 				e.thing.Destroy();
+			else if (e.thing is "ArtiInvulnerability2")
+			{
+				e.thing.A_SpawnItemEx("RPGKrater", flags: SXF_NOCHECKPOSITION|SXF_TRANSFERSPECIAL, tid: e.thing.tid);
+				e.thing.Destroy();
+			}
+			else if (e.thing is "ArtiDarkServant")
+			{
+				e.thing.A_SpawnItemEx("RPGUrn", flags: SXF_NOCHECKPOSITION|SXF_TRANSFERSPECIAL, tid: e.thing.tid);
+				e.thing.Destroy();
+			}
 			else if (e.thing is "PuzzleItem")
 				Inventory(e.thing).bInvBar = false;
 		}

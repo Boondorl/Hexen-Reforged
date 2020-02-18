@@ -280,12 +280,37 @@ class ReforgedStatusBar : BaseStatusBar
 		if (rpg)
 		{
 			// Points
-			if (rpg.points > 0 && !RPGMenuHandler.GetMenuState())
+			if (rpg.points > 0)
 			{
-				int length = (vWidth - mBigFont.mFont.StringWidth(String.Format("%d points available", rpg.points))*0.75)/2;
-				int height = -chainsize.y - mBigFont.mFont.GetHeight()*0.75;
-				DrawString(mBigFont, FormatNumber(rpg.points), (length, height), DI_TEXT_ALIGN_RIGHT, scale: (0.75, 0.75));
-				DrawString(mBigFont, " points available", (length, height), DI_TEXT_ALIGN_LEFT, scale: (0.75, 0.75));
+				int points = RPGMenuHandler.GetMenuState() ? rpg.tempPoints : rpg.points;
+				string pointMessage;
+				if (points == 1)
+					pointMessage = String.Format("%d point available", points);
+				else
+					pointMessage = String.Format("%d points available", points);
+				
+				int length = (vWidth - mBigFont.mFont.StringWidth(pointMessage)*0.6)/2;
+				int height = -chainsize.y - mBigFont.mFont.GetHeight()*0.6;
+				DrawString(mBigFont, pointMessage, (length, height), scale: (0.6, 0.6));
+			}
+			
+			// Buffs
+			let bm = BuffManager(rpg.FindInventory("BuffManager"));
+			if (bm)
+			{
+				int xOfs = 10;
+				for (uint i = 0; i < bm.buffs.Size(); ++i)
+				{
+					let bf = bm.buffs[i];
+					if (!bf)
+						continue;
+					
+					DrawTexture(bf.icon, (xOfs, 15), DI_ITEM_CENTER_BOTTOM, scale: (0.6, 0.72));
+					if (!bf.bInfinite)
+						DrawString(mHUDFont, FormatNumber((bf.duration-bf.durationTimer+35) / 35), (xOfs+7, 10), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
+					
+					xOfs += 20;
+				}
 			}
 			
 			// Active skills

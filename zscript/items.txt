@@ -380,29 +380,6 @@ class RPGTorch : RPGPowerupGiver replaces ArtiTorch
 	}
 }
 
-class RPGRook : RPGPowerupGiver replaces ArtiInvulnerability2
-{
-	Default
-	{
-		RPGItem.Weight 50;
-		Inventory.PickupFlash "PickupFlash";
-		Inventory.RespawnTics 4230;
-		Inventory.Icon "ARTIDEFN";
-		Inventory.PickupMessage "$TXT_ARTIINVULNERABILITY2";
-		RPGPowerupGiver.Type "PowerInvulnerable";
-		Tag "$TAG_ARTIDEFENDER";
-		
-		+FLOATBOB
-	}
-	
-	States
-	{
-		Spawn:
-			DEFN ABCD 3;
-			Loop;
-	}
-}
-
 class RPGFly : ArtiFly replaces ArtiFly
 {
 	Default

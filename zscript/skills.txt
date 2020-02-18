@@ -387,7 +387,7 @@ class Buff : Inventory abstract
 	int maxStacks;
 	int stacks;
 	
-	private int durationTimer;
+	int durationTimer;
 	private int actionTimer;
 	
 	property Range : range;

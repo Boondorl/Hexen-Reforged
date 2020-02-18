@@ -155,6 +155,7 @@ class HealBuff : Buff
 	{
 		Buff.Duration 89;
 		Buff.ActionInterval 8;
+		Inventory.Icon "PTN1A0";
 	}
 	
 	override void Effect()

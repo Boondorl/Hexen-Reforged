@@ -600,9 +600,6 @@ class RPGMenuHandler : EventHandler
 		int wOfs, hOfs, w, h;
 		[wOfs, hOfs, w, h] = Screen.GetViewWindow();
 		
-		string points = String.Format("%d points available", rpg.tempPoints);
-		Screen.DrawText(font, Font.CR_RED, wOfs+w/2-font.StringWidth(points)/2, hOfs+h-25-fHeight, points);
-		
 		if (totalCost > 0)
 			Screen.DrawText(font, Font.CR_WHITE, wOfs + w/2, hOfs, String.Format("Requires %d XP", totalCost));
 		

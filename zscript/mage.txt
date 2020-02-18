@@ -393,7 +393,7 @@ class IceBomb : Skill
 {
 	Default
 	{
-		Skill.Cost 45;
+		Skill.Cost 50;
 		Skill.Type "BlueMana";
 		Skill.CoolDown 1050;
 		Inventory.Icon "SHEXB0";

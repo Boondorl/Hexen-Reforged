@@ -219,6 +219,7 @@ class BLBuff : Buff
 	Default
 	{
 		Buff.Range 512;
+		Inventory.Icon "PTN1A0";
 		
 		+BUFF.INFINITE
 	}
