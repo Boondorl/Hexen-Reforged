@@ -266,6 +266,7 @@ class RaiseDead : Skill
 					monster.master = owner;
 					monster.health = minionHealth[i];
 					monster.SetState(monster.SeeState);
+					monster.A_SetRenderStyle(0.6, STYLE_Translucent);
 				}
 			}
 		}

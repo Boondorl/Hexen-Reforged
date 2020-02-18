@@ -204,6 +204,9 @@ class RPGMonster : Actor
 	
 	void A_MonsterLook(int delay = 35)
 	{
+		if (health <= 0)
+			return;
+		
 		bool stand = bStandStill;
 		if (bFriendly)
 			bStandStill = true;
@@ -218,7 +221,7 @@ class RPGMonster : Actor
 			Actor mo;
 			while (mo = Actor(it.Next()))
 			{
-				if (!mo || !mo.bIsMonster || mo.health <= 0)
+				if (!mo || mo == self || !mo.bIsMonster || mo.health <= 0)
 					continue;
 				
 				if (mo.bFriendly && !mo.bShadow &&
@@ -263,7 +266,10 @@ class RPGMonster : Actor
 	
 	void A_MonsterChase(StateLabel melee = "Melee", StateLabel missile = "Missile", int flags = 0)
 	{
-		if (target && target.health > 0)
+		if (health <= 0)
+			return;
+		
+		if (target && target.health > 0 && target != self)
 		{
 			if (!bDontAttack && melee && FindState(melee) && CheckMelee())
 			{
@@ -300,7 +306,7 @@ class RPGMonster : Actor
 				Actor mo;
 				while (mo = Actor(it.Next()))
 				{
-					if (!mo || !mo.bIsMonster || mo.bFriendly || mo.player || mo.health <= 0 ||
+					if (!mo || mo == self || !mo.bIsMonster || mo.bFriendly || mo.player || mo.health <= 0 ||
 						mo.bShadow || mo.bInvulnerable)
 					{
 						continue;

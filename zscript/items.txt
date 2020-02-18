@@ -501,7 +501,7 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 		Actor mo;
 		while (mo = Actor(it.Next()))
 		{
-			if (mo == owner || mo == self || (mo.bBoss && !(blastflags & BF_AFFECTBOSSES)) || mo.bDormant || mo.bDontBlast)
+			if (mo == owner || mo == self || (mo.bBoss && !(blastflags & BF_AFFECTBOSSES)) || mo.bDormant || mo.bDontBlast || owner.IsFriend(mo))
 				continue;
 			
 			if (mo.bIceCorpse || mo.bCanBlast)

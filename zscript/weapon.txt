@@ -39,7 +39,7 @@ class RPGWeapon : Weapon
 		Actor mo;
 		while (mo = Actor(it.Next()))
 		{
-			if (mo == self || (mo.bBoss && !(blastflags & BF_AFFECTBOSSES)) || mo.bDormant || !(mo.bIsMonster || mo.player))
+			if (mo == self || (mo.bBoss && !(blastflags & BF_AFFECTBOSSES)) || mo.bDormant || !(mo.bIsMonster || mo.player) || IsFriend(mo))
 				continue;
 			
 			if (mo.bIceCorpse)
