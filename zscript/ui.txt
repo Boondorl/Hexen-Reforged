@@ -400,7 +400,7 @@ class RPGMenuHandler : EventHandler
 	{
 		let rpg = RPGPlayer(players[consoleplayer].mo);
 		if (rpg)
-			Screen.DrawText(font, Font.CR_RED, 0, 0, String.Format("Weight: %.1f/%.1f", rpg.currentCapacity/10., rpg.carryCapacity/10.));
+			Screen.DrawText(font, Font.CR_RED, 0, 0, String.Format("Weight: %.1f / %.1f", rpg.currentCapacity/10., rpg.carryCapacity/10.));
 		
 		int hOffset = 150;
 		int wOffset = 150;
@@ -533,6 +533,12 @@ class RPGMenuHandler : EventHandler
 		if (!rpg)
 			return;
 		
+		Font font = "BigUpper";
+		int fHeight = font.GetHeight();
+		
+		Screen.DrawText(font, Font.CR_RED, 0, 0, String.Format("Level %d", rpg.currentLevel));
+		Screen.DrawText(font, Font.CR_RED, 0, fHeight, String.Format("XP %d / %d", rpg.currentXP, rpg.nextLevelXP));
+		
 		int hOffset = 200;
 		totalCost = 0;
 		for (int i = 0; i < rpg.stats.Size(); ++i)
@@ -591,13 +597,11 @@ class RPGMenuHandler : EventHandler
 		else if (prevPoints != rpg.points && rpg.points != rpg.tempPoints)
 			rpg.tempPoints += rpg.points - prevPoints;
 		
-		Font font = "BIGUPPER";
-		int fHeight = font.GetHeight();
 		int wOfs, hOfs, w, h;
 		[wOfs, hOfs, w, h] = Screen.GetViewWindow();
 		
 		string points = String.Format("%d points available", rpg.tempPoints);
-		Screen.DrawText(font, Font.CR_WHITE, wOfs+w/2-font.StringWidth(points)/2, hOfs+h-fHeight, points);
+		Screen.DrawText(font, Font.CR_RED, wOfs+w/2-font.StringWidth(points)/2, hOfs+h-25-fHeight, points);
 		
 		if (totalCost > 0)
 			Screen.DrawText(font, Font.CR_WHITE, wOfs + w/2, hOfs, String.Format("Requires %d XP", totalCost));
