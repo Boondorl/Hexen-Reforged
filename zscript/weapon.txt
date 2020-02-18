@@ -304,7 +304,7 @@ class CoolDownToken : Inventory
 	}
 }
 
-class FlechetteMissile : Actor
+class FlechetteMissile : RPGMissile
 {
 	Default
 	{
@@ -312,9 +312,12 @@ class FlechetteMissile : Actor
 		Radius 3;
 		Height 6;
 		DamageType "Poison";
-		Projectile;
+		RPGMissile.AilmentType "Poison";
+		RPGMissile.AilmentPower 100;
+		RPGMissile.AilmentDamage 5;
 		DeathSound "FlechetteExplode";
 		
+		+RPGMISSILE.NOBLOCKWARN
 		-NOGRAVITY
 	}
 	
@@ -392,7 +395,6 @@ class BanishmentMissile : FastProjectile
 		Radius 4;
 		Height 2;
 		Threshold 16;
-		Projectile;
 		
 		-ACTIVATEIMPACT
 		-ACTIVATEPCROSS

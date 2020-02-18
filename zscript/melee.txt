@@ -1,13 +1,18 @@
 class MeleeTracer : LineTracer
 {
 	double maxDistance;
+	Array<Line> lines;
+	Array<uint8> sides;
 	
 	override ETraceStatus TraceCallback()
 	{
 		switch (results.HitType)
 		{
 			case TRACE_HitWall:
-				if (!(results.hitLine.flags & Line.ML_BLOCKHITSCAN) &&
+				lines.Push(results.hitLine);
+				sides.Push(results.side);
+				int blockFlags = Line.ML_BLOCKHITSCAN | Line.ML_BLOCKEVERYTHING | Line.ML_BLOCKING;
+				if (!(results.hitLine.flags & blockFlags) &&
 					(results.hitLine.flags & Line.ML_TWOSIDED) &&
 					results.tier == TIER_Middle)
 				{
@@ -522,8 +527,10 @@ class HurtBox : Actor
 				bHitObstacle = true;
 			}
 			
-			if (tracer.results.hitType == TRACE_HitWall)
-				tracer.results.hitLine.Activate(target, tracer.results.side, SPAC_Impact);
+			for (uint i = 0; i < tracer.lines.Size(); ++i)
+			{
+				tracer.lines[i].Activate(target, tracer.sides[i], SPAC_Impact);
+			}
 		}
 		
 		SetXYZ(start+(hbForward*hbLength)-(hbUp*height/2));
@@ -729,7 +736,7 @@ class HurtBox : Actor
 		}
 		
 		CollisionBox bestBox;
-		int bestDamage;
+		int bestDamage = -1;
 		for (int i = 0; i < rpgm.collisionBoxes.Size(); ++i)
 		{
 			let cBox = rpgm.collisionBoxes[i];

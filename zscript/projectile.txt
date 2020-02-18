@@ -586,7 +586,7 @@ class RPGMissile : FasterProjectile
 	
 	Default
 	{
-		RPGMissile.WarnDistance 512;
+		RPGMissile.WarnDistance 256;
 		
 		+NODAMAGETHRUST
 	}
@@ -686,7 +686,7 @@ class RPGMissile : FasterProjectile
 		{
 			// Check critical boxes first
 			CollisionBox bestBox;
-			int bestDamage;
+			int bestDamage = -1;
 			for (uint i = 0; i < rpgm.collisionBoxes.Size(); ++i)
 			{
 				let cBox = rpgm.collisionBoxes[i];
@@ -829,7 +829,7 @@ class RPGMissile : FasterProjectile
 			Spawn("Marker", pos - forward*len + right*radius + up*height);
 			Spawn("Marker", pos - forward*len - right*radius + up*height);
 			
-			if (bMissile && !bNoBlockWarn && !(GetAge() % 7))
+			if (bMissile && !bNoBlockWarn)
 			{
 				let warn = new("WarningTracer");
 				if (warn)
