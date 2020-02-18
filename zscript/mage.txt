@@ -304,6 +304,8 @@ class RaiseDead : Skill
 				bool gibbed = tracer.results.hitActor.health <= tracer.results.hitActor.GetGibHealth();
 				if (tracer.results.hitActor.A_RaiseSelf())
 				{
+					TakeAmmo(10, type, reserveType);
+					
 					if (gibbed)
 					{
 						let xraise = tracer.results.hitActor.FindState("XRaise");

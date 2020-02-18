@@ -106,6 +106,8 @@ class Skill : Inventory abstract
 					bCurToggle = false;
 					EndSkill();
 				}
+				else
+					TakeAmmo(drain, drainType, reserveDrainType);
 				
 				drainTimer = 0;
 			}
@@ -139,7 +141,7 @@ class Skill : Inventory abstract
 			useSkill = false;
 		}
 		
-		if (useSkill && !CheckAmmo(cost, type, reserveType, !bCurToggle))
+		if (useSkill && !bCurToggle && !CheckAmmo(cost, type, reserveType))
 		{
 			Console.Printf("You do not have enough resources to cast this");
 			
@@ -148,6 +150,9 @@ class Skill : Inventory abstract
 		
 		if (useSkill)
 		{
+			if (!bCurToggle)
+				TakeAmmo(cost, type, reserveType);
+			
 			if (castTime > 0)
 			{
 				castTimer = castTime;
@@ -185,23 +190,15 @@ class Skill : Inventory abstract
 	
 	virtual void OnUnequip() {}
 	
-	bool CheckAmmo(int amt, class<Inventory> type1, class<Inventory> type2 = null, bool useAmmo = true)
+	bool CheckAmmo(int amt, class<Inventory> type1, class<Inventory> type2 = null)
 	{
-		if (!useAmmo || amt <= 0 || sv_infiniteammo || owner.FindInventory("PowerInfiniteAmmo"))
+		if (amt <= 0 || sv_infiniteammo || owner.FindInventory("PowerInfiniteAmmo"))
 			return true;
 		
 		int amount1, amount2;
-		bool useNormal, useReserve;
 		let ammo1 = owner.FindInventory(type1);
 		if (ammo1)
-		{
 			amount1 = ammo1.amount;
-			if (amount1 < amt)
-				useReserve = true;
-			
-			if (amount1 > 0)
-				useNormal = true;
-		}
 		
 		let ammo2 = owner.FindInventory(type2);
 		if (ammo2)
@@ -209,6 +206,24 @@ class Skill : Inventory abstract
 		
 		if ((type1 == 'Health' && owner.health <= amt) || amount1+amount2 < amt)
 			return false;
+		
+		return true;
+	}
+	
+	void TakeAmmo(int amt, class<Inventory> type1, class<Inventory> type2 = null)
+	{
+		bool useNormal, useReserve;
+		let ammo1 = owner.FindInventory(type1);
+		if (ammo1)
+		{
+			if (ammo1.amount < amt)
+				useReserve = true;
+			
+			if (ammo1.amount > 0)
+				useNormal = true;
+		}
+		
+		let ammo2 = owner.FindInventory(type2);
 		
 		if (useNormal || useReserve)
 		{
@@ -224,8 +239,6 @@ class Skill : Inventory abstract
 			if (ammo2 && useReserve)
 				ammo2.amount -= realCost;
 		}
-		
-		return true;
 	}
 	
 	void GiveBuff(Actor mast, Actor other = null)

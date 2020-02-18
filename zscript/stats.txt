@@ -289,6 +289,15 @@ class Dexterity : Stat
 		}
 	}
 	
+	override void LevelUp(int levels, bool start)
+	{
+		super.LevelUp(levels, start);
+		
+		let rpg = RPGPlayer(owner.player.mo);
+		if (rpg)
+			rpg.attackModifier -= 0.05*levels;
+	}
+	
 	override void DoEffect()
 	{
 		super.DoEffect();

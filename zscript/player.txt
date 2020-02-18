@@ -12,6 +12,7 @@ class RPGPlayer : PlayerPawn abstract
 	double nextLevelXP;
 	int points;
 	double skillCoolDown;
+	double attackModifier;
 	
 	int currentCapacity;
 	ui int tempPoints;
@@ -24,6 +25,7 @@ class RPGPlayer : PlayerPawn abstract
 	property StartPoints : points;
 	property StartXP : currentXP;
 	property SkillCoolDown : skillCoolDown;
+	property AttackModifier : attackModifier;
 	
 	Default
 	{
@@ -33,6 +35,7 @@ class RPGPlayer : PlayerPawn abstract
 		PainChance 256;
 		ReactionTime 0;
 		RPGPlayer.SkillCoolDown 1;
+		RPGPlayer.AttackModifier 1;
 		RPGPlayer.CarryCapacity 100;
 		RPGPlayer.MaxLevel 11;
 		RPGPlayer.SkillSlots 3;
