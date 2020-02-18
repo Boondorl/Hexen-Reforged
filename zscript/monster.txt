@@ -699,7 +699,7 @@ class RPGMonster : Actor
 					A_PlaySound(SeeSound, CHAN_VOICE, 1, false, bBoss ? ATTN_NONE : ATTN_NORM);   
 					SetState(SeeState);
 				}
-				else if (!(flags & DMG_NOBLOCK) && source && !source.IsFriend(self))
+				else if (!(flags & (DMG_NOBLOCK|DMG_EXPLOSION)) && source && !source.IsFriend(self))
 					Block(inflictor, 180, true);
 			}
 			
