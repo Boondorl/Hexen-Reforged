@@ -212,6 +212,9 @@ class Skill : Inventory abstract
 	
 	void TakeAmmo(int amt, class<Inventory> type1, class<Inventory> type2 = null)
 	{
+		if (sv_infiniteammo || owner.FindInventory("PowerInfiniteAmmo"))
+			return;
+		
 		bool useNormal, useReserve;
 		let ammo1 = owner.FindInventory(type1);
 		if (ammo1)
