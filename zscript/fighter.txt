@@ -244,6 +244,7 @@ class LightningAxe : Skill
 		Skill.Cost 5;
 		Skill.CastTime 27;
 		Skill.Type "BlueMana";
+		Skill.ReserveType "RedMana";
 		Skill.ActiveWeapon "ReforgedAxe";
 		Skill.WeaponName "Timon's Axe";
 		Inventory.Icon "MWNDF0";
