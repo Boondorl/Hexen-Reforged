@@ -252,8 +252,14 @@ class PowerDynamicTorch : Powerup
 	{
 		super.AttachToOwner(other);
 		target = Spawn("TorchLight");
-		if (target && owner.player)
-			target.master = owner.player.mo;
+		tracer = Spawn("TorchGlow");
+		if (owner.player)
+		{
+			if (target)
+				target.master = owner.player.mo;
+			if (tracer)
+				tracer.master = owner.player.mo;
+		}
 	}
 	
 	override void DetachFromOwner()
@@ -262,11 +268,15 @@ class PowerDynamicTorch : Powerup
 		if (light)
 			light.bStartFade = true;
 		
+		let light2 = TorchGlow(tracer);
+		if (light2)
+			light2.bStartFade = true;
+		
 		super.DetachFromOwner();
 	}
 }
 
-class TorchLight : PointLightFlickerRandomAdditive
+class TorchLight : PointLight
 {
 	bool bStartFade;
 	
@@ -283,10 +293,15 @@ class TorchLight : PointLightFlickerRandomAdditive
 		if (bStartFade)
 		{
 			args[3] -= 8;
-			args[4] -= 8;
 			
-			if (args[3] <= 0 || args[4] <= 0)
+			if (args[3] <= 0)
 				Destroy();
+		}
+		else if (args[3] < 384)
+		{
+			args[3] += 96;
+			if (args[3] > 384)
+				args[3] = 384;
 		}
 	}
 	
@@ -294,10 +309,52 @@ class TorchLight : PointLightFlickerRandomAdditive
 	{
 		super.BeginPlay();
 		
-		args[0] = 122;
-		args[1] = 61;
-		args[3] = 512;
-		args[4] = 384;
+		args[0] = 128;
+		args[1] = 128;
+		args[2] = 128;
+	}
+}
+
+class TorchGlow : PointLightFlickerRandomAdditive
+{
+	bool bStartFade;
+	
+	override void Tick()
+	{
+		if (master)
+			SetOrigin(master.pos + (0,0,master.height/2 - master.floorclip), true);
+		else
+		{
+			Destroy();
+			return;
+		}
+		
+		if (bStartFade)
+		{
+			args[3] -= 10;
+			args[4] -= 8;
+			
+			if (args[3] <= 0 || args[4] <= 0)
+				Destroy();
+		}
+		else if (args[3] < 512 || args[4] < 384)
+		{
+			args[3] += 128;
+			if (args[3] > 512)
+				args[3] = 512;
+			
+			args[4] += 96;
+			if (args[4] > 384)
+				args[4] = 384;
+		}
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		args[0] = 128;
+		args[1] = 64;
 	}
 }
 

@@ -135,11 +135,12 @@ class Heal : Skill
 {
 	Default
 	{
-		Skill.Cost 5;
+		Skill.Cost 7;
 		Skill.Type "GreenMana";
-		Skill.CastTime 175;
-		Skill.CoolDown 350;
+		Skill.CastTime 89;
+		Skill.CoolDown 175;
 		Skill.BuffType "HealBuff";
+		Inventory.Icon "PTN1A0";
 	}
 	
 	override void UseSkill()
@@ -152,8 +153,8 @@ class HealBuff : Buff
 {
 	Default
 	{
-		Buff.Duration 175;
-		Buff.ActionInterval 16;
+		Buff.Duration 89;
+		Buff.ActionInterval 8;
 	}
 	
 	override void Effect()

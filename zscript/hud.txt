@@ -287,6 +287,73 @@ class ReforgedStatusBar : BaseStatusBar
 				DrawString(mBigFont, FormatNumber(rpg.points), (length, height), DI_TEXT_ALIGN_RIGHT, scale: (0.75, 0.75));
 				DrawString(mBigFont, " points available", (length, height), DI_TEXT_ALIGN_LEFT, scale: (0.75, 0.75));
 			}
+			
+			// Active skills
+			int xOfs = -orbSize.x*1.65 + 24;
+			DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+			let skill3 = Skill(rpg.FindInventory(rpg.activeSkills[2]));
+			if (skill3)
+			{
+				double alpha = 1;
+				if (skill3.bInCast || skill3.bInCoolDown)
+					alpha = 0.5;
+				
+				int key1, key2;
+				[key1, key2] = Bindings.GetKeysForCommand("Spell3");
+				int useKey = key1 ? key1 : key2;
+				if (useKey)
+					DrawString(mBigFont, KeyBindings.NameKeys(useKey, 0), (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
+				else
+					DrawString(mBigFont, "-", (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
+				
+				DrawTexture(skill3.icon, (xOfs, -chainSize.y-4), DI_ITEM_CENTER_BOTTOM, alpha, scale: (0.5, 0.6));
+				if (skill3.bInCoolDown)
+					DrawString(mHUDFont, FormatNumber((skill3.coolDownTimer+35) / 35), (xOfs+3, -chainSize.y-13), DI_TEXT_ALIGN_RIGHT, scale: (0.7,0.7));
+			}
+			xOfs -= 15;
+			
+			DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+			let skill2 = Skill(rpg.FindInventory(rpg.activeSkills[1]));
+			if (skill2)
+			{
+				double alpha = 1;
+				if (skill2.bInCast || skill2.bInCoolDown)
+					alpha = 0.5;
+				
+				int key1, key2;
+				[key1, key2] = Bindings.GetKeysForCommand("Spell2");
+				int useKey = key1 ? key1 : key2;
+				if (useKey)
+					DrawString(mBigFont, KeyBindings.NameKeys(useKey, 0), (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
+				else
+					DrawString(mBigFont, "-", (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
+				
+				DrawTexture(skill2.icon, (xOfs, -chainSize.y-4), DI_ITEM_CENTER_BOTTOM, alpha, scale: (0.5, 0.6));
+				if (skill2.bInCoolDown)
+					DrawString(mHUDFont, FormatNumber((skill2.coolDownTimer+35) / 35), (xOfs+3, -chainSize.y-13), DI_TEXT_ALIGN_RIGHT, scale: (0.7,0.7));
+			}
+			xOfs -= 15;
+			
+			DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+			let skill1 = Skill(rpg.FindInventory(rpg.activeSkills[0]));
+			if (skill1)
+			{
+				double alpha = 1;
+				if (skill1.bInCast || skill1.bInCoolDown)
+					alpha = 0.5;
+				
+				int key1, key2;
+				[key1, key2] = Bindings.GetKeysForCommand("Spell1");
+				int useKey = key1 ? key1 : key2;
+				if (useKey)
+					DrawString(mBigFont, KeyBindings.NameKeys(useKey, 0), (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
+				else
+					DrawString(mBigFont, "-", (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
+				
+				DrawTexture(skill1.icon, (xOfs, -chainSize.y-4), DI_ITEM_CENTER_BOTTOM, alpha, scale: (0.5, 0.6));
+				if (skill1.bInCoolDown)
+					DrawString(mHUDFont, FormatNumber((skill1.coolDownTimer+35) / 35), (xOfs+3, -chainSize.y-13), DI_TEXT_ALIGN_RIGHT, scale: (0.7,0.7));
+			}
 		}
 
 		//frags/keys
@@ -302,24 +369,13 @@ class ReforgedStatusBar : BaseStatusBar
 			// This code was changed to always fit the item into the box, regardless of alignment or sprite size.
 			// Heretic's ARTIBOX is 30x30 pixels. 
 			DrawInventoryIcon(CPlayer.mo.InvSel, (orbSize.x*1.65, -chainSize.y-13), DI_ARTIFLASH|DI_ITEM_CENTER, boxsize:(28, 28), scale: (0.7, 0.84));
-			if (CPlayer.mo.InvSel.Amount > 1)
-			{
-				DrawString(mIndexFont, FormatNumber(CPlayer.mo.InvSel.Amount, 3), (orbSize.x*1.65+9, -chainSize.y - mIndexFont.mFont.GetHeight()-1), DI_TEXT_ALIGN_RIGHT);
-			}
+			DrawString(mIndexFont, FormatNumber(CPlayer.mo.InvSel.Amount, 3), (orbSize.x*1.65+9, -chainSize.y - mIndexFont.mFont.GetHeight()-1), DI_TEXT_ALIGN_RIGHT);
 		}
 		
 		if (isInventoryBarVisible())
 		{
 			DrawReforgedItems(diparms, (orbSize.x*1.65, -chainSize.y-2), 3, 0, HX_SHADOW);
 		}
-		
-		// Active skills
-		int xOfs = -orbSize.x*1.65 + 24;
-		DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
-		xOfs -= 15;
-		DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
-		xOfs -= 15;
-		DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
 	}
 	
 	Ammo, Ammo, Ammo, int, int, int GetMana() const
@@ -379,11 +435,7 @@ class ReforgedStatusBar : BaseStatusBar
 			}
 			
 			DrawInventoryIcon(item, itempos + (boxsize.X * i, 0), flags | DI_ITEM_CENTER, scale: (0.7, 0.84));
-			
-			if (parms.amountfont != null && (item.Amount > 1 || (flags & DI_ALWAYSSHOWCOUNTERS)))
-			{
-				DrawString(parms.amountfont, FormatNumber(item.Amount, 0, 5), textpos + (boxsize.X * i, 0), flags | DI_TEXT_ALIGN_RIGHT, parms.cr, parms.itemalpha);
-			}
+			DrawString(parms.amountfont, FormatNumber(item.Amount, 0, 5), textpos + (boxsize.X * i, 0), flags | DI_TEXT_ALIGN_RIGHT, parms.cr, parms.itemalpha);
 			i++;
 		}
 	}

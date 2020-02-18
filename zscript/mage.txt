@@ -104,11 +104,13 @@ class ReforgedMage : RPGPlayer
 	
 	override void InitializeSkills()
 	{
-		SetSkill(0, "RaiseDead", true);
-		SetSkill(1, "IceBomb", true);
+		SetSkill(0, "Desecrate", true);
+		SetSkill(1, "RaiseDead", true);
+		SetSkill(2, "IceBomb", true);
 		
-		SetActiveSkill(0, "RaiseDead");
-		SetActiveSkill(1, "IceBomb");
+		SetActiveSkill(0, "Desecrate");
+		SetActiveSkill(1, "RaiseDead");
+		SetActiveSkill(2, "IceBomb");
 	}
 	
 	override void InitializeStats()
@@ -150,7 +152,8 @@ class UndeadTracer : LineTracer
 			
 			case TRACE_HitActor:
 				if (results.hitActor != master && !results.hitActor.bFriendly &&
-					results.hitActor.bIsMonster && results.hitActor.health <= 0 && results.hitActor.tics == -1)
+					results.hitActor.bIsMonster && results.hitActor.health <= 0 &&
+					results.hitActor.tics == -1)
 				{
 					return TRACE_Stop;
 				}
@@ -163,9 +166,41 @@ class UndeadTracer : LineTracer
 	}
 }
 
+class Desecrate : Skill
+{
+	Default
+	{
+		Skill.Cost 5;
+		Skill.Type "GreenMana";
+		Skill.ReserveType "RedMana";
+		Inventory.Icon "PTN1A0";
+	}
+	
+	override void UseSkill()
+	{
+		let tracer = new("UndeadTracer");
+		if (tracer)
+		{
+			Vector3 start = owner.pos + (0,0, owner.player.mo.viewheight - owner.floorclip);
+			Vector3 dir = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch));
+			tracer.master = owner;
+			tracer.Trace(start, CurSector, dir, 256, 0);
+			
+			if (tracer.results.hitActor)
+			{
+				let mo = Spawn("CrystalVial", tracer.results.hitActor.pos, ALLOW_REPLACE);
+				if (mo && !mo.bNoGravity)
+					mo.vel.z += 5;
+				
+				tracer.results.hitActor.Destroy();
+			}
+		}
+	}
+}
+
 class RaiseDead : Skill
 {
-	const MAX_MINIONS = 7;
+	const MAX_MINIONS = 5;
 	
 	Array<Actor> minions;
 	
@@ -176,7 +211,9 @@ class RaiseDead : Skill
 	
 	Default
 	{
-		Skill.CastTime 35;
+		Skill.Type "BlueMana";
+		Skill.ReserveType "RedMana";
+		Inventory.Icon "MAN3A0";
 	}
 	
 	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
@@ -253,12 +290,26 @@ class RaiseDead : Skill
 			Vector3 start = owner.pos + (0,0, owner.player.mo.viewheight - owner.floorclip);
 			Vector3 dir = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch));
 			tracer.master = owner;
-			tracer.Trace(start, CurSector, dir, 128, 0);
+			tracer.Trace(start, CurSector, dir, 256, 0);
 			
 			if (tracer.results.hitActor)
 			{
+				if (!CheckAmmo(10, type, reserveType))
+				{
+					Console.Printf("You do not have enough resources to cast this");
+					return;
+				}
+				
+				bool gibbed = tracer.results.hitActor.health <= tracer.results.hitActor.GetGibHealth();
 				if (tracer.results.hitActor.A_RaiseSelf())
 				{
+					if (gibbed)
+					{
+						let xraise = tracer.results.hitActor.FindState("XRaise");
+						if (xraise)
+							tracer.results.hitActor.SetState(xraise);
+					}
+					
 					uint currentMinions;
 					for (uint i = 0; i < minions.Size(); ++i)
 					{
@@ -294,6 +345,7 @@ class RaiseDead : Skill
 					tracer.results.hitActor.master = owner;
 					tracer.results.hitActor.bFriendly = true;
 					tracer.results.hitActor.target = null;
+					tracer.results.hitActor.A_SetRenderStyle(0.6, STYLE_Translucent);
 				}
 			}
 			else
@@ -340,7 +392,8 @@ class IceBomb : Skill
 	{
 		Skill.Cost 45;
 		Skill.Type "BlueMana";
-		Skill.CoolDown 700;
+		Skill.CoolDown 1050;
+		Inventory.Icon "SHEXB0";
 	}
 	
 	override void UseSkill()

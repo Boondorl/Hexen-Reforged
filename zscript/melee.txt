@@ -118,6 +118,7 @@ class BlockBox : Actor
 		+SHOOTABLE
 		+REFLECTIVE
 		+NORADIUSDMG
+		+NODAMAGETHRUST
 	}
 	
 	override void Tick()
@@ -216,7 +217,7 @@ class BlockBox : Actor
 			return -1;
 		
 		double reduction = 1 - (parryWindow > 0 ? parryReduction : blockReduction);
-		A_PlaySound(blockSound, CHAN_AUTO);
+		A_StartSound(blockSound, CHAN_AUTO);
 		damage = round(damage * reduction);
 			
 		if (parryWindow > 0)
@@ -464,7 +465,7 @@ class HurtBox : Actor
 		if (bKill)
 		{
 			durationTimer = duration;
-			A_PlaySound(DeathSound, CHAN_AUTO);
+			A_StartSound(DeathSound, CHAN_AUTO);
 		}
 	}
 	
@@ -517,7 +518,7 @@ class HurtBox : Actor
 			hbLength = tracer.results.distance / 2.;
 			if (tracer.results.distance < tracer.maxDistance && !bHitObstacle)
 			{
-				A_PlaySound(ActiveSound);
+				A_StartSound(ActiveSound);
 				bHitObstacle = true;
 			}
 			
@@ -569,7 +570,7 @@ class HurtBox : Actor
 						continue;
 					}
 					
-					mo.A_PlaySound(AttackSound, CHAN_AUTO);
+					mo.A_StartSound(AttackSound, CHAN_AUTO);
 					
 					int flags = bCriticalHit ? DMG_CRIT : 0;
 					if (target)

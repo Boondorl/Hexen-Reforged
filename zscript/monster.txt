@@ -411,7 +411,7 @@ class RPGMonster : Actor
 			shield.Destroy();
 		
 		bBlocking = false;
-		blockCoolDown = random(70,105);
+		blockCoolDown = random(105,175);
 	}
 	
 	void A_Stumble(double speed = 10)
@@ -449,26 +449,14 @@ class RPGMonster : Actor
 		State block = FindState("Block");
 		if (block)
 		{
-			bool doBlock = false;
-			if (!fromDamage && mo.bMissile)
-			{
-				double time = 1;
-				double spd = GetDefaultSpeed(mo.GetClass());
-				if (spd > 0)
-					time = Distance3D(mo) / spd;
-				
-				if (time <= 0.5 && !random(0,3)) // 25% chance to block
-					doBlock = true;
-			}
-			else if (!random(0,4)) // 20% chance to block
-				doBlock = true;
-			
-			if (doBlock)
+			if (!random(0,4)) // 20% chance to block
 			{
 				SetState(block);
 				bCancelled = true;
 				return true;
 			}
+			else
+				blockCoolDown = 9; // Don't allow block check spamming
 		}
 		
 		return false;

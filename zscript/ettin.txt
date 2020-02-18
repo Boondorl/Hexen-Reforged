@@ -24,8 +24,9 @@ class ReforgedEttin : RPGMonster replaces Ettin
 		Health 175;
 		Radius 25;
 		Height 68;
+		DeathHeight 34;
 		Mass 175;
-		Speed 13;
+		Speed 15;
 		Damage 3;
 		AttackSound "FighterHammerMiss";
 		SeeSound "EttinSight";
@@ -96,10 +97,6 @@ class ReforgedEttin : RPGMonster replaces Ettin
 			ETTN Q -1;
 			Stop;
 			
-		Raise:
-			ETTN PONMLKJI 4;
-			Goto See;
-			
 		XDeath:		
 			ETTB A 4;
 			ETTB B 4 A_NoBlocking;
@@ -117,6 +114,14 @@ class ReforgedEttin : RPGMonster replaces Ettin
 			ETTN R 5 A_FreezeDeath;
 			ETTN R 1 A_FreezeDeathChunks;
 			Wait;
+			
+		Raise:
+			ETTN PONMLKJI 4;
+			Goto See;
+			
+		XRaise:		
+			ETTB KJIHGFEDCBA 4;
+			Goto See;
 	}
 	
 	override void BeginPlay()

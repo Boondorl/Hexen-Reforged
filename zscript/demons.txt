@@ -5,9 +5,10 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 		RPGMonster.XP 100;
 		RPGMonster.MissileCheckHeight 62;
 		Health 250;
-		Speed 13;
+		Speed 15;
 		Radius 32;
 		Height 80;
+		DeathHeight 40;
 		Mass 220;
 		DamageFactor "Poison", 0.75;
 		DamageFactor "Illness", 0.75;
@@ -77,6 +78,10 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 			DEMN Q 5 A_FreezeDeath;
 			DEMN Q 1 A_FreezeDeathChunks;
 			Wait;
+		
+		Raise:
+			DEMN ONMLKJIH 6;
+			Goto See;
 	}
 	
 	override void BeginPlay()

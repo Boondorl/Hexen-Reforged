@@ -7,3 +7,15 @@ DefaultBind P ToggleStats
 AddMenuKey "Inventory" ToggleInventory
 Alias ToggleInventory "netevent ToggleInventory"
 DefaultBind I ToggleInventory
+
+AddMenuKey "Spell 1" Spell1
+Alias Spell1 "netevent Spell:0"
+DefaultBind G Spell1
+
+AddMenuKey "Spell 2" Spell2
+Alias Spell2 "netevent Spell:1"
+DefaultBind H Spell2
+
+AddMenuKey "Spell 3" Spell3
+Alias Spell3 "netevent Spell:2"
+DefaultBind X Spell3

@@ -50,4 +50,20 @@ class GlobalEventsHandler : EventHandler
 			}
 		}
 	}
+	
+	override void NetworkProcess(ConsoleEvent e)
+	{
+		Array<string> command;
+		e.Name.Split(command, ":");
+		
+		if (command.Size() == 2)
+		{
+			if (command[0] ~== "Spell")
+			{
+				let rpg = RPGPlayer(players[e.Player].mo);
+				if (rpg)
+					rpg.UseSkill(command[1].ToInt(10));
+			}
+		}
+	}
 }

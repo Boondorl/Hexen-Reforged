@@ -587,6 +587,8 @@ class RPGMissile : FasterProjectile
 	Default
 	{
 		RPGMissile.WarnDistance 512;
+		
+		+NODAMAGETHRUST
 	}
 	
 	override int SpecialMissileHit(Actor victim)
@@ -785,8 +787,6 @@ class RPGMissile : FasterProjectile
 	
 	override void Tick()
 	{
-		super.Tick();
-		
 		if (bOriented && prevVel != vel)
 		{
 			forward = vel.Unit();
@@ -814,7 +814,7 @@ class RPGMissile : FasterProjectile
 			up = (0,0,1);
 		}
 		
-		if (!globalfreeze && !level.frozen)
+		if (!isFrozen())
 		{
 			double len = radius;
 			if (bOriented)
@@ -829,24 +829,23 @@ class RPGMissile : FasterProjectile
 			Spawn("Marker", pos - forward*len + right*radius + up*height);
 			Spawn("Marker", pos - forward*len - right*radius + up*height);
 			
-			if (!bNoBlockWarn && !(GetAge() % 17) && InStateSequence(CurState, SpawnState))
+			if (bMissile && !bNoBlockWarn && !(GetAge() % 7))
 			{
-				let warn = WarningTracer(new("WarningTracer"));
+				let warn = new("WarningTracer");
 				if (warn)
 				{
 					warn.master = self;
 					warn.owner = target;
-					warn.Trace(pos+up*height/2, level.PointInSector(pos.xy), vel.Unit(), warnDistance, 0);
-					if (warn.results.hitActor &&
-						warn.results.hitActor is 'RPGMonster' &&
-						warn.results.hitActor.bFriendly != target.bFriendly)
-					{
-						let rpgm = RPGMonster(warn.results.hitActor);
+					warn.Trace(pos+up*height/2, CurSector, vel.Unit(), warnDistance, 0);
+					let rpgm = RPGMonster(warn.results.hitActor);
+					
+					if (rpgm && rpgm.bFriendly != target.bFriendly)
 						rpgm.Block(self);
-					}
 				}
 			}
 		}
+		
+		super.Tick();
 	}
 	
 	override int DoSpecialDamage(Actor victim, int damage, name damagetype)

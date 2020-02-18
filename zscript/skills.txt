@@ -21,10 +21,9 @@ class Skill : Inventory abstract
 	bool bCurToggle;
 	
 	private int drainTimer;
-	private int coolDownTimer;
-	protected int castTimer;
+	int coolDownTimer;
+	int castTimer;
 	private int actionTimer;
-	private int messageTimer;
 	
 	property Cost : cost;
 	property Drain : drain;
@@ -55,9 +54,6 @@ class Skill : Inventory abstract
 	override void DoEffect()
 	{
 		super.DoEffect();
-		
-		if (messageTimer > 0)
-			--messageTimer;
 		
 		if (owner.health <= 0)
 		{
@@ -101,20 +97,15 @@ class Skill : Inventory abstract
 			Effect();
 		}
 		
-		if (drain && drainType && bCurToggle && !sv_infiniteammo && !owner.FindInventory("PowerInfiniteAmmo"))
+		if (drain && drainType && bCurToggle)
 		{
 			if (drainTimer++ >= drainInterval)
 			{
-				let ammo = owner.FindInventory(drainType);
-				if (ammo.amount <= drain)
+				if (!CheckAmmo(drain, drainType, reserveDrainType))
 				{
-					int take = (drainType == 'Health') ? ammo.amount - 1 : ammo.amount;
-					owner.TakeInventory(drainType, take);
 					bCurToggle = false;
 					EndSkill();
 				}
-				else
-					owner.TakeInventory(drainType, drain);
 				
 				drainTimer = 0;
 			}
@@ -130,32 +121,27 @@ class Skill : Inventory abstract
 		
 		if (bInCast)
 		{
-			if (messageTimer <= 0)
-				Console.Printf("Currently casting this spell");
+			Console.Printf("Currently casting this spell");
 			
 			useSkill = false;
 		}
 		else if (bInCoolDown)
 		{
-			if (messageTimer <= 0)
-				Console.Printf("Spell on cool down");
-			
-			useSkill = false;
-		}
-			
-		if (useSkill && cost > 0 && !sv_infiniteammo && !owner.FindInventory("PowerInfiniteAmmo") && !bCurToggle &&
-			((type == 'Health' && owner.health <= cost) || !owner.CheckInventory(type, cost)))
-		{
-			if (messageTimer <= 0)
-				Console.Printf("You do not have enough resources to cast this");
+			Console.Printf("Spell on cool down");
 			
 			useSkill = false;
 		}
 		
 		if (useSkill && activeWeapon && (!owner.player.ReadyWeapon || owner.player.ReadyWeapon.GetClass() != activeWeapon))
 		{
-			if (messageTimer <= 0)
-				Console.Printf("You must have "..weaponName.." out to use this");
+			Console.Printf("You must have "..weaponName.." out to use this");
+			
+			useSkill = false;
+		}
+		
+		if (useSkill && !CheckAmmo(cost, type, reserveType, !bCurToggle))
+		{
+			Console.Printf("You do not have enough resources to cast this");
 			
 			useSkill = false;
 		}
@@ -177,28 +163,13 @@ class Skill : Inventory abstract
 				bInCoolDown = true;
 			}
 			
-			bool useAmmo = (!sv_infiniteammo && !owner.FindInventory("PowerInfiniteAmmo"));
 			if (bToggle)
-			{
 				bCurToggle = !bCurToggle;
-				useAmmo = bCurToggle;
-			}
-				
-			if (useAmmo)
-				owner.TakeInventory(type, cost);
 			
 			if (!bToggle || bCurToggle)
 				UseSkill();
 			else
 				EndSkill();
-		}
-		
-		if (messageTimer <= 0)
-		{
-			if (!useSkill)
-				messageTimer = TICRATE;
-			else
-				messageTimer = TICRATE / 4;
 		}
 		
 		return false;
@@ -213,6 +184,49 @@ class Skill : Inventory abstract
 	virtual void OnEquip() {}
 	
 	virtual void OnUnequip() {}
+	
+	bool CheckAmmo(int amt, class<Inventory> type1, class<Inventory> type2 = null, bool useAmmo = true)
+	{
+		if (!useAmmo || amt <= 0 || sv_infiniteammo || owner.FindInventory("PowerInfiniteAmmo"))
+			return true;
+		
+		int amount1, amount2;
+		bool useNormal, useReserve;
+		let ammo1 = owner.FindInventory(type1);
+		if (ammo1)
+		{
+			amount1 = ammo1.amount;
+			if (amount1 < amt)
+				useReserve = true;
+			
+			if (amount1 > 0)
+				useNormal = true;
+		}
+		
+		let ammo2 = owner.FindInventory(type2);
+		if (ammo2)
+			amount2 = ammo2.amount;
+		
+		if ((type1 == 'Health' && owner.health <= amt) || amount1+amount2 < amt)
+			return false;
+		
+		if (useNormal || useReserve)
+		{
+			int realCost = amt;
+									
+			if (ammo1 && useNormal)
+			{
+				int take = min(ammo1.amount, amt);
+				realCost -= take;
+				ammo1.amount -= take;
+			}
+									
+			if (ammo2 && useReserve)
+				ammo2.amount -= realCost;
+		}
+		
+		return true;
+	}
 	
 	void GiveBuff(Actor mast, Actor other = null)
 	{
@@ -308,6 +322,9 @@ class BuffManager : Inventory
 		super.DoEffect();
 		
 		buffs.Clear();
+		
+		if (!owner)
+			return;
 		
 		for (let probe = owner.inv; probe != null; probe = probe.inv)
 		{

@@ -200,6 +200,7 @@ class BloodLust : Skill
 	Default
 	{
 		Skill.BuffType "BLBuff";
+		Inventory.Icon "PTN1A0";
 	}
 	
 	override void OnEquip()
@@ -231,7 +232,7 @@ class BLBuff : Buff
 			!owner.IsFriend(thing) &&
 			owner.Distance3DSquared(thing) <= range**2)
 		{
-			owner.GiveBody(owner.player.mo.maxHealth*0.05);
+			owner.GiveBody(owner.player.mo.maxHealth*0.04);
 		}
 	}
 }
@@ -245,6 +246,7 @@ class LightningAxe : Skill
 		Skill.ActiveWeapon "ReforgedAxe";
 		Skill.WeaponName "Timon's Axe";
 		Skill.CastTime 35;
+		Inventory.Icon "MWNDF0";
 	}
 	
 	override void UseSkill()
@@ -261,8 +263,9 @@ class Charge : Skill
 	
 	Default
 	{
-		Skill.CastTime 5;
-		//Skill.CoolDown 175;
+		Skill.CastTime 2;
+		Skill.CoolDown 175;
+		Inventory.Icon "SUMNA0";
 	}
 	
 	override void UseSkill()
@@ -273,10 +276,11 @@ class Charge : Skill
 		
 		owner.bSkullfly = true;
 		chargeTimer = 35;
-		owner.VelFromAngle(17*owner.speed, owner.angle);
+		owner.player.mo.VelFromAngle(17*owner.speed, owner.angle);
 		launchVel = owner.vel.xy;
 		owner.player.cheats |= CF_TOTALLYFROZEN;
 		owner.A_StartSound("minotaur/sight", CHAN_VOICE);
+		owner.player.vel = (0,0);
 	}
 	
 	override void Effect()
@@ -296,6 +300,8 @@ class Charge : Skill
 				else
 					owner.A_SetPitch(owner.pitch - max(-10, owner.pitch-15), SPF_INTERPOLATE);
 			}
+			
+			castTimer = default.castTime;
 		}
 		else if (owner.player.cheats & CF_TOTALLYFROZEN)
 		{

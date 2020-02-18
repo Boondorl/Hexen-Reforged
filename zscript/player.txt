@@ -53,8 +53,6 @@ class RPGPlayer : PlayerPawn abstract
 		if (currentLevel < maxLevel && currentXP >= nextLevelXP)
 			LevelUp();
 		
-		CheckSkill();
-		
 		// Someone probably cleared our inventory
 		if (!FirstInv() && currentCapacity > 0)
 			currentCapacity = 0;
@@ -73,16 +71,6 @@ class RPGPlayer : PlayerPawn abstract
 			if (skill)
 				skill.Use(false);
 		}
-	}
-	
-	virtual void CheckSkill()
-	{
-		if (player.cmd.buttons & BT_USER2)
-			UseSkill(0);
-		else if (player.cmd.buttons & BT_USER3)
-			UseSkill(1);
-		else if (player.cmd.buttons & BT_USER4)
-			UseSkill(2);	
 	}
 	
 	virtual void LevelUp()

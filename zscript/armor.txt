@@ -61,10 +61,7 @@ class ArmorPieceManager : Inventory
 		pieces.Clear();
 		
 		if (!owner)
-		{
-			Console.Printf("Well that shouldn't happen");
 			return;
-		}
 		
 		for (let probe = owner.inv; probe != null; probe = probe.inv)
 		{
