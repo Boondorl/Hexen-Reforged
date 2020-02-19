@@ -113,7 +113,6 @@ class SerpentBody : CollisionBox
 {
 	Default
 	{
-		CollisionBox.Multi 1;
 		CollisionBox.Length 24;
 		CollisionBox.ForwardOffset -12;
 		Radius 24;

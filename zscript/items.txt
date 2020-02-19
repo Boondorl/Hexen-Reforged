@@ -58,11 +58,7 @@ class RPGHealthPickup : RPGItem
 
 	override bool Use(bool pickup)
 	{
-		bool used = owner.GiveBody(health, 0);
-		if (used)
-			super.Use(pickup);
-		
-		return used;
+		return owner.GiveBody(health, 0);
 	}
 }
 
@@ -91,8 +87,6 @@ class RPGPowerupGiver : RPGItem
 
 	override bool Use(bool pickup)
 	{
-		super.Use(pickup);
-		
 		if (!Type || !owner)
 			return true;
 
@@ -139,7 +133,7 @@ class RPGFlask : RPGHealthPickup replaces ArtiHealth
 {
 	Default
 	{
-		RPGItem.Weight 1;
+		RPGItem.Weight 5;
 		Health 10;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIPTN2";
@@ -164,14 +158,14 @@ class RPGUrn : RPGHealthPickup replaces ArtiSuperHealth
 {
 	Default
 	{
-		RPGItem.Weight 7;
+		RPGItem.Weight 30;
 		Health 100;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTISPHL";
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTISUPERHEALTH";
 		Tag "$TAG_ARTISUPERHEALTH";
-		RPGItem.Description "A mystic urn that can restore up to 100 health";
+		RPGItem.Description "An ancient artifact that can restore up to 100 health";
 		
 		+FLOATBOB
 		+INVENTORY.FANCYPICKUPSOUND
@@ -306,7 +300,7 @@ class RPGTorch : RPGPowerupGiver replaces ArtiTorch
 {
 	Default
 	{
-		RPGItem.Weight 5;
+		RPGItem.Weight 10;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTITRCH";
 		Inventory.PickupMessage "$TXT_ARTITORCH";
@@ -325,11 +319,17 @@ class RPGTorch : RPGPowerupGiver replaces ArtiTorch
 	}
 }
 
+class PowerFlightNoIcon : PowerFlight
+{
+	override TextureID GetPowerupIcon() {return icon;}
+}
+
 class RPGFly : ArtiFly replaces ArtiFly
 {
 	Default
 	{
 		Inventory.MaxAmount 0;
+		Powerup.Type "PowerFlightNoIcon";
 		
 		+INVENTORY.AUTOACTIVATE
 		+INVENTORY.ALWAYSPICKUP
@@ -341,7 +341,7 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 {
 	Default
 	{
-		RPGItem.Weight 3;
+		RPGItem.Weight 5;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIBLST";
 		Inventory.PickupSound "misc/p_pkup";
@@ -363,8 +363,6 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 	
 	override bool Use(bool pickup)
 	{
-		super.Use(pickup);
-		
 		A_InvBlast();
 		return true;
 	}
@@ -408,7 +406,7 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 		}
 	}
 
-	void A_InvBlast(int blastflags = 0, double strength = 256, double rad = 256, double speed = 20, double maxAng = 35, class<Actor> blasteffect = "BlastEffect", sound blastsound = "BlastRadius")
+	void A_InvBlast(int blastflags = 0, double strength = 256, double rad = 256, double speed = 20, double maxAng = 45, class<Actor> blasteffect = "BlastEffect", sound blastsound = "BlastRadius")
 	{
 		if (!owner)
 			return;
@@ -460,7 +458,7 @@ class RPGBanish : RPGItem replaces ArtiTeleportOther
 {
 	Default
 	{
-		RPGItem.Weight 5;
+		RPGItem.Weight 10;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTITELO";
 		Inventory.PickupSound "misc/p_pkup";
@@ -482,10 +480,17 @@ class RPGBanish : RPGItem replaces ArtiTeleportOther
 
 	override bool Use (bool pickup)
 	{
-		super.Use(pickup);
-		
 		owner.SpawnPlayerMissile("TelOtherRFX1");
 		return true;
+	}
+}
+
+class PowerSpeedNoIcon : PowerSpeed
+{
+	Default
+	{
+		Powerup.Duration -30;
+		Inventory.Icon "";
 	}
 }
 
@@ -498,8 +503,8 @@ class RPGBoots : RPGPowerupGiver replaces ArtiSpeedBoots
 		Inventory.Icon "ARTISPED";
 		Inventory.PickupMessage "$TXT_ARTISPEED";
 		Tag "$TAG_ARTISPEED";
-		RPGPowerupGiver.Type "PowerSpeed";
-		RPGItem.Description "Boots that aid in your swiftness by making you 50% faster";
+		RPGPowerupGiver.Type "PowerSpeedNoIcon";
+		RPGItem.Description "Magic infused boots that temporarily increase your movement speed by 50%";
 		
 		+FLOATBOB
 	}
@@ -516,7 +521,7 @@ class RPGFlechette : RPGItem replaces ArtiPoisonBag
 {
 	Default
 	{
-		RPGItem.Weight 5;
+		RPGItem.Weight 10;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIPSBG";
 		Inventory.PickupSound "misc/p_pkup";
@@ -542,7 +547,6 @@ class RPGFlechette : RPGItem replaces ArtiPoisonBag
 		if (missile)
 			missile.vel.z += 5;
 		
-		super.Use(pickup);
 		return true;
 	}
 }
@@ -551,7 +555,7 @@ class RPGTeleport : RPGItem replaces ArtiTeleport
 {
 	Default
 	{
-		RPGItem.Weight 5;
+		RPGItem.Weight 10;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIATLP";
 		Inventory.PickupSound "misc/p_pkup";
@@ -596,7 +600,6 @@ class RPGTeleport : RPGItem replaces ArtiTeleport
 			Owner.A_PlaySound ("*evillaugh", CHAN_VOICE, 1, false, ATTN_NONE);
 		}
 		
-		super.Use(pickup);
 		return true;
 	}
 }
@@ -636,7 +639,6 @@ class RPGKrater : RPGItem replaces ArtiBoostMana
 			owner.GiveInventory("BlueMana", 100);
 			owner.GiveInventory("GreenMana", 100);
 			
-			super.Use(pickup);
 			return true;
 		}
 		
@@ -648,7 +650,7 @@ class RPGPork : RPGItem replaces ArtiPork
 {
 	Default
 	{
-		RPGItem.Weight 10;
+		RPGItem.Weight 20;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIPORK";
 		Inventory.PickupSound "misc/p_pkup";
@@ -675,7 +677,6 @@ class RPGPork : RPGItem replaces ArtiPork
 			owner.SpawnPlayerMissile("PorkFX", owner.angle+i);
 		}
 		
-		super.Use(pickup);
 		return true;
 	}
 }

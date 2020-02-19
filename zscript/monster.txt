@@ -24,6 +24,8 @@ class CollisionBox : Actor
 	
 	Default
 	{
+		CollisionBox.Multi 1;
+		
 		+NOINTERACTION
 	}
 	
@@ -33,7 +35,7 @@ class CollisionBox : Actor
 		
 		if (master)
 		{
-			if (master.health <= 0 && !master.bIceCorpse)
+			if ((master.health <= 0 && !master.bIceCorpse) || !master.bShootable)
 				bDead = true;
 			else
 			{

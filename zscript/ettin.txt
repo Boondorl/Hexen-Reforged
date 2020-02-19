@@ -138,7 +138,6 @@ class EttinBody : CollisionBox
 {
 	Default
 	{
-		CollisionBox.Multi 1;
 		CollisionBox.Length 25;
 		Radius 25;
 		Height 48;
@@ -149,7 +148,6 @@ class EttinShoulder : CollisionBox
 {
 	Default
 	{
-		CollisionBox.Multi 1;
 		CollisionBox.Length 12;
 		CollisionBox.ForwardOffset -12;
 		CollisionBox.UpOffset 48;

@@ -433,7 +433,7 @@ class BanishmentMissile : FastProjectile
 		
 		if (master)
 		{
-			victim.Teleport(master.pos, victim.angle, TELF_SOURCEFOG | TELF_DESTFOG);
+			victim.Teleport((master.pos.xy, master.floorz), victim.angle, TELF_SOURCEFOG | TELF_DESTFOG);
 			victim.DamageMObj(null, null, TELEFRAG_DAMAGE, "Telefrag");
 		}
 		
@@ -469,8 +469,30 @@ class TelOtherRFX1 : Actor
 			TRNG D 3 Bright;
 			Goto Spawn+2;
 			
-		Death:
+		Crash:
+		XDeath:
 			TRNG E 3 Bright;
+			Stop;
+			
+		Death:
+			TRNG E 3 Bright
+			{
+				let frag = Spawn("TelefragDestination", pos);
+				if (frag)
+				{
+					for (int i = 0; i < 24; ++i)
+					{
+						let missile = Spawn("BanishmentMissile", pos, ALLOW_REPLACE);
+						if (missile)
+						{
+							missile.master = frag;
+							missile.target = target;
+							missile.angle = i*15;
+							missile.VelFromAngle();
+						}
+					}
+				}
+			}
 			Stop;
 	}
 		
@@ -479,17 +501,12 @@ class TelOtherRFX1 : Actor
 		if (victim == target || (target && target.IsFriend(victim)))
 			return 1;
 		
-		if ((victim.bShootable && victim.health <= 0) || !(victim.bIsMonster || victim.player))
+		if (victim.health <= 0 || (victim.bShootable && !(victim.bIsMonster || victim.player)))
 			return 1;
-		
-		if (victim.bBoss)
-			return -1;
 		
 		let frag = Spawn("TelefragDestination", pos);
 		if (frag)
 		{
-			frag.master = victim;
-			
 			for (int i = 0; i < 24; ++i)
 			{
 				let missile = Spawn("BanishmentMissile", pos, ALLOW_REPLACE);
@@ -519,11 +536,5 @@ class TelefragDestination : Actor
 		Spawn:
 			TNT1 A 8;
 			Stop;
-	}
-	
-	override void Tick()
-	{
-		if (master)
-			SetXYZ(master.pos);
 	}
 }

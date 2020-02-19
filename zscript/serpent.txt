@@ -8,7 +8,6 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		Radius 32;
 		Height 70;
 		Mass 0x7fffffff;
-		Monster;
 		SeeSound "SerpentSight";
 		AttackSound "SerpentAttack";
 		PainSound "SerpentPain";
@@ -81,7 +80,7 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 			Goto Dive;
 				
 		Missile:
-			SSPT N 5 A_SpawnProjectile("SerpentRFX", 32, 0);
+			SSPT N 5 A_MonsterProjectile("SerpentRFX", 32);
 			Goto Dive;
 		
 		Death:
@@ -212,9 +211,41 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 			}
 		}
 	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		CreateBox("SwampBody");
+		CreateBox("SwampHead");
+	}
 }
 
 class ReforgedSwampMonsterLeader : ReforgedSwampMonster replaces SerpentLeader {}
+
+class SwampBody : CollisionBox
+{
+	Default
+	{
+		CollisionBox.Length 32;
+		Radius 32;
+		Height 54;
+	}
+}
+
+class SwampHead : CollisionBox
+{
+	Default
+	{
+		CollisionBox.Multi 1.5;
+		CollisionBox.UpOffset 54;
+		CollisionBox.Length 13;
+		Radius 13;
+		Height 16;
+		
+		+COLLISIONBOX.CRITICALZONE
+	}
+}
 
 class SerpentRFX : RPGMissile
 {

@@ -274,7 +274,8 @@ class ItemBox : InteractiveBox
 				if (mouseX - length/2 < 0)
 					length = length/2 - mouseX;
 				
-				DrawText(fnt, Font.CR_WHITE, (mouseX, mouseY), rpgi.description, (-length / 2, fHeight));
+				DrawText(fnt, Font.CR_WHITE, (mouseX, mouseY), String.Format("Weight: %.1f - %.1f total", rpgi.weight/10., rpgi.weight*rpgi.amount/10.), (-length / 2, fHeight));
+				DrawText(fnt, Font.CR_WHITE, (mouseX, mouseY), rpgi.description, (-length / 2, fHeight*2));
 			}
 		}
 		
