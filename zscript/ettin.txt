@@ -53,7 +53,7 @@ class ReforgedEttin : RPGMonster replaces Ettin
 		Block:
 			ETTN F 2 A_MonsterFaceTarget;
 			TNT1 A 0 A_MonsterBlock;
-			ETTN FFFFFF 5 A_MonsterFaceTarget;
+			ETTN FFFFFFF 5 A_MonsterFaceTarget;
 		Unblock:
 			TNT1 A 0 A_MonsterUnblock;
 			ETTN F 2 A_MonsterFaceTarget;

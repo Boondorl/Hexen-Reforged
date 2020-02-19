@@ -162,11 +162,11 @@ class RPGMonster : Actor
 	int rageTimer;
 	int searchTimer;
 	
-	private bool bBlocking;
-	private bool bSawTarget;
-	private int missileCoolDown;
-	private double idealAngle;
-	private int blockCoolDown;
+	protected bool bBlocking;
+	protected bool bSawTarget;
+	protected int missileCoolDown;
+	protected double idealAngle;
+	protected int blockCoolDown;
 	bool bDontAttack;
 	bool bDontBlock;
 	bool bCancelled;
@@ -420,13 +420,16 @@ class RPGMonster : Actor
 		bBlocking = true;
 	}
 	
-	void A_MonsterUnblock()
+	void A_MonsterUnblock(int coolDown = -1)
 	{
 		if (shield)
 			shield.Destroy();
 		
 		bBlocking = false;
-		blockCoolDown = random(105,175);
+		if (coolDown < 0)
+			coolDown = random(105,175);
+		
+		blockCoolDown = coolDown;
 	}
 	
 	void A_Stumble(double speed = 10)

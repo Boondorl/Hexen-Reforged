@@ -2,6 +2,7 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 {
 	Default
 	{
+		RPGMonster.XP 30;
 		Health 90;
 		PainChance 96;
 		Speed 12;

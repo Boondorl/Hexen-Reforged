@@ -290,7 +290,6 @@ class BlockBox : Actor
 		}
 			
 		master.DamageMobj(inflict, source, damage, mod, flags, angle);
-		alreadyHit.Push(inflictor);
 		
 		return -1;
 	}
