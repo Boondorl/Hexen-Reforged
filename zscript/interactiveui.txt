@@ -266,6 +266,16 @@ class ItemBox : InteractiveBox
 			int fHeight = fnt.GetHeight();
 			
 			DrawText(fnt, Font.CR_WHITE, center-(0, scaledH/2), title, (-titleLength / 2, -fHeight));
+			
+			let rpgi = RPGItem(item);
+			if (rpgi)
+			{
+				int length = fnt.StringWidth(rpgi.description);
+				if (mouseX - length/2 < 0)
+					length = length/2 - mouseX;
+				
+				DrawText(fnt, Font.CR_WHITE, (mouseX, mouseY), rpgi.description, (-length / 2, fHeight));
+			}
 		}
 		
 		if (!bLeftClicked && !bRightClicked)

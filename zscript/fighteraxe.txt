@@ -730,9 +730,9 @@ class HeavyAxeHurtBox : AxeHurtBox
 			normal = Ammo(target.FindInventory(bonusType));
 			reserve = Ammo(target.FindInventory(reserveBonusType));
 							
-			if (normal && normal.amount < 4)
+			if (normal && normal.amount < 3)
 			{
-				if (!reserve || (reserve.amount+normal.amount) < 4)
+				if (!reserve || (reserve.amount+normal.amount) < 3)
 					spawnExplosion = false;
 				else
 				{
@@ -750,11 +750,11 @@ class HeavyAxeHurtBox : AxeHurtBox
 		{
 			if (useNormal || useReserve)
 			{
-				int cost = 4;
+				int cost = 3;
 										
 				if (normal && useNormal)
 				{
-					int take = min(normal.amount, 4);
+					int take = min(normal.amount, 3);
 					cost -= take;
 					normal.amount -= take;
 				}

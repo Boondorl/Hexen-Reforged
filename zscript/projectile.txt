@@ -761,7 +761,8 @@ class RPGMissile : FasterProjectile
 				damageMultiplier = 1;
 			
 			int flags = bCriticalHit ? DMG_CRIT : 0;
-			victim.DamageMobj(self, target, round(damage*damageMultiplier), damageType, flags);
+			int newdam = victim.DamageMobj(self, target, round(damage*damageMultiplier), damageType, flags);
+			SpawnBlood(victim, round(damage*damageMultiplier), newdam);
 			if (victim.bIceCorpse && bShatterer)
 				victim.DamageMobj(self, target, 1, 'None');
 			
@@ -783,6 +784,15 @@ class RPGMissile : FasterProjectile
 		}
 		
 		return 1;
+	}
+	
+	void SpawnBlood(Actor mo, int intialDamage, int realDamage)
+	{
+		if (!mo)
+			return;
+		
+		mo.TraceBleed(realDamage > 0 ? realDamage : intialDamage, target);
+		mo.SpawnLineAttackBlood(target, pos, target.AngleTo(mo), intialDamage, realDamage);
 	}
 	
 	override void Tick()

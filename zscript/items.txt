@@ -18,65 +18,7 @@ class RPGItem : Inventory
 		if (rpg && (rpg.carryCapacity - rpg.currentCapacity) < weight)
 			return;
 		
-		let item = toucher.FindInventory(GetClass());
-		if (item && item.amount >= item.maxAmount)
-			return;
-		
 		super.Touch(toucher);
-	}
-	
-	override void AttachToOwner(Actor user)
-	{
-		let rpg = RPGPlayer(user);
-		if (rpg)
-			rpg.currentCapacity += weight*amount;
-		
-		super.AttachToOwner(user);
-	}
-	
-	override Inventory CreateTossable(int amt)
-	{
-		let rpg = RPGPlayer(owner);
-		if (rpg)
-		{
-			rpg.currentCapacity -= weight*clamp(amt, 1, amount);
-			if (rpg.currentCapacity < 0)
-				rpg.currentCapacity = 0;
-		}
-		
-		return super.CreateTossable(amt);
-	}
-	
-	override bool HandlePickup(Inventory item)
-	{
-		bool pickup = super.HandlePickup(item);
-		
-		if (pickup)
-		{
-			let rpg = RPGPlayer(owner);
-			let it = RPGItem(item);
-			if (rpg && it)
-			{
-				int amt = it.amount;
-				amt = min(amt, it.maxAmount - it.amount);
-				rpg.currentCapacity += it.weight*amt;
-			}
-		}
-		
-		return pickup;
-	}
-	
-	override bool Use(bool pickup)
-	{
-		let rpg = RPGPlayer(owner);
-		if (rpg)
-		{
-			rpg.currentCapacity -= weight;
-			if (rpg.currentCapacity < 0)
-				rpg.currentCapacity = 0;
-		}
-		
-		return false;
 	}
 }
 
@@ -204,6 +146,7 @@ class RPGFlask : RPGHealthPickup replaces ArtiHealth
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIHEALTH";
 		Tag "$TAG_ARTIHEALTH";
+		RPGItem.Description "A lightweight flask that restores up to 10 health";
 		
 		+FLOATBOB
 		+INVENTORY.FANCYPICKUPSOUND
@@ -228,6 +171,7 @@ class RPGUrn : RPGHealthPickup replaces ArtiSuperHealth
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTISUPERHEALTH";
 		Tag "$TAG_ARTISUPERHEALTH";
+		RPGItem.Description "A mystic urn that can restore up to 100 health";
 		
 		+FLOATBOB
 		+INVENTORY.FANCYPICKUPSOUND
@@ -368,6 +312,7 @@ class RPGTorch : RPGPowerupGiver replaces ArtiTorch
 		Inventory.PickupMessage "$TXT_ARTITORCH";
 		Tag "$TAG_ARTITORCH";
 		RPGPowerupGiver.Type "PowerDynamicTorch";
+		RPGItem.Description "A standard torch capable of lighting your surroundings for a few minutes";
 		
 		+FLOATBOB
 	}
@@ -402,6 +347,7 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIBLASTRADIUS";
 		Tag "$TAG_ARTIBLASTRADIUS";
+		RPGItem.Description "A small disc capable of repelling away enemies and reflecting projectiles in front of you";
 		
 		+INVENTORY.INVBAR
 		+INVENTORY.FANCYPICKUPSOUND
@@ -520,6 +466,7 @@ class RPGBanish : RPGItem replaces ArtiTeleportOther
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTITELEPORTOTHER";
 		Tag "$TAG_ARTITELEPORTOTHER";
+		RPGItem.Description "A strange device that teleports nearby enemies to the location it hit";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR
@@ -552,6 +499,7 @@ class RPGBoots : RPGPowerupGiver replaces ArtiSpeedBoots
 		Inventory.PickupMessage "$TXT_ARTISPEED";
 		Tag "$TAG_ARTISPEED";
 		RPGPowerupGiver.Type "PowerSpeed";
+		RPGItem.Description "Boots that aid in your swiftness by making you 50% faster";
 		
 		+FLOATBOB
 	}
@@ -574,6 +522,7 @@ class RPGFlechette : RPGItem replaces ArtiPoisonBag
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIPOISONBAG";
 		Tag "$TAG_ARTIPOISONBAG";
+		RPGItem.Description "A vial of poison that leaves behind naseous gas when thrown. Best to keep a distance";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR
@@ -608,6 +557,7 @@ class RPGTeleport : RPGItem replaces ArtiTeleport
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTITELEPORT";
 		Tag "$TAG_ARTITELEPORT";
+		RPGItem.Description "An otherworldly device that allows you to teleport back to safety";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR
@@ -661,6 +611,7 @@ class RPGKrater : RPGItem replaces ArtiBoostMana
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIBOOSTMANA";
 		Tag "$TAG_ARTIBOOSTMANA";
+		RPGItem.Description "A krater that can restore up to 100 blue and green mana";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR
@@ -703,6 +654,7 @@ class RPGPork : RPGItem replaces ArtiPork
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIEGG2";
 		Tag "$TAG_ARTIPORK";
+		RPGItem.Description "A humorous artifact that turns any enemies nearby into pigs";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR

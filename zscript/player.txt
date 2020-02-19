@@ -17,6 +17,10 @@ class RPGPlayer : PlayerPawn abstract
 	int currentCapacity;
 	ui int tempPoints;
 	
+	bool bMenuOpen;
+	bool bInInv;
+	bool bInStats;
+	
 	property CarryCapacity : carryCapacity;
 	property MaxLevel : maxLevel;
 	property SkillSlots : skillSlots;
@@ -56,9 +60,84 @@ class RPGPlayer : PlayerPawn abstract
 		if (currentLevel < maxLevel && currentXP >= nextLevelXP)
 			LevelUp();
 		
-		// Someone probably cleared our inventory
-		if (!FirstInv() && currentCapacity > 0)
-			currentCapacity = 0;
+		currentCapacity = 0;
+		for (let probe = FirstInv(); probe != null; probe = probe.NextInv())
+		{
+			let rpgi = RPGItem(probe);
+			if (rpgi)
+				currentCapacity += rpgi.amount*rpgi.weight;
+		}
+	}
+	
+	override void GiveDefaultInventory()
+	{
+		if (!player)
+			return;
+
+		// Now add the items from the DECORATE definition
+		let di = GetDropItems();
+
+		while (di)
+		{
+			Class<Actor> ti = di.Name;
+			if (ti)
+			{
+				let tinv = (class<Inventory>)(ti);
+				if (!tinv)
+				{
+					Console.Printf(TEXTCOLOR_ORANGE .. "%s is not an inventory item and cannot be given to a player as start item.\n", di.Name);
+				}
+				else
+				{
+					let item = FindInventory(tinv);
+					if (item)
+					{
+						item.Amount = clamp(
+							item.Amount + (di.Amount ? di.Amount : item.default.Amount), 0, item.MaxAmount);
+					}
+					else
+					{
+						item = Inventory(Spawn(ti));
+						item.bIgnoreSkill = true;	// no skill multipliers here
+						item.Amount = di.Amount;
+						let weap = Weapon(item);
+						if (weap)
+						{
+							// To allow better control any weapon is emptied of
+							// ammo before being given to the player.
+							weap.AmmoGive1 = weap.AmmoGive2 = 0;
+						}
+						bool res;
+						Actor check;
+						[res, check] = item.CallTryPickup(self);
+						if (!res)
+						{
+							item.Destroy();
+							item = NULL;
+						}
+						else if (check != self)
+						{
+							// Player was morphed. This is illegal at game start.
+							// This problem is only detectable when it's too late to do something about it...
+							ThrowAbortException("Cannot give morph item '%s' when starting a game!", di.Name);
+						}
+					}
+					let weap = Weapon(item);
+					if (weap && weap.CheckAmmo(Weapon.EitherFire, false))
+					{
+						player.ReadyWeapon = player.PendingWeapon = weap;
+					}
+				}
+			}
+			di = di.Next;
+		}
+		
+		for (uint i = 0; i < stats.Size(); ++i)
+		{
+			let st = Stat(FindInventory(stats[i]));
+			if (st)
+				st.GiveDefault();
+		}
 	}
 	
 	void UseSkill(uint index)
@@ -185,7 +264,31 @@ class RPGPlayer : PlayerPawn abstract
 	
 	override void CheatGive(String name, int amount)
 	{
-		if (name ~== "level")
+		int i;
+		class<Inventory> type;
+
+		if (!player.mo || player.health <= 0)
+			return;
+
+		int giveall = ALL_NO;
+		if (name ~== "all")
+			giveall = ALL_YES;
+		else if (name ~== "everything")
+			giveall = ALL_YESYES;
+
+		if (name ~== "health")
+		{
+			if (amount > 0)
+			{
+				health += amount;
+				player.health = health;
+			}
+			else
+				player.health = health = GetMaxHealth(true);
+			
+			return;
+		}
+		else if (name ~== "level")
 		{
 			for (int i = 0; i < amount; ++i)
 			{
@@ -204,7 +307,8 @@ class RPGPlayer : PlayerPawn abstract
 			points += amount;
 			return;
 		}
-		else if (name ~== "all" || name ~== "everything")
+		
+		if (giveall)
 		{
 			for (int i = currentLevel; i < maxLevel; ++i)
 			{
@@ -222,7 +326,47 @@ class RPGPlayer : PlayerPawn abstract
 			}
 			
 			GiveBody(-100);
-			
+		}
+
+		if (giveall || name ~== "backpack")
+		{
+			// Select the correct type of backpack based on the game
+			type = (class<Inventory>)(gameinfo.backpacktype);
+			if (type)
+				GiveInventory(type, 1, true);
+
+			if (!giveall)
+				return;
+		}
+
+		if (giveall || name ~== "ammo")
+		{
+			// Find every unique type of ammo. Give it to the player if
+			// he doesn't have it already, and set each to its maximum.
+			for (i = 0; i < AllActorClasses.Size(); ++i)
+			{
+				let ammotype = (class<Ammo>)(AllActorClasses[i]);
+
+				if (ammotype && GetDefaultByType(ammotype).GetParentAmmo() == ammotype)
+				{
+					let ammoitem = FindInventory(ammotype);
+					if (!ammoitem)
+					{
+						ammoitem = Inventory(Spawn(ammotype));
+						ammoitem.AttachToOwner(self);
+						ammoitem.Amount = ammoitem.MaxAmount;
+					}
+					else if (ammoitem.Amount < ammoitem.MaxAmount)
+						ammoitem.Amount = ammoitem.MaxAmount;
+				}
+			}
+
+			if (!giveall)
+				return;
+		}
+
+		if (giveall || name ~== "armor")
+		{
 			let chest = FindInventory("ChestPiece");
 			if (chest)
 				chest.health = chest.default.health;
@@ -252,9 +396,116 @@ class RPGPlayer : PlayerPawn abstract
 				shield.health = shield.default.health;
 			else
 				GiveInventory("ShieldPiece", 1);
+
+			if (!giveall)
+				return;
+		}
+
+		if (giveall || name ~== "keys")
+		{
+			for (int i = 0; i < AllActorClasses.Size(); ++i)
+			{
+				if (AllActorClasses[i] is "Key")
+				{
+					let keyitem = GetDefaultByType(AllActorClasses[i]);
+					if (keyitem.special1 != 0)
+					{
+						let item = Inventory(Spawn(AllActorClasses[i]));
+						if (!item.CallTryPickup(self))
+							item.Destroy();
+					}
+				}
+			}
+			
+			if (!giveall)
+				return;
+		}
+
+		if (giveall || name ~== "weapons")
+		{
+			let savedpending = player.PendingWeapon;
+			for (i = 0; i < AllActorClasses.Size(); ++i)
+			{
+				let type = (class<Weapon>)(AllActorClasses[i]);
+				if (type && type != "Weapon")
+				{
+					// Don't give replaced weapons unless the replacement was done by Dehacked.
+					let rep = GetReplacement(type);
+					if (rep == type || rep is "DehackedPickup")
+					{
+						// Give the weapon only if it is set in a weapon slot.
+						if (player.weapons.LocateWeapon(type))
+						{
+							readonly<Weapon> def = GetDefaultByType(type);
+							if (giveall == ALL_YESYES || !def.bCheatNotWeapon)
+								GiveInventory(type, 1, true);
+						}
+					}
+				}
+			}
+			player.PendingWeapon = savedpending;
+
+			if (!giveall)
+				return;
+		}
+
+		if (giveall || name ~== "artifacts")
+		{
+			for (i = 0; i < AllActorClasses.Size(); ++i)
+			{
+				type = (class<Inventory>)(AllActorClasses[i]);
+				if (type)
+				{
+					if (type is "ArtiInvulnerability2" || type is "ArtiDarkServant")
+						continue;
+					
+					let def = GetDefaultByType(type);
+					if (def.Icon.isValid() && def.MaxAmount > 1 &&
+						!(type is "PuzzleItem") && !(type is "Powerup") && !(type is "Ammo") &&	!(type is "Armor"))
+					{
+						// Do not give replaced items unless using "give everything"
+						if (giveall == ALL_YESYES || GetReplacement(type) == type)
+							GiveInventory(type, amount <= 0 ? def.MaxAmount : amount, true);
+					}
+				}
+			}
+			
+			if (!giveall)
+				return;
+		}
+
+		if (giveall || name ~== "puzzlepieces")
+		{
+			for (i = 0; i < AllActorClasses.Size(); ++i)
+			{
+				let type = (class<PuzzleItem>)(AllActorClasses[i]);
+				if (type)
+				{
+					let def = GetDefaultByType(type);
+					if (def.Icon.isValid())
+					{
+						// Do not give replaced items unless using "give everything"
+						if (giveall == ALL_YESYES || GetReplacement(type) == type)
+							GiveInventory(type, amount <= 0 ? def.MaxAmount : amount, true);
+					}
+				}
+			}
+			
+			if (!giveall)
+				return;
 		}
 		
-		super.CheatGive(name, amount);
+		if (giveall)
+			return;
+
+		type = name;
+		if (!type)
+		{
+			if (PlayerNumber() == consoleplayer)
+				A_Log(String.Format("Unknown item \"%s\"\n", name));
+		}
+		else
+			GiveInventory(type, amount, true);
 	}
 	
 	override void MovePlayer()

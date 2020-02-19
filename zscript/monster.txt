@@ -264,6 +264,13 @@ class RPGMonster : Actor
 		}
 	}
 	
+	void A_MonsterWander(int flags = 0)
+	{
+		flags |= CHF_NODIRECTIONTURN;
+		A_Wander(flags);
+		idealAngle = movedir * 45;
+	}
+	
 	void A_MonsterChase(StateLabel melee = "Melee", StateLabel missile = "Missile", int flags = 0)
 	{
 		if (health <= 0)

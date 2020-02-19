@@ -69,13 +69,13 @@ class ReforgedEttin : RPGMonster replaces Ettin
 			Goto See;
 			
 		Shock:
-			ETTN H 9 A_PlaySound(HowlSound, CHAN_VOICE);
+			ETTN H 9 A_StartSound(HowlSound, CHAN_VOICE);
 			ETTN H 9;
-			ETTN H 9 A_PlaySound(HowlSound, CHAN_VOICE);
+			ETTN H 9 A_StartSound(HowlSound, CHAN_VOICE);
 			ETTN H 9;
-			ETTN H 9 A_PlaySound(HowlSound, CHAN_VOICE);
+			ETTN H 9 A_StartSound(HowlSound, CHAN_VOICE);
 			ETTN H 9;
-			ETTN H 9 A_PlaySound(HowlSound, CHAN_VOICE);
+			ETTN H 9 A_StartSound(HowlSound, CHAN_VOICE);
 			ETTN H 9;
 			Goto See;
 			

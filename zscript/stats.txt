@@ -35,6 +35,8 @@ class Stat : Inventory abstract
 			minLevel += levels;
 	}
 	
+	virtual void GiveDefault() {}
+	
 	override void BeginPlay()
 	{
 		super.BeginPlay();
@@ -94,7 +96,10 @@ class Vitality : Stat
 		{
 			int diff = owner.player.mo.health - owner.player.mo.maxHealth;
 			if (diff > 0)
-				owner.player.mo.A_DamageSelf(diff, flags: DMSS_NOPROTECT|DMSS_NOFACTOR);
+			{
+				owner.player.mo.health -= diff;
+				owner.player.health = owner.player.mo.health;
+			}
 		}
 	}
 	
@@ -162,6 +167,32 @@ class Wisdom : Stat
 				if (diff > 0)
 					rmana.amount -= diff;
 			}
+		}
+	}
+	
+	override void GiveDefault()
+	{
+		let bmana = Ammo(owner.player.mo.FindInventory("BlueMana"));
+		if (bmana)
+		{
+			bmana.MaxAmount += 30*(level-1);
+			bmana.BackpackMaxAmount += 30*(level-1);
+			bmana.Amount = bmana.MaxAmount;
+		}
+		
+		let gmana = Ammo(owner.player.mo.FindInventory("GreenMana"));
+		if (gmana)
+		{
+			gmana.MaxAmount += 30*(level-1);
+			gmana.BackpackMaxAmount += 30*(level-1);
+			gmana.Amount = gmana.MaxAmount;
+		}
+		
+		let rmana = Ammo(owner.player.mo.FindInventory("RedMana"));
+		if (rmana)
+		{
+			rmana.MaxAmount += 30*(level-1);
+			rmana.BackpackMaxAmount += 30*(level-1);
 		}
 	}
 	

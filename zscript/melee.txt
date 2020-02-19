@@ -641,9 +641,13 @@ class HurtBox : Actor
 						}
 					}
 					
-					mo.DamageMobj(self, target, round(damage*damageMultiplier), damageType, flags);
-					if (mo.bIceCorpse && bShatterer)
-						mo.DamageMobj(self, target, 1, 'None');
+					int newdam = mo.DamageMobj(self, target, round(damage*damageMultiplier), damageType, flags);
+					if (!isShield)
+					{
+						SpawnBlood(mo, round(damage*damageMultiplier), newdam);
+						if (mo.bIceCorpse && bShatterer)
+							mo.DamageMobj(self, target, 1, 'None');
+					}
 							
 					alreadyHit.Push(mo);
 					if (isShield)
@@ -654,6 +658,20 @@ class HurtBox : Actor
 				}
 			}
 		}
+	}
+	
+	void SpawnBlood(Actor mo, int intialDamage, int realDamage)
+	{
+		if (!mo)
+			return;
+		
+		mo.TraceBleed(realDamage > 0 ? realDamage : intialDamage, target);
+		
+		double srcAng = target.AngleTo(mo);
+		Vector3 spot = mo.pos + (0,0, pos.z - mo.pos.z);
+		spot.xy = mo.Vec2Offset(mo.radius*cos(srcAng+180), mo.radius*sin(srcAng+180));
+		
+		mo.SpawnLineAttackBlood(target, spot, srcAng, intialDamage, realDamage);
 	}
 	
 	bool CheckOBB(Actor mo, Vector3 forward, Vector3 right, Vector3 up, double length)
