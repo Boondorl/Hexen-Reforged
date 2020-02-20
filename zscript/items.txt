@@ -20,6 +20,30 @@ class RPGItem : Inventory
 		
 		super.Touch(toucher);
 	}
+	
+	override void AttachToOwner(Actor other)
+	{
+		let rpg = RPGPlayer(other);
+		if (rpg)
+			rpg.currentCapacity += weight*amount;
+		
+		super.AttachToOwner(other);
+	}
+	
+	override bool HandlePickup(Inventory item)
+	{
+		bool pickup = super.HandlePickup(item);
+		
+		if (pickup)
+		{
+			let rpg = RPGPlayer(owner);
+			let it = RPGItem(item);
+			if (rpg && it)
+				rpg.currentCapacity += it.weight*it.amount;
+		}
+		
+		return pickup;
+	}
 }
 
 class RPGHealthPickup : RPGItem
