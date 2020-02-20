@@ -928,7 +928,9 @@ class RPGMissile : FasterProjectile
 		if (mo is 'CollisionBox')
 		{
 			let box = CollisionBox(mo);
-			moLength = box.length;
+			if (box.bOriented)
+				moLength = box.length;
+				
 			moForward = box.forward;
 			moRight = box.right;
 		}

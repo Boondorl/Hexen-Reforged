@@ -53,16 +53,30 @@ class CollisionBox : Actor
 					right = masterRight;
 				}
 				
-				if (!globalfreeze && !level.frozen)
+				if (!isFrozen())
 				{
-					Spawn("Marker", pos+forward*length+right*radius);
-					Spawn("Marker", pos+forward*length-right*radius);
-					Spawn("Marker", pos-forward*length+right*radius);
-					Spawn("Marker", pos-forward*length-right*radius);
-					Spawn("Marker", pos+forward*length+right*radius+(0,0,height));
-					Spawn("Marker", pos+forward*length-right*radius+(0,0,height));
-					Spawn("Marker", pos-forward*length+right*radius+(0,0,height));
-					Spawn("Marker", pos-forward*length-right*radius+(0,0,height));
+					if (bOriented)
+					{
+						Spawn("Marker", pos+forward*length+right*radius);
+						Spawn("Marker", pos+forward*length-right*radius);
+						Spawn("Marker", pos-forward*length+right*radius);
+						Spawn("Marker", pos-forward*length-right*radius);
+						Spawn("Marker", pos+forward*length+right*radius+(0,0,height));
+						Spawn("Marker", pos+forward*length-right*radius+(0,0,height));
+						Spawn("Marker", pos-forward*length+right*radius+(0,0,height));
+						Spawn("Marker", pos-forward*length-right*radius+(0,0,height));
+					}
+					else
+					{
+						Spawn("Marker", pos+forward*radius+right*radius);
+						Spawn("Marker", pos+forward*radius-right*radius);
+						Spawn("Marker", pos-forward*radius+right*radius);
+						Spawn("Marker", pos-forward*radius-right*radius);
+						Spawn("Marker", pos+forward*radius+right*radius+(0,0,height));
+						Spawn("Marker", pos+forward*radius-right*radius+(0,0,height));
+						Spawn("Marker", pos-forward*radius+right*radius+(0,0,height));
+						Spawn("Marker", pos-forward*radius-right*radius+(0,0,height));
+					}
 				}
 			}
 		}
@@ -158,6 +172,12 @@ class RPGMonster : Actor
 	double trackAccuracy;
 	double turnSpeed;
 	double missileCheckHeight;
+	int minMissileCoolDown;
+	int maxMissileCoolDown;
+	double blockChance;
+	int failBlockCoolDown;
+	int minBlockCoolDown;
+	int maxBlockCoolDown;
 	
 	int rageTimer;
 	int searchTimer;
@@ -179,6 +199,12 @@ class RPGMonster : Actor
 	property TurnSpeed : turnSpeed;
 	property MissileCheckHeight : missileCheckHeight;
 	property ShieldType : shieldType;
+	property BlockChance : blockChance;
+	property FailBlockCoolDown : failBlockCoolDown;
+	property MinBlockCoolDown : minBlockCoolDown;
+	property MaxBlockCoolDown : maxBlockCoolDown;
+	property MinMissileCoolDown : minMissileCoolDown;
+	property MaxMissileCoolDown : maxMissileCoolDown;
 	
 	deprecated("3.7") private int rpgMonsterFlags;
 	flagdef AttackThruMonst: rpgMonsterFlags, 0;
@@ -190,6 +216,12 @@ class RPGMonster : Actor
 	{
 		Monster;
 		MaxTargetRange 2048;
+		RPGMonster.MinMissileCoolDown 70;
+		RPGMonster.MaxMissileCoolDown 105;
+		RPGMonster.BlockChance 0.2;
+		RPGMonster.FailBlockCoolDown 9;
+		RPGMonster.MinBlockCoolDown 105;
+		RPGMonster.MaxBlockCoolDown 175;
 		RPGMonster.TrackRange 256;
 		RPGMonster.TrackAccuracy 0.75;
 		RPGMonster.TurnSpeed 10;
@@ -308,8 +340,7 @@ class RPGMonster : Actor
 			
 			if (bFriendly)
 			{
-				A_Wander();
-				idealAngle = movedir * 45;
+				A_MonsterWander();
 				
 				ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
 				Actor mo;
@@ -339,7 +370,7 @@ class RPGMonster : Actor
 			return;
 		
 		A_MonsterFaceTarget();
-		missileCoolDown = random(75, 105);
+		missileCoolDown = random(minMissileCoolDown, maxMissileCoolDown);
 		
 		Vector3 right = (AngleToVector(angle-90), 0);
 		double h = heightOfs;
@@ -420,16 +451,13 @@ class RPGMonster : Actor
 		bBlocking = true;
 	}
 	
-	void A_MonsterUnblock(int coolDown = -1)
+	void A_MonsterUnblock()
 	{
 		if (shield)
 			shield.Destroy();
 		
 		bBlocking = false;
-		if (coolDown < 0)
-			coolDown = random(105,175);
-		
-		blockCoolDown = coolDown;
+		blockCoolDown = random(minBlockCoolDown, maxBlockCoolDown);
 	}
 	
 	void A_Stumble(double speed = 10)
@@ -467,14 +495,14 @@ class RPGMonster : Actor
 		State block = FindState("Block");
 		if (block)
 		{
-			if (!random(0,4)) // 20% chance to block
+			if (blockChance >= 1. || frandom(0,1) < blockChance)
 			{
 				SetState(block);
 				bCancelled = true;
 				return true;
 			}
 			else
-				blockCoolDown = 9; // Don't allow block check spamming
+				blockCoolDown = failBlockCoolDown;
 		}
 		
 		return false;
