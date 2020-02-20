@@ -62,25 +62,13 @@ class ReforgedFrost : RPGWeapon replaces MWeapFrost
 			
 		Fire:
 			CONE B 3;
+			CONE C 4;
+			CONE D 3;
+			CONE E 5;
 			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
-			CONE C 1 A_FireShards(-24, 5, true);
-			CONE C 1 A_FireShards(-21, 4.375);
-			CONE C 1 A_FireShards(-18, 3.75);
-			CONE D 1 A_FireShards(-15, 3.125);
-			CONE D 1 A_FireShards(-12, 2.5);
-			CONE D 1 A_FireShards(-9, 1.875);
-			CONE E 1 A_FireShards(-6, 1.25);
-			CONE E 1 A_FireShards(-3, .625);
-			CONE E 1 A_FireShards;
-			CONE F 1 A_FireShards(3, -.625);
-			CONE F 1 A_FireShards(6, -1.25);
-			CONE F 1 A_FireShards(9, -1.875);
-			CONE G 1 A_FireShards(12, -2.5);
-			CONE G 1 A_FireShards(15, -3.125);
-			CONE G 1 A_FireShards(18, -3.75);
-			CONE A 1 A_FireShards(2, -4.375);
-			CONE A 1 A_FireShards(24, -5);
-			CONE A 7;
+			CONE F 3 A_FireProjectile("FrostShatter");
+			CONE G 3;
+			CONE A 5;
 			CONE A 5 A_ReFire;
 			Goto Ready;
 			
@@ -90,7 +78,7 @@ class ReforgedFrost : RPGWeapon replaces MWeapFrost
 			CONE D 3;
 			CONE E 5;
 			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
-			CONE F 3 A_FireProjectile("FrostPiercer");
+			CONE F 3 A_FireProjectile("FrostCreeper");
 			CONE G 3;
 			CONE A 5;
 			CONE A 5 A_ReFire;
@@ -106,17 +94,82 @@ class ReforgedFrost : RPGWeapon replaces MWeapFrost
 	}
 }
 
+class FrostShatter : RPGMissile
+{
+	Default
+	{
+		RPGMissile.AilmentPower 35;
+		RPGMissile.AilmentType "Chill";
+		Speed 64;
+		Radius 3;
+		Height 6;
+		Damage 100;
+		DamageType "Ice";
+		DeathSound "MageShardsExplode";
+		Obituary "$OB_MPMWEAPFROST";
+	}
+
+	States
+	{
+		Spawn:
+			SHRD ABC 2 Bright;
+			TNT1 A 0
+			{
+				if (bMissile)
+				{
+					pitch = -VectorAngle(vel.xy.Length(), vel.z);
+					A_ScatterShot();
+					ExplodeMissile();
+				}
+			}
+		Death:
+			SHEX ABCDE 5 Bright;
+			Stop;
+	}
+	
+	override int SpecialMissileHit(Actor victim)
+	{
+		pitch = -VectorAngle(vel.xy.Length(), vel.z);
+		int hit = super.SpecialMissileHit(victim);
+		
+		if (hit == -1 && (victim.bIsMonster || victim.player))
+			A_ScatterShot(true);
+		
+		return hit;
+	}
+	
+	void A_ScatterShot(bool copyHit = false)
+	{
+		for (int i = 0; i < 10; ++i)
+		{
+			let frost = Spawn("FrostShard", pos, ALLOW_REPLACE);
+			if (frost)
+			{
+				frost.target = target;
+				frost.angle = angle+frandom(-3,3);
+				frost.Vel3DFromAngle(frost.speed, frost.angle, pitch+frandom(-3,3));
+				if (copyHit)
+				{
+					let rpg = RPGMissile(frost);
+					if (rpg)
+						rpg.alreadyHit.Copy(alreadyHit);
+				}
+			}
+		}
+	}
+}
+
 class FrostShard : RPGMissile
 {
 	Default
 	{
-		RPGMissile.AilmentPower 10;
+		RPGMissile.AilmentPower 7;
 		RPGMissile.AilmentType "Chill";
-		Speed 48;
+		Speed 64;
 		Radius 2;
 		Height 4;
-		YScale 0.5;
-		Damage 15;
+		Scale 0.5;
+		Damage 10;
 		DamageType "Ice";
 		DeathSound "MageShardsExplode";
 		Obituary "$OB_MPMWEAPFROST";
@@ -137,37 +190,101 @@ class FrostShard : RPGMissile
 	}
 }
 
-class FrostPiercer : RPGMissile
+class FrostCreeper : Actor
 {
+	Array<Actor> alreadyHit;
+	
 	Default
 	{
-		RPGMissile.AilmentPower 50;
-		RPGMissile.AilmentType "Chill";
-		RPGMissile.MaxPenetration 2;
-		Speed 128;
-		Radius 2;
-		Height 4;
-		Damage 80;
+		Radius 32;
+		Height 32;
+		Damage 70;
 		DamageType "Ice";
-		DeathSound "MageShardsExplode";
-		Obituary "$OB_MPMWEAPFROST";
 		
-		+RPGMISSILE.PENETRATING
-		+RPGMISSILE.FREEZER
-		+RPGMISSILE.SHATTERER
+		+NOINTERACTION
 	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (threshold++ >= 10)
+		{
+			Destroy();
+			return;
+		}
+		
+		double ang = angle+45;
+		for (int i = 0; i < threshold; ++i)
+		{
+			Vector2 ofs = Vec2Offset((radius-32)*cos(ang), (radius-32)*sin(ang));
+			Spawn("FrostPillar", (ofs, floorz));
+			if (threshold-1 > 0)
+				ang -= 90./(threshold-1);
+		}
+		
+		BlockThingsIterator it = BlockThingsIterator.Create(self);
+		Actor mo;
+				
+		while (it.Next())
+		{
+			mo = it.thing;
+			if (!mo || mo.health <= 0 || !(mo.bIsMonster || mo.player) || target.IsFriend(mo) || mo.pos.z > floorz+height ||
+				alreadyHit.Find(mo) != alreadyHit.Size() || AbsAngle(angle, AngleTo(mo)) > 45 ||
+				Distance2DSquared(mo) > (radius+mo.radius)**2 || !CheckSight(mo))
+			{
+				continue;
+			}
+			
+			
+			let ail = Ailment(mo.FindInventory("Chill"));
+			if (ail)
+				ail.AddAilment(target, 50);
+			mo.DamageMobj(self, target, damage, damagetype, DMG_NOBLOCK);
+			alreadyHit.Push(mo);
+		}
+		
+		A_SetSize(radius+32);
+	}
+}
 
+class FrostPillar : Actor
+{
+	bool bReverse;
+	
+	Default
+	{
+		RenderStyle "Translucent";
+		Alpha 0.5;
+		
+		+NOINTERACTION
+	}
+	
 	States
 	{
 		Spawn:
-			SHRD A 2 Bright;
-			SHRD A 3 Bright;
-			SHRD B 3 Bright;
-			SHRD C 3 Bright;
+			TSPK A 2
+			{
+				if (floorclip < 96)
+					bReverse = true;
+				
+				if (bReverse)
+				{
+					floorclip += 12;
+					if (floorclip > 128)
+						Destroy();
+				}
+				else
+					floorclip -= 12;
+			}
 			Loop;
-			
-		Death:
-			SHEX ABCDE 5 Bright;
-			Stop;
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		floorclip = 128;
+		A_SetTranslation('Ice');
 	}
 }
