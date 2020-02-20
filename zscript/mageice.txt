@@ -29,8 +29,6 @@ class ReforgedFrost : RPGWeapon replaces MWeapFrost
 		Inventory.PickupMessage "$TXT_WEAPON_M2";
 		Obituary "$OB_MPMWEAPFROST";
 		Tag "$TAG_MWEAPFROST";
-		
-		+BLOODSPLATTER
 	}
 
 	States
