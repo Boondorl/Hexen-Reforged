@@ -4,13 +4,15 @@ class CentaurBlock : BlockBox
 	{
 		Radius 16;
 		Height 32;
-		BlockBox.Length 12;
+		BlockBox.Width 16;
+		BlockBox.Height 26;
+		BlockBox.Length 6;
 		BlockBox.BlockSound "FighterHammerHitWall";
 		BlockBox.BlockReduction 0.5;
 		BlockBox.ParryReduction 0.7;
 		BlockBox.ParryWindow 4;
-		BlockBox.ForwardOffset 32;
-		BlockBox.UpOffset 32;
+		BlockBox.ForwardOffset 28;
+		BlockBox.UpOffset 36;
 	}
 }
 
@@ -175,7 +177,6 @@ class CentaurBody : CollisionBox
 {
 	Default
 	{
-		CollisionBox.Length 20;
 		Radius 20;
 		Height 48;
 	}
@@ -188,7 +189,6 @@ class CentaurHead : CollisionBox
 		CollisionBox.Multi 1.5;
 		CollisionBox.ForwardOffset 7;
 		CollisionBox.UpOffset 48;
-		CollisionBox.Length 13;
 		Radius 13;
 		Height 16;
 		

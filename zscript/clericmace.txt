@@ -3,14 +3,16 @@ class MaceShield : BlockBox
 	Default
 	{
 		Radius 12;
-		Height 16;
+		Height 24;
+		BlockBox.Width 12;
+		BlockBox.Height 16;
 		BlockBox.Length 6;
 		BlockBox.BlockSound "FighterHammerHitWall";
 		BlockBox.BlockReduction 0.5;
 		BlockBox.ParryReduction 0.7;
 		BlockBox.ParryWindow 5;
 		BlockBox.ForwardOffset 24;
-		BlockBox.UpOffset 32;
+		BlockBox.UpOffset 24;
 		BlockBox.SideOffset -2;
 	}
 }

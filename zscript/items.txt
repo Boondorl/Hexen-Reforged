@@ -15,7 +15,7 @@ class RPGItem : Inventory
 	override void Touch(Actor toucher)
 	{
 		let rpg = RPGPlayer(toucher);
-		if (rpg && (rpg.carryCapacity - rpg.currentCapacity) < weight)
+		if (rpg && (rpg.carryCapacity - rpg.currentCapacity) < weight*amount)
 			return;
 		
 		super.Touch(toucher);

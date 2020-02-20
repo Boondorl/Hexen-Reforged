@@ -3,14 +3,16 @@ class FistShield : BlockBox
 	Default
 	{
 		Radius 10;
-		Height 8;
+		Height 20;
+		BlockBox.Width 10;
+		BlockBox.Height 8;
 		BlockBox.Length 6;
 		BlockBox.BlockSound "FighterHammerHitWall";
 		BlockBox.BlockReduction 0.2;
 		BlockBox.ParryReduction 0.4;
 		BlockBox.ParryWindow 4;
 		BlockBox.ForwardOffset 24;
-		BlockBox.UpOffset 42;
+		BlockBox.UpOffset 34;
 	}
 }
 

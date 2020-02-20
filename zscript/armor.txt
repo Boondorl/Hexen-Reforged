@@ -186,6 +186,7 @@ class ArmorPiece : Armor abstract
 		ArmorPiece.BreakPoints 3;
 		
 		+INVENTORY.ALWAYSPICKUP
+		+INVENTORY.ISARMOR
 	}
 	
 	override void BeginPlay()

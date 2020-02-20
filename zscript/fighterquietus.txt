@@ -2,8 +2,10 @@ class SwordBlock : BlockBox
 {
 	Default
 	{
-		Radius 6;
+		Radius 16;
 		Height 32;
+		BlockBox.Width 6;
+		BlockBox.Height 32;
 		BlockBox.Roll 330;
 		BlockBox.Length 2;
 		BlockBox.BlockSound "FighterHammerHitWall";
@@ -12,7 +14,6 @@ class SwordBlock : BlockBox
 		BlockBox.ParryWindow 5;
 		BlockBox.ForwardOffset 32;
 		BlockBox.UpOffset 24;
-		BlockBox.SideOffset 6;
 	}
 }
 
@@ -222,10 +223,12 @@ class RFSwordMissile : RPGMissile
 {
 	Default
 	{
-		RPGMissile.Length 2;
-		Speed 64;
 		Radius 4;
-		Height 2;
+		Height 8;
+		RPGMissile.Length 2;
+		RPGMissile.Width 4;
+		RPGMissile.Height 2;
+		Speed 64;
 		Damage 220;
 		Scale 0.25;
 		DamageType "Fire";
@@ -279,13 +282,16 @@ class RFSwordMissile : RPGMissile
 	{
 		super.Tick();
 		
-		if (globalfreeze || level.frozen)
+		if (isFrozen())
 			return;
 		
-		if (radius < threshold && !InStateSequence(CurState, FindState("Death")))
+		if (radius < threshold && bMissile)
 		{
-			A_SetScale(scale.x + 0.5*cos(roll), scale.y + 0.5*sin(roll));
-			A_SetSize(radius+2, height);
+			double c = abs(cos(roll));
+			double s = abs(sin(roll));
+			A_SetScale(scale.x + 0.5*c, scale.y + 0.5*s);
+			A_SetSize(radius+2*c, height+4*s);
+			width += 2;
 		}
 	}
 

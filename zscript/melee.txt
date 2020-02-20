@@ -94,6 +94,8 @@ class BlockBox : Actor
 	Array<Actor> alreadyHit;
 	
 	double length;
+	double width;
+	double realHeight;
 	double forwardOffset;
 	double sideOffset;
 	double upOffset;
@@ -109,6 +111,8 @@ class BlockBox : Actor
 	Vector3 up;
 	
 	property Length : length;
+	property Width : width;
+	property Height : realHeight;
 	property Roll : roll;
 	property ForwardOffset : forwardOffset;
 	property SideOffset : sideOffset;
@@ -124,6 +128,7 @@ class BlockBox : Actor
 		+REFLECTIVE
 		+NORADIUSDMG
 		+NODAMAGETHRUST
+		+NEVERTARGET
 	}
 	
 	override void Tick()
@@ -193,16 +198,16 @@ class BlockBox : Actor
 			
 			SetOrigin(origin, false);
 				
-			if (!globalfreeze && !level.frozen)
+			if (!isFrozen())
 			{
-				Spawn("Marker", pos+forward*length+right*radius);
-				Spawn("Marker", pos+forward*length-right*radius);
-				Spawn("Marker", pos-forward*length+right*radius);
-				Spawn("Marker", pos-forward*length-right*radius);
-				Spawn("Marker", pos+forward*length+right*radius+up*height);
-				Spawn("Marker", pos+forward*length-right*radius+up*height);
-				Spawn("Marker", pos-forward*length+right*radius+up*height);
-				Spawn("Marker", pos-forward*length-right*radius+up*height);
+				Spawn("Marker", pos+(0,0,height/2)+forward*length+right*width-up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)+forward*length-right*width-up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)-forward*length+right*width-up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)-forward*length-right*width-up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)+forward*length+right*width+up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)+forward*length-right*width+up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)-forward*length+right*width+up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)-forward*length-right*width+up*(realHeight/2));
 			}
 			
 			if (parryWindow > 0)
@@ -681,6 +686,7 @@ class HurtBox : Actor
 		double depth = height / 2;
 		double moDepth = mo.height / 2;
 		double moLength = mo.radius;
+		double moWidth = mo.radius;
 		
 		Vector3 center = pos + (up*depth);
 		Vector3 moCenter = mo.pos + (0,0,moDepth);
@@ -700,6 +706,8 @@ class HurtBox : Actor
 		{
 			let box = BlockBox(mo);
 			moLength = box.length;
+			moWidth = box.width;
+			moDepth = box.realHeight / 2;
 			moForward = box.forward;
 			moRight = box.right;
 			moUp = box.up;
@@ -707,25 +715,25 @@ class HurtBox : Actor
 		
 		Vector3 t = moCenter - center;
 		
-		if (ProjectEdge(t, forward, length, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
-			ProjectEdge(t, right, radius, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
-			ProjectEdge(t, up, depth, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
+		if (ProjectEdge(t, forward, length, moLength, moWidth, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, right, radius, moLength, moWidth, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, up, depth, moLength, moWidth, moDepth, moForward, moRight, moUp) ||
 			ProjectEdge(t, moForward, moLength, length, radius, depth, forward, right, up) ||
-			ProjectEdge(t, moRight, mo.radius, length, radius, depth, forward, right, up) ||
+			ProjectEdge(t, moRight, moWidth, length, radius, depth, forward, right, up) ||
 			ProjectEdge(t, moUp, moDepth, length, radius, depth, forward, right, up))
 		{
 			return false;
 		}
 		
-		if (ProjectPlane(t, forward, radius, depth, moForward, mo.radius, moDepth, up, right, moUp, moRight) ||
+		if (ProjectPlane(t, forward, radius, depth, moForward, moWidth, moDepth, up, right, moUp, moRight) ||
 			ProjectPlane(t, forward, radius, depth, moRight, moLength, moDepth, up, right, moUp, moForward) ||
-			ProjectPlane(t, forward, radius, depth, moUp, moLength, mo.radius, up, right, moRight, moForward) ||
-			ProjectPlane(t, right, length, depth, moForward, mo.radius, moDepth, up, forward, moUp, moRight) ||
+			ProjectPlane(t, forward, radius, depth, moUp, moLength, moWidth, up, right, moRight, moForward) ||
+			ProjectPlane(t, right, length, depth, moForward, moWidth, moDepth, up, forward, moUp, moRight) ||
 			ProjectPlane(t, right, length, depth, moRight, moLength, moDepth, up, forward, moUp, moForward) ||
-			ProjectPlane(t, right, length, depth, moUp, moLength, mo.radius, up, forward, moRight, moForward) ||
-			ProjectPlane(t, up, length, radius, moForward, mo.radius, moDepth, right, forward, moUp, moRight) ||
+			ProjectPlane(t, right, length, depth, moUp, moLength, moWidth, up, forward, moRight, moForward) ||
+			ProjectPlane(t, up, length, radius, moForward, moWidth, moDepth, right, forward, moUp, moRight) ||
 			ProjectPlane(t, up, length, radius, moRight, moLength, moDepth, right, forward, moUp, moForward) ||
-			ProjectPlane(t, up, length, radius, moUp, moLength, mo.radius, right, forward, moRight, moForward))
+			ProjectPlane(t, up, length, radius, moUp, moLength, moWidth, right, forward, moRight, moForward))
 		{
 			return false;
 		}

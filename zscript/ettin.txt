@@ -2,15 +2,18 @@ class EttinBlock : BlockBox
 {
 	Default
 	{
-		Radius 16;
-		Height 32;
-		BlockBox.Length 12;
+		Radius 12;
+		Height 24;
+		BlockBox.Width 4;
+		BlockBox.Height 24;
+		BlockBox.Length 4;
 		BlockBox.BlockSound "FighterHammerHitWall";
-		BlockBox.BlockReduction 0.5;
-		BlockBox.ParryReduction 0.7;
+		BlockBox.BlockReduction 0.3;
+		BlockBox.ParryReduction 0.5;
 		BlockBox.ParryWindow 4;
-		BlockBox.ForwardOffset 32;
-		BlockBox.UpOffset 32;
+		BlockBox.ForwardOffset 36;
+		BlockBox.UpOffset 45;
+		BlockBox.Roll -80;
 	}
 }
 
@@ -138,7 +141,6 @@ class EttinBody : CollisionBox
 {
 	Default
 	{
-		CollisionBox.Length 25;
 		Radius 25;
 		Height 48;
 	}
@@ -165,7 +167,6 @@ class EttinHead : CollisionBox
 		CollisionBox.Multi 1.5;
 		CollisionBox.ForwardOffset 12;
 		CollisionBox.UpOffset 48;
-		CollisionBox.Length 13;
 		Radius 13;
 		Height 18;
 		

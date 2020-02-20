@@ -556,6 +556,8 @@ class RPGMissile : FasterProjectile
 	bool bCriticalHit;
 	int maxPenetration;
 	double length;
+	double width;
+	double realHeight;
 	double warnDistance;
 	
 	protected double damageMultiplier;
@@ -568,6 +570,8 @@ class RPGMissile : FasterProjectile
 	Vector3 right;
 	
 	property Length : length;
+	property Width : width;
+	property Height : realHeight;
 	property MaxPenetration : maxPenetration;
 	property AilmentPower : ailmentPower;
 	property AilmentType : ailmentType;
@@ -826,18 +830,28 @@ class RPGMissile : FasterProjectile
 		
 		if (!isFrozen())
 		{
-			double len = radius;
 			if (bOriented)
-				len = length;
-			
-			Spawn("Marker", pos + forward*len + right*radius);
-			Spawn("Marker", pos + forward*len - right*radius);
-			Spawn("Marker", pos - forward*len + right*radius);
-			Spawn("Marker", pos - forward*len - right*radius);
-			Spawn("Marker", pos + forward*len + right*radius + up*height);
-			Spawn("Marker", pos + forward*len - right*radius + up*height);
-			Spawn("Marker", pos - forward*len + right*radius + up*height);
-			Spawn("Marker", pos - forward*len - right*radius + up*height);
+			{
+				Spawn("Marker", pos+(0,0,height/2)+forward*length+right*width-up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)+forward*length-right*width-up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)-forward*length+right*width-up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)-forward*length-right*width-up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)+forward*length+right*width+up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)+forward*length-right*width+up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)-forward*length+right*width+up*(realHeight/2));
+				Spawn("Marker", pos+(0,0,height/2)-forward*length-right*width+up*(realHeight/2));
+			}
+			else
+			{
+				Spawn("Marker", pos + forward*radius + right*radius);
+				Spawn("Marker", pos + forward*radius - right*radius);
+				Spawn("Marker", pos - forward*radius + right*radius);
+				Spawn("Marker", pos - forward*radius - right*radius);
+				Spawn("Marker", pos + forward*radius + right*radius + up*height);
+				Spawn("Marker", pos + forward*radius - right*radius + up*height);
+				Spawn("Marker", pos - forward*radius + right*radius + up*height);
+				Spawn("Marker", pos - forward*radius - right*radius + up*height);
+			}
 			
 			if (bMissile && !bNoBlockWarn)
 			{
@@ -846,7 +860,8 @@ class RPGMissile : FasterProjectile
 				{
 					warn.master = self;
 					warn.owner = target;
-					warn.Trace(pos+up*height/2, CurSector, vel.Unit(), warnDistance, 0);
+					double zOfs = bOriented ? realHeight/2 : height / 2;
+					warn.Trace(pos+up*zOfs, CurSector, vel.Unit(), warnDistance, 0);
 					let rpgm = RPGMonster(warn.results.hitActor);
 					
 					if (rpgm && rpgm.bFriendly != target.bFriendly)
@@ -879,15 +894,11 @@ class RPGMissile : FasterProjectile
 		if (!mo)
 			return false;
 		
-		double moLength = mo.radius;
-		if (mo is 'CollisionBox')
-			moLength = CollisionBox(mo).length;
-		
 		Vector3 min = (pos.x - radius, pos.y - radius, pos.z);
 		Vector3 max = (pos.x + radius, pos.y + radius, pos.z + height);
 		
-		Vector3 moMin = (mo.pos.x - moLength, mo.pos.y - mo.radius, mo.pos.z);
-		Vector3 moMax = (mo.pos.x + moLength, mo.pos.y + mo.radius, mo.pos.z + mo.height);
+		Vector3 moMin = (mo.pos.x - mo.radius, mo.pos.y - mo.radius, mo.pos.z);
+		Vector3 moMax = (mo.pos.x + mo.radius, mo.pos.y + mo.radius, mo.pos.z + mo.height);
 		
 		return (min.x <= moMax.x && max.x >= moMin.x) &&
 				(min.y <= moMax.y && max.y >= moMin.y) &&
@@ -900,11 +911,14 @@ class RPGMissile : FasterProjectile
 		if (!mo)
 			return false;
 		
-		double depth = height / 2;
+		double depth = bOriented ? realHeight / 2 : height / 2;
+		double len = bOriented ? length : radius;
+		double rad = bOriented ? width : radius;
 		double moDepth = mo.height / 2;
 		double moLength = mo.radius;
+		double moWidth = mo.radius;
 		
-		Vector3 center = pos + (up*depth);
+		Vector3 center = pos + (0,0,height/2);
 		Vector3 moCenter = mo.pos + (0,0,moDepth);
 		
 		Vector3 moForward = (1,0,0);
@@ -922,6 +936,8 @@ class RPGMissile : FasterProjectile
 		{
 			let box = BlockBox(mo);
 			moLength = box.length;
+			moWidth = box.width;
+			moDepth = box.realHeight / 2;
 			moForward = box.forward;
 			moRight = box.right;
 			moUp = box.up;
@@ -929,25 +945,25 @@ class RPGMissile : FasterProjectile
 		
 		Vector3 t = moCenter - center;
 		
-		if (ProjectEdge(t, forward, length, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
-			ProjectEdge(t, right, radius, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
-			ProjectEdge(t, up, depth, moLength, mo.radius, moDepth, moForward, moRight, moUp) ||
-			ProjectEdge(t, moForward, moLength, length, radius, depth, forward, right, up) ||
-			ProjectEdge(t, moRight, mo.radius, length, radius, depth, forward, right, up) ||
-			ProjectEdge(t, moUp, moDepth, length, radius, depth, forward, right, up))
+		if (ProjectEdge(t, forward, len, moLength, moWidth, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, right, rad, moLength, moWidth, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, up, depth, moLength, moWidth, moDepth, moForward, moRight, moUp) ||
+			ProjectEdge(t, moForward, moLength, len, rad, depth, forward, right, up) ||
+			ProjectEdge(t, moRight, moWidth, len, rad, depth, forward, right, up) ||
+			ProjectEdge(t, moUp, moDepth, len, rad, depth, forward, right, up))
 		{
 			return false;
 		}
 		
-		if (ProjectPlane(t, forward, radius, depth, moForward, mo.radius, moDepth, up, right, moUp, moRight) ||
-			ProjectPlane(t, forward, radius, depth, moRight, moLength, moDepth, up, right, moUp, moForward) ||
-			ProjectPlane(t, forward, radius, depth, moUp, moLength, mo.radius, up, right, moRight, moForward) ||
-			ProjectPlane(t, right, length, depth, moForward, mo.radius, moDepth, up, forward, moUp, moRight) ||
-			ProjectPlane(t, right, length, depth, moRight, moLength, moDepth, up, forward, moUp, moForward) ||
-			ProjectPlane(t, right, length, depth, moUp, moLength, mo.radius, up, forward, moRight, moForward) ||
-			ProjectPlane(t, up, length, radius, moForward, mo.radius, moDepth, right, forward, moUp, moRight) ||
-			ProjectPlane(t, up, length, radius, moRight, moLength, moDepth, right, forward, moUp, moForward) ||
-			ProjectPlane(t, up, length, radius, moUp, moLength, mo.radius, right, forward, moRight, moForward))
+		if (ProjectPlane(t, forward, rad, depth, moForward, moWidth, moDepth, up, right, moUp, moRight) ||
+			ProjectPlane(t, forward, rad, depth, moRight, moLength, moDepth, up, right, moUp, moForward) ||
+			ProjectPlane(t, forward, rad, depth, moUp, moLength, moWidth, up, right, moRight, moForward) ||
+			ProjectPlane(t, right, len, depth, moForward, moWidth, moDepth, up, forward, moUp, moRight) ||
+			ProjectPlane(t, right, len, depth, moRight, moLength, moDepth, up, forward, moUp, moForward) ||
+			ProjectPlane(t, right, len, depth, moUp, moLength, moWidth, up, forward, moRight, moForward) ||
+			ProjectPlane(t, up, len, rad, moForward, moWidth, moDepth, right, forward, moUp, moRight) ||
+			ProjectPlane(t, up, len, rad, moRight, moLength, moDepth, right, forward, moUp, moForward) ||
+			ProjectPlane(t, up, len, rad, moUp, moLength, moWidth, right, forward, moRight, moForward))
 		{
 			return false;
 		}
