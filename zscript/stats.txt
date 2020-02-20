@@ -399,8 +399,6 @@ class Dexterity : Stat
 							interval = -1.;
 						else if (ticsToRemove > 0)
 							interval = totalTics*1. / ticsToRemove;
-						
-						Console.printf("%d", ticsToRemove);
 					}
 						
 					prevState = psp.CurState;
