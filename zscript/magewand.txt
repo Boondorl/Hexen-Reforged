@@ -54,6 +54,7 @@ class RMageWandMissile : RPGMissile
 {
 	Default
 	{
+		RPGMissile.WarnDistance 1024;
 		RPGMissile.MaxPenetration 3;
 		RPGMissile.AilmentPower 35;
 		RPGMissile.AilmentType "Flinch";

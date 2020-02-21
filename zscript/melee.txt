@@ -249,6 +249,8 @@ class BlockBox : Actor
 					missile.target = master;
 					missile.tracer = source;
 					missile.angle = master.angle;
+					missile.SetState(inflictor.CurState);
+					missile.tics = inflictor.tics;
 					alreadyHit.Push(inflictor);
 					inflictor.Destroy();
 				}
@@ -671,7 +673,7 @@ class HurtBox : Actor
 		
 		mo.TraceBleed(realDamage > 0 ? realDamage : intialDamage, target);
 		
-		double srcAng = target.AngleTo(mo);
+		double srcAng = AngleTo(mo);
 		Vector3 spot = mo.pos + (0,0, pos.z - mo.pos.z);
 		spot.xy = mo.Vec2Offset(mo.radius*cos(srcAng+180), mo.radius*sin(srcAng+180));
 		

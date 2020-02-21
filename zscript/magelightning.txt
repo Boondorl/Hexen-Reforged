@@ -225,7 +225,7 @@ class LightningMissile : Actor
 			
 			SetXYZ(master.pos+(0,0,master.height/2));
 			if (duration % 2)
-				master.DamageMobj(self, target, damage, damageType);
+				master.DamageMobj(self, target, damage, damageType, DMG_NOBLOCK);
 			
 			if (!(duration % 22))
 				A_PlaySound(AttackSound, CHAN_WEAPON);

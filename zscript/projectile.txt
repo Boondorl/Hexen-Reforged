@@ -598,10 +598,10 @@ class RPGMissile : FasterProjectile
 	override int SpecialMissileHit(Actor victim)
 	{
 		SetDamage(default.damage);
-		if (victim == target || alreadyHit.Find(victim) != alreadyHit.Size())
+		if (!victim || victim == target || alreadyHit.Find(victim) != alreadyHit.Size())
 			return 1;
 		
-		if ((victim.master && victim.master.player && target.isFriend(victim)) || (target.master && target.master.player && victim.IsFriend(target)))
+		if (target && ((victim.master && victim.master.player && target.isFriend(victim)) || (target.master && target.master.player && victim.IsFriend(target))))
 			return 1;
 		
 		if (bOriented && !CheckOBB(victim, forward, right, up, length))
@@ -616,10 +616,10 @@ class RPGMissile : FasterProjectile
 		}
 		
 		bool isShield = (victim is 'BlockBox');
-		if (isShield &&
+		if (isShield && (target &&
 			(victim.master == target ||
 			(victim.master.master && victim.master.master.player && target.isFriend(victim.master)) ||
-			(target.master && target.master.player && victim.master.IsFriend(target))))
+			(target.master && target.master.player && victim.master.IsFriend(target)))))
 		{
 			return 1;
 		}
@@ -793,8 +793,12 @@ class RPGMissile : FasterProjectile
 		if (!mo)
 			return;
 		
-		mo.TraceBleed(realDamage > 0 ? realDamage : intialDamage, target);
-		mo.SpawnLineAttackBlood(target, pos, target.AngleTo(mo), intialDamage, realDamage);
+		Actor org = target;
+		if (!org)
+			org = self;
+		
+		mo.TraceBleed(realDamage > 0 ? realDamage : intialDamage, org);
+		mo.SpawnLineAttackBlood(org, pos, AngleTo(mo), intialDamage, realDamage);
 	}
 	
 	override void Tick()
@@ -862,7 +866,7 @@ class RPGMissile : FasterProjectile
 					warn.Trace(pos+up*zOfs, CurSector, vel.Unit(), warnDistance, 0);
 					let rpgm = RPGMonster(warn.results.hitActor);
 					
-					if (rpgm && rpgm.bFriendly != target.bFriendly)
+					if (rpgm && (!target || rpgm.bFriendly != target.bFriendly))
 						rpgm.Block(self);
 				}
 			}
@@ -873,7 +877,7 @@ class RPGMissile : FasterProjectile
 	
 	override int DoSpecialDamage(Actor victim, int damage, name damagetype)
 	{
-		if ((victim.master && victim.master.player && target.isFriend(victim)) || (target.master && target.master.player && victim.IsFriend(target)))
+		if (target && ((victim.master && victim.master.player && target.isFriend(victim)) || (target.master && target.master.player && victim.IsFriend(target))))
 			return -1;
 		
 		if (ailmentPower > 0 && ailmentType)

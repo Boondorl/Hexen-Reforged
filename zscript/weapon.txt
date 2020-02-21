@@ -266,6 +266,7 @@ class AreaOfEffect : Actor
 						}
 					}
 					
+					height = target.height;
 					if (distanceCheck && CheckSight(mo))
 					{
 						if (mo.bIceCorpse)
@@ -282,6 +283,7 @@ class AreaOfEffect : Actor
 								ail.AddAilment(target, ailmentPower, ailmentDamage);
 						}
 					}
+					height = default.height;
 				}
 			}
 		}
