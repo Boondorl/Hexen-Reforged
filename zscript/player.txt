@@ -56,6 +56,10 @@ class RPGPlayer : PlayerPawn abstract
 		
 		if (!player || !player.mo || player.mo != self)
 			return;
+			
+		let first = FirstInv();
+		if (!first || !first.NextInv())
+			player.inventorytics = 0;
 		
 		if (currentLevel < maxLevel && currentXP >= nextLevelXP)
 			LevelUp();

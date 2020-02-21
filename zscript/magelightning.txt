@@ -81,6 +81,18 @@ class ReforgedLightning : RPGWeapon replaces MWeapLightning
 			MLNG B 2 Bright Offset (0, 45);
 			MLNG B 2 Bright Offset (0, 40);
 			Goto Ready;
+			
+		AltFire:
+			MLNG DE 3 Bright;
+			MLNG F 4 Bright A_MLightningAttack2;
+			MLNG G 4 Bright;
+			MLNG HI 3 Bright;
+			MLNG I 6 Bright Offset (0, 199);
+			MLNG C 2 Bright Offset (0, 55);
+			MLNG B 2 Bright Offset (0, 50);
+			MLNG B 2 Bright Offset (0, 45);
+			MLNG B 2 Bright Offset (0, 40);
+			Goto Ready;
 	}
 	
 	action void A_LightningReady()
@@ -92,9 +104,29 @@ class ReforgedLightning : RPGWeapon replaces MWeapLightning
 		}
 	}
 
-	action void A_MLightningAttack(class<Actor> floor = "LightningFloor", class<Actor> ceiling = "LightningCeiling")
+	action void A_MLightningAttack()
 	{
 		let mo = Spawn("LightningMissile", (pos.x, pos.y, floorz), ALLOW_REPLACE);
+		if (mo)
+		{
+			mo.target = self;
+			mo.angle = angle;
+		}
+		A_PlaySound ("MageLightningFire", CHAN_BODY);
+
+		if (player != NULL)
+		{
+			Weapon weapon = player.ReadyWeapon;
+			if (weapon != NULL)
+			{
+				weapon.DepleteAmmo (weapon.bAltFire);
+			}
+		}
+	}
+	
+	action void A_MLightningAttack2()
+	{
+		let mo = Spawn("ShockNova", (pos.x, pos.y, floorz), ALLOW_REPLACE);
 		if (mo)
 		{
 			mo.target = self;
@@ -158,7 +190,7 @@ class LightningMissile : Actor
 			while (it.Next())
 			{
 				mo = it.thing;
-				if (!mo || mo.health <= 0 || !(mo.bIsMonster || mo.player) || target.IsFriend(mo) ||
+				if (!mo || mo.health <= 0 || !mo.bShootable || !(mo.bIsMonster || mo.player) || target.IsFriend(mo) ||
 					mo.FindInventory("LightningHit") || Distance2DSquared(mo) > (radius+mo.radius)**2)
 				{
 					continue;
@@ -185,7 +217,7 @@ class LightningMissile : Actor
 		
 		if (master)
 		{
-			if (duration <= 0 || master.health <= 0)
+			if (duration <= 0 || master.health <= 0 || !master.bShootable)
 			{
 				Destroy();
 				return;
@@ -395,5 +427,74 @@ class RLightningZap : FastProjectile
 	override int SpecialMissileHit(Actor thing)
 	{
 		return 1;
+	}
+}
+
+class DarkLight : PointLightSubtractive
+{
+	override void Tick()
+	{
+		if (args[3] > 0)
+		{
+			args[3] -= 16;
+			if (args[3] <= 0)
+				Destroy();
+		}
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		args[0] = 128;
+		args[1] = 128;
+		args[2] = 128;
+		args[3] = 384;
+	}
+}
+
+class BlueLight : PointLightAdditive
+{
+	override void Tick()
+	{
+		if (args[3] > 0)
+		{
+			args[3] -= 8;
+			if (args[3] <= 0)
+				Destroy();
+		}
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		args[0] = 0;
+		args[1] = 0;
+		args[2] = 64;
+		args[3] = 192;
+	}
+}
+
+
+class ShockNova : AreaOfEffect
+{
+	Default
+	{
+		Radius 384;
+		Height 256;
+		Damage 70;
+		DamageType "Electric";
+		AreaOfEffect.AilmentPower 50;
+		AreaOfEffect.AilmentType "Shock";
+		Threshold 2;
+		
+		+AREAOFEFFECT.SHATTERER
+	}
+	
+	override void Effect()
+	{
+		Spawn("DarkLight", pos);
+		Spawn("BlueLight", pos);
 	}
 }

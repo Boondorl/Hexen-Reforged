@@ -278,8 +278,16 @@ class RPGMonster : Actor
 			
 			if (target)
 			{
-				if (SeeState)
+				if (InStateSequence(CurState, SpawnState))
 					SetState(SeeState);
+				else
+				{
+					let chase = FindState("Chase");
+					if (chase)
+						SetState(chase);
+					else
+						SetState(SeeState);
+				}
 				
 				A_PlaySound(SeeSound, CHAN_VOICE, 1, false, bBoss ? ATTN_NONE : ATTN_NORM);
 			}
@@ -359,8 +367,14 @@ class RPGMonster : Actor
 					}
 				}
 			}
-			else if (SpawnState)
-				SetState(SpawnState);
+			else
+			{
+				let idle = FindState("Idle");
+				if (idle)
+					SetState(idle);
+				else
+					SetState(SpawnState);
+			}
 		}
 	}
 	

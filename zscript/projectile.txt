@@ -685,6 +685,7 @@ class RPGMissile : FasterProjectile
 		}
 		
 		bool doDamage = true;
+		damageMultiplier = 1;
 		let rpgm = RPGMonster(victim);
 		if (rpgm && rpgm.collisionBoxes.Size())
 		{
@@ -761,9 +762,6 @@ class RPGMissile : FasterProjectile
 		
 		if (doDamage)
 		{
-			if (!rpgm)
-				damageMultiplier = 1;
-			
 			int flags = bCriticalHit ? DMG_CRIT : 0;
 			int newdam = victim.DamageMobj(self, target, round(damage*damageMultiplier), damageType, flags);
 			SpawnBlood(victim, round(damage*damageMultiplier), newdam);

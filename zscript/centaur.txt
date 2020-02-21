@@ -152,7 +152,7 @@ class CentaurBody : CollisionBox
 	Default
 	{
 		Radius 20;
-		Height 48;
+		Height 56;
 	}
 }
 
@@ -161,10 +161,10 @@ class CentaurHead : CollisionBox
 	Default
 	{
 		CollisionBox.Multi 1.5;
-		CollisionBox.ForwardOffset 7;
-		CollisionBox.UpOffset 48;
-		Radius 13;
-		Height 16;
+		CollisionBox.ForwardOffset 12;
+		CollisionBox.UpOffset 56;
+		Radius 8;
+		Height 8;
 		
 		+COLLISIONBOX.CRITICALZONE
 	}

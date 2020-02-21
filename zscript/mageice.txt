@@ -84,14 +84,6 @@ class ReforgedFrost : RPGWeapon replaces MWeapFrost
 			CONE A 5 A_ReFire;
 			Goto Ready;
 	}
-
-	action void A_FireShards(double offset = 0, double angOfs = 0, bool useAmmo = false)
-	{
-		if (!player)
-			return;
-
-		A_FireProjectile("FrostShard", angOfs, useAmmo, offset+frandom(-2, 2), frandom(-8, 8));
-	}
 }
 
 class FrostShatter : RPGMissile
@@ -105,8 +97,8 @@ class FrostShatter : RPGMissile
 		Height 6;
 		Damage 100;
 		DamageType "Ice";
-		DeathSound "MageShardsExplode";
 		Obituary "$OB_MPMWEAPFROST";
+		DeathSound "MageShardsExplode";
 	}
 
 	States
@@ -119,9 +111,10 @@ class FrostShatter : RPGMissile
 				{
 					pitch = -VectorAngle(vel.xy.Length(), vel.z);
 					A_ScatterShot();
-					ExplodeMissile();
 				}
 			}
+			Stop;
+			
 		Death:
 			SHEX ABCDE 5 Bright;
 			Stop;
@@ -218,9 +211,12 @@ class FrostCreeper : Actor
 		for (int i = 0; i < threshold; ++i)
 		{
 			Vector2 ofs = Vec2Offset((radius-32)*cos(ang), (radius-32)*sin(ang));
-			Spawn("FrostPillar", (ofs, floorz));
+			let pillar = Spawn("FrostPillar", (ofs, floorz));
 			if (threshold-1 > 0)
 				ang -= 90./(threshold-1);
+			
+			if (pillar && i == threshold/2 && threshold % 2)
+				pillar.A_StartSound("MageShardsExplode", CHAN_BODY);
 		}
 		
 		BlockThingsIterator it = BlockThingsIterator.Create(self);
@@ -229,19 +225,23 @@ class FrostCreeper : Actor
 		while (it.Next())
 		{
 			mo = it.thing;
-			if (!mo || mo.health <= 0 || !(mo.bIsMonster || mo.player) || target.IsFriend(mo) || mo.pos.z > floorz+height ||
+			if (!mo || (!mo.bIceCorpse && mo.health <= 0) || !(mo.bIsMonster || mo.player) || target.IsFriend(mo) || mo.pos.z > floorz+height ||
 				alreadyHit.Find(mo) != alreadyHit.Size() || AbsAngle(angle, AngleTo(mo)) > 45 ||
 				Distance2DSquared(mo) > (radius+mo.radius)**2 || !CheckSight(mo))
 			{
 				continue;
 			}
 			
-			
-			let ail = Ailment(mo.FindInventory("Chill"));
-			if (ail)
-				ail.AddAilment(target, 50);
-			mo.DamageMobj(self, target, damage, damagetype, DMG_NOBLOCK);
-			alreadyHit.Push(mo);
+			if (mo.bIceCorpse)
+				mo.DamageMobj(self, target, 1, 'None');
+			else
+			{
+				let ail = Ailment(mo.FindInventory("Chill"));
+				if (ail)
+					ail.AddAilment(target, 50);
+				mo.DamageMobj(self, target, damage, damagetype, DMG_NOBLOCK);
+				alreadyHit.Push(mo);
+			}
 		}
 		
 		A_SetSize(radius+32);

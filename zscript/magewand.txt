@@ -60,7 +60,7 @@ class RMageWandMissile : RPGMissile
 		Speed 256;
 		Radius 3;
 		Height 6;
-		Damage 30;
+		Damage 25;
 		DamageType "Pierce";
 		MissileType "MageWandSmoke";
 		SeeSound "MageWandFire";

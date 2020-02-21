@@ -248,7 +248,7 @@ class AreaOfEffect : Actor
 				while (it.Next())
 				{
 					mo = it.thing;
-					if (!mo || (!bDamageOwner && mo == target) || !mo.bShootable || !(mo.bIsMonster || mo.player) || (!mo.bIceCorpse && mo.health <= 0))
+					if (!mo || (!bDamageOwner && (mo == target || mo.IsFriend(target))) || !mo.bShootable || !(mo.bIsMonster || mo.player) || (!mo.bIceCorpse && mo.health <= 0))
 						continue;
 					
 					bool distanceCheck;

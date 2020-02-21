@@ -170,7 +170,6 @@ class Desecrate : Skill
 {
 	Default
 	{
-		Skill.Cost 5;
 		Skill.Type "GreenMana";
 		Skill.ReserveType "RedMana";
 		Inventory.Icon "PTN1A0";
@@ -178,6 +177,12 @@ class Desecrate : Skill
 	
 	override void UseSkill()
 	{
+		if (!CheckAmmo(5, type, reserveType))
+		{
+			Console.Printf("You do not have enough resources to cast this");
+			return;
+		}
+				
 		let tracer = new("UndeadTracer");
 		if (tracer)
 		{
@@ -188,9 +193,10 @@ class Desecrate : Skill
 			
 			if (tracer.results.hitActor)
 			{
+				TakeAmmo(5, type, reserveType);
 				let mo = Spawn("CrystalVial", tracer.results.hitActor.pos, ALLOW_REPLACE);
 				if (mo && !mo.bNoGravity)
-					mo.vel.z += 5;
+					mo.vel.z += 7;
 				
 				tracer.results.hitActor.Destroy();
 			}

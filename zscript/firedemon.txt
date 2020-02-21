@@ -1,0 +1,321 @@
+class ReforgedFireDemon : RPGMonster replaces FireDemon
+{
+	int strafeCount;
+	bool bInStrafe;
+	bool dir;
+
+	Default
+	{
+		RPGMonster.MaxBlockCoolDown 105;
+		RPGMonster.BlockChance 0.5;
+		RPGMonster.FailBlockCoolDown 3;
+		Health 80;
+		PainChance 1;
+		Speed 15;
+		Radius 20;
+		Height 68;
+		Mass 75;
+		Damage 1;
+		DamageFactor "Ice", 1.5;
+		DamageFactor "Fire", 0.5;
+		SeeSound "FireDemonSpawn";
+		PainSound "FireDemonPain";
+		DeathSound "FireDemonDeath";
+		ActiveSound "FireDemonActive";
+		Obituary "$OB_FIREDEMON";
+		Tag "$FN_FIREDEMON";
+		
+		+DROPOFF
+		+NOGRAVITY
+		+FLOAT
+	}
+
+	States
+	{
+		Spawn:
+			FDMN X 5 Bright;
+			FDMN EEFFGG 5 Bright A_MonsterLook;
+			Goto Spawn+1;
+			
+		Idle:
+			FDMN ABC 5 Bright {A_MonsterLook(); A_MonsterWander();}
+			Loop;
+			
+		See:
+			TNT1 A 0
+			{
+				A_FiredRocks();
+				for (uint i = 0; i < collisionBoxes.Size(); ++i)
+				{
+					if (collisionBoxes[i])
+						collisionBoxes[i].Destroy();
+				}
+				collisionBoxes.Clear();
+				
+				CreateBox("FireDemonBody");
+				CreateBox("FireDemonHead");
+			}
+			FDMN H 6 Bright {A_MonsterFaceTarget(); vel.z = 8;}
+			FDMN I 6 Bright {A_MonsterFaceTarget(); vel.z = 4;}
+			FDMN J 6 Bright {A_MonsterFaceTarget(); vel.z = 0;}
+		Chase:
+			FDMN ABC 5 Bright A_MonsterChase;
+			Loop;
+			
+		Stumble:
+			TNT1 A 0 A_Stumble;
+			FDMN D 18 Bright A_Pain;
+			Goto Chase;
+			
+		Shock:
+			FDMN D 9 A_StartSound(PainSound, CHAN_VOICE);
+			FDMN D 9;
+			FDMN D 9 A_StartSound(PainSound, CHAN_VOICE);
+			FDMN D 9;
+			FDMN D 9 A_StartSound(PainSound, CHAN_VOICE);
+			FDMN D 9;
+			FDMN D 9 A_StartSound(PainSound, CHAN_VOICE);
+			FDMN D 9;
+			Goto Chase;
+			
+		Pain:
+			FDMN D 6 Bright A_Pain;
+			Goto Chase;
+			
+		Missile:
+			FDMN K 3 Bright A_MonsterFaceTarget;
+			FDMN KKK 5 Bright A_MonsterProjectile("ReforgedFireDemonMissile");
+			Goto Chase;
+			
+		Crash:
+		XDeath:
+			FDMN M 5 A_MonsterFaceTarget;
+			FDMN N 5 A_NoBlocking;
+			FDMN O 5 A_FiredSplotch;
+			Stop;
+			
+		Death:
+			FDMN D 4 Bright A_MonsterFaceTarget;
+			FDMN L 4 Bright A_Scream;
+			FDMN L 4 Bright A_NoBlocking;
+			FDMN L 200 Bright;
+			Stop;
+			
+		Ice:
+			FDMN R 5 A_FreezeDeath;
+			FDMN R 1 A_FreezeDeathChunks;
+			Wait;
+	}
+
+
+	//============================================================================
+	// Fire Demon AI
+	//
+	// special1			index into floatbob
+	//============================================================================
+
+	private void A_FiredSpawnRock()
+	{
+		Actor mo;
+		class<Actor> rtype;
+
+		switch (random[FireDemonRock](0,4))
+		{
+			case 0:
+				rtype = "FireDemonRock1";
+				break;
+				
+			case 1:
+				rtype = "FireDemonRock2";
+				break;
+				
+			case 2:
+				rtype = "FireDemonRock3";
+				break;
+				
+			case 3:
+				rtype = "FireDemonRock4";
+				break;
+				
+			case 4:
+			default:
+				rtype = "FireDemonRock5";
+				break;
+		}
+
+		double xo = (random[FireDemonRock]() - 128) / 16.;
+		double yo = (random[FireDemonRock]() - 128) / 16.;
+		double zo = random[FireDemonRock]() / 32.;
+		mo = Spawn(rtype, Vec3Offset(xo, yo, zo), ALLOW_REPLACE);
+		if (mo)
+		{
+			mo.target = self;
+			mo.Vel.X = (random[FireDemonRock]() - 128) / 64.;
+			mo.Vel.Y = (random[FireDemonRock]() - 128) / 64.;
+			mo.Vel.Z = (random[FireDemonRock]() / 64.);
+			mo.special1 = 2;		// Number bounces
+		}
+	}
+
+	void A_FiredRocks()
+	{
+		A_FiredSpawnRock();
+		A_FiredSpawnRock();
+		A_FiredSpawnRock();
+		A_FiredSpawnRock();
+		A_FiredSpawnRock();
+	}
+
+	void A_FiredSplotch()
+	{
+		Actor mo;
+
+		mo = Spawn("FireDemonSplotch1", Pos, ALLOW_REPLACE);
+		if (mo)
+		{
+			mo.Vel.X = (random[FireDemonSplotch]() - 128) / 32.;
+			mo.Vel.Y = (random[FireDemonSplotch]() - 128) / 32.;
+			mo.Vel.Z = (random[FireDemonSplotch]() / 64.) + 3;
+		}
+		mo = Spawn("FireDemonSplotch2", Pos, ALLOW_REPLACE);
+		if (mo)
+		{
+			mo.Vel.X = (random[FireDemonSplotch]() - 128) / 32.;
+			mo.Vel.Y = (random[FireDemonSplotch]() - 128) / 32.;
+			mo.Vel.Z = (random[FireDemonSplotch]() / 64.) + 3;
+		}
+	}
+	
+	// Strafe instead of blocking
+	override bool Block(Actor mo, double maxAng, bool fromDamage)
+	{
+		if (!mo || bDontBlock || blockCoolDown > 0 || health <= 0)
+			return false;
+		
+		if (InStateSequence(CurState, SpawnState))
+			return false;
+		
+		if (AbsAngle(idealAngle, AngleTo(mo)) > maxAng)
+			return false;
+		
+		if (!fromDamage && !CheckSight(mo))
+			return false;
+		
+		if (blockChance >= 1. || frandom(0,1) < blockChance)
+		{
+			blockCoolDown = maxBlockCoolDown;
+			strafeCount = 12;
+			bInStrafe = true;
+			dir = random(0,1);
+			return true;
+		}
+		else
+			blockCoolDown = failBlockCoolDown;
+		
+		return false;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (health > 0)
+		{
+			if (strafeCount > 0)
+			{
+				--strafeCount;
+				
+				double ang = target ? AngleTo(target) : idealAngle;
+				if (dir)
+					VelFromAngle(12, ang-90);
+				else
+					VelFromAngle(12, ang+90);
+			}
+			else if (bInStrafe)
+			{
+				bInStrafe = false;
+				vel.xy = (0,0);
+			}
+		}
+		else
+		{
+			bInStrafe = false;
+			strafeCount = 0;
+		}
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		CreateBox("FireDemonBall");
+	}
+}
+
+class FireDemonBall : CollisionBox
+{
+	Default
+	{
+		Radius 20;
+		Height 40;
+	}
+}
+
+class FireDemonBody : CollisionBox
+{
+	Default
+	{
+		CollisionBox.Length 16;
+		CollisionBox.ForwardOffset -4;
+		Radius 20;
+		Height 54;
+		
+		+COLLISIONBOX.ORIENTED
+	}
+}
+
+class FireDemonHead : CollisionBox
+{
+	Default
+	{
+		CollisionBox.Multi 1.5;
+		CollisionBox.ForwardOffset 12;
+		CollisionBox.UpOffset 22.5;
+		Radius 5;
+		Height 7;
+		
+		+COLLISIONBOX.CRITICALZONE
+	}
+}
+
+class ReforgedFireDemonMissile : RPGMissile
+{
+	Default
+	{
+		Speed 12;
+		Radius 4;
+		Height 8;
+		Mass 5;
+		Damage 15;
+		DamageType "Fire";
+		RPGMissile.AilmentPower 20;
+		RPGMissile.AilmentType "Burn";
+		RenderStyle "Add";
+		SeeSound "FireDemonAttack";
+		DeathSound "FireDemonMissileHit";
+		
+		+SPAWNSOUNDSOURCE
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+			FDMB A 5 Bright;
+			Loop;
+			
+		Death:
+			FDMB BCDE 5 Bright;
+			Stop;
+	}
+}

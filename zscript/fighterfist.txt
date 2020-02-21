@@ -211,10 +211,8 @@ class FistBox : HurtBox
 		ActiveSound "FighterPunchHitWall";
 		DamageType "Blunt";
 		HurtBox.AilmentPower 35;
-		HurtBox.AilmentType "Stumble";
+		HurtBox.AilmentType "Flinch";
 		HurtBox.BonusDamageType "Pierce";
-		HurtBox.BonusAilmentPower 50;
-		HurtBox.BonusAilmentType "Flinch";
 		HurtBox.SideOffset 8;
 		HurtBox.UpOffset 4;
 		
@@ -235,6 +233,9 @@ class HeavyFistBox : FistBox
 {
 	Default
 	{
+		HurtBox.AilmentPower 50;
+		HurtBox.AilmentType "Stumble";
+		
 		-HURTBOX.DIEONHIT
 	}
 }
@@ -254,6 +255,6 @@ class HeavyFistBox3 : HeavyFistBox2
 		if (victim.bIsMonster || victim.player)
 			victim.vel.z += 4;
 		
-		return damage;
+		return super.DoSpecialDamage(victim, damage, damagetype);
 	}
 }
