@@ -107,6 +107,16 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 		CreateBox("SerpentBody");
 		CreateBox("SerpentHead2");
 	}
+	
+	override void InitializeAilments()
+	{
+		SetAilment(0, 'Burn');
+		SetAilment(1, 'Shock');
+		SetAilment(2, 'Chill');
+		SetAilment(3, 'Stumble');
+		SetAilment(4, 'Flinch');
+		SetAilment(5, 'Bleed');
+	}
 }
 
 class ReforgedSerpent2 : ReforgedSerpent replaces Demon2 {}

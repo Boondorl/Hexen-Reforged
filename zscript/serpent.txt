@@ -254,9 +254,8 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 	{
 		SetAilment(0, 'Shock');
 		SetAilment(1, 'Chill');
-		SetAilment(2, 'Poison');
-		SetAilment(3, 'Flinch');
-		SetAilment(4, 'Bleed');
+		SetAilment(2, 'Flinch');
+		SetAilment(3, 'Bleed');
 	}
 }
 
