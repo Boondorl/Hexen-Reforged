@@ -1,0 +1,393 @@
+class WraithSlap : HurtBox
+{
+	Default
+	{
+		Radius 6;
+		Height 12;
+		DamageType "Fire";
+		HurtBox.AilmentType "Burn";
+		HurtBox.AilmentPower 50;
+		HurtBox.AilmentDamage 15;
+		HurtBox.ForwardOffset 24;
+	}
+}
+
+class ReforgedWraith : RPGMonster replaces Wraith
+{
+	Default
+	{
+		RPGMonster.ArmorType AR_HELM|AR_CHEST;
+		Health 150;
+		PainChance 25;
+		Speed 12;
+		Radius 20;
+		Height 55;
+		Mass 75;
+		Damage 10;
+		SeeSound "WraithSight";
+		AttackSound "WraithAttack";
+		PainSound "WraithPain";
+		DeathSound "WraithDeath";
+		ActiveSound "WraithActive";
+		HitObituary "$OB_WRAITHHIT";
+		Obituary "$OB_WRAITH";
+		Tag "$FN_WRAITH";
+		
+		+NOGRAVITY
+		+DROPOFF
+		+FLOAT
+	}
+
+	States
+	{
+		Spawn:
+			WRTH A 10;
+			WRTH B 5 A_WraithInit;
+		Idle:
+			WRTH AAABBB 5 A_MonsterLook;
+			Loop;
+			
+		See:
+			WRTH ABCD 4 A_WraithChase;
+			Loop;
+			
+		Parry:
+			WRTH A 2;
+			WRTH H 33 A_Pain;
+			Goto See;
+			
+		Shock:
+			WRTH H 9 A_StartSound(PainSound, CHAN_VOICE);
+			WRTH H 9;
+			WRTH H 9 A_StartSound(PainSound, CHAN_VOICE);
+			WRTH H 9;
+			WRTH H 9 A_StartSound(PainSound, CHAN_VOICE);
+			WRTH H 9;
+			WRTH H 9 A_StartSound(PainSound, CHAN_VOICE);
+			WRTH H 9;
+			Goto See;
+			
+		Pain:
+			WRTH A 2;
+			WRTH H 6 A_Pain;
+			Goto See;
+			
+		Melee:
+			WRTH E 6 A_MonsterFaceTarget;
+			WRTH F 6 A_WraithFX3;
+			WRTH G 6 A_MonsterMelee("WraithSlap", 35, 0, 1, 64);
+			Goto See;
+			
+		Missile:
+			WRTH E 6 A_MonsterFaceTarget;
+			WRTH F 6 A_MonsterFaceTarget;
+			WRTH G 6 A_MonsterProjectile("WraithRFX1");
+			Goto See;
+			
+		Death:
+			WRTH I 4;
+			WRTH J 4 A_Scream;
+			WRTH KL 4;
+			WRTH M 4 A_NoBlocking;
+			WRTH N 4 A_QueueCorpse;
+			WRTH O 4;
+			WRTH PQ 5;
+			WRTH R -1;
+			Stop;
+			
+		XDeath:
+			WRT2 A 5;
+			WRT2 B 5 A_Scream;
+			WRT2 CD 5;
+			WRT2 E 5 A_NoBlocking;
+			WRT2 F 5 A_QueueCorpse;
+			WRT2 G 5;
+			WRT2 H -1;
+			Stop;
+			
+		Ice:
+			WRT2 I 5 A_FreezeDeath;
+			WRT2 I 1 A_FreezeDeathChunks;
+			Wait;
+			
+		Raise:
+			WRTH QP 5;
+			WRTH ONMLKJI 4;
+			Goto See;
+			
+		XRaise:
+			WRT2 GFEDCBA 5;
+			Goto See;
+	}
+	
+	void A_WraithInit()
+	{
+		AddZ(48);
+
+		// [RH] Make sure the wraith didn't go into the ceiling
+		if (pos.z + height > ceilingz)
+		{
+			SetZ(ceilingz - Height);
+		}
+
+		WeaveIndexZ = 0;			// index into floatbob
+	}
+
+	void A_WraithChase()
+	{
+		int weaveindex = WeaveIndexZ;
+		AddZ(BobSin(weaveindex));
+		WeaveIndexZ = (weaveindex + 2) & 63;
+		A_MonsterChase();
+		A_WraithFX4();
+	}
+	
+	void A_WraithFX3()
+	{
+		A_MonsterFaceTarget();
+		
+		int numdropped = random[WraithFX3](0,14);
+
+		while (numdropped-- > 0)
+		{
+			double xo = (random[WraithFX3]() - 128) / 32.;
+			double yo = (random[WraithFX3]() - 128) / 32.;
+			double zo = random[WraithFX3]() / 64.;
+
+			Actor mo = Spawn("WraithFX3", Vec3Offset(xo, yo, zo), ALLOW_REPLACE);
+			if (mo)
+			{
+				mo.floorz = floorz;
+				mo.ceilingz = ceilingz;
+				mo.target = self;
+			}
+		}
+	}
+
+	void A_WraithFX4 ()
+	{
+		int chance = random[WraithFX4]();
+		bool spawn4, spawn5;
+
+		if (chance < 10)
+		{
+			spawn4 = true;
+			spawn5 = false;
+		}
+		else if (chance < 20)
+		{
+			spawn4 = false;
+			spawn5 = true;
+		}
+		else if (chance < 25)
+		{
+			spawn4 = true;
+			spawn5 = true;
+		}
+		else
+		{
+			spawn4 = false;
+			spawn5 = false;
+		}
+
+		if (spawn4)
+		{
+			double xo = (random[WraithFX4]() - 128) / 16.;
+			double yo = (random[WraithFX4]() - 128) / 16.;
+			double zo = (random[WraithFX4]() / 64.);
+
+			Actor mo = Spawn ("WraithFX4", Vec3Offset(xo, yo, zo), ALLOW_REPLACE);
+			if (mo)
+			{
+				mo.floorz = floorz;
+				mo.ceilingz = ceilingz;
+				mo.target = self;
+			}
+		}
+		if (spawn5)
+		{
+			double xo = (random[WraithFX4]() - 128) / 32.;
+			double yo = (random[WraithFX4]() - 128) / 32.;
+			double zo = (random[WraithFX4]() / 64.);
+
+			Actor mo = Spawn ("WraithFX5", Vec3Offset(xo, yo, zo), ALLOW_REPLACE);
+			if (mo)
+			{
+				mo.floorz = floorz;
+				mo.ceilingz = ceilingz;
+				mo.target = self;
+			}
+		}
+	}
+
+	void A_WraithMelee()
+	{
+		// Steal health from target and give to self
+		if (CheckMeleeRange() && (random[StealHealth]()<220))
+		{
+			int amount = random[StealHealth](1, 8) * 2;
+			target.DamageMobj (self, self, amount, 'Melee');
+			health += amount;
+		}
+	}
+	
+	override void InitializeAilments()
+	{
+		SetAilment(0, 'Burn');
+		SetAilment(1, 'Shock');
+		SetAilment(2, 'Chill');
+		SetAilment(3, 'Poison');
+		SetAilment(4, 'Flinch');
+		SetAilment(5, 'Bleed');
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		CreateBox("WraithBody");
+		CreateBox("WraithHead");
+	}
+}
+
+class ReforgedWraithBuried : ReforgedWraith replaces WraithBuried
+{
+	Default
+	{
+		Height 68;
+		PainChance 0;
+		
+		+DONTMORPH
+		+DONTBLAST
+		+SPECIALFLOORCLIP
+		+STAYMORPHED
+		+INVISIBLE
+		-SHOOTABLE
+		-SOLID
+	}
+	
+	
+	States
+	{
+		Spawn:
+			Goto Super::Idle;
+			
+		See:
+			WRTH A 2 A_WraithRaiseInit;
+			WRTH A 2 A_WraithRaise;
+			WRTH A 2 A_MonsterFaceTarget;
+			WRTH BB 2 A_WraithRaise;
+			Goto See+1;
+			
+		Chase:
+			Goto Super::See;
+	}
+
+	void A_WraithRaiseInit()
+	{
+		bInvisible = false;
+		bNonShootable = false;
+		bDontBlast = false;
+		bShootable = true;
+		bSolid = true;
+		Floorclip = Height;
+	}
+
+	void A_WraithRaise()
+	{
+		if (RaiseMobj(2))
+		{
+			// Reached it's target height
+			// [RH] Once a buried wraith is fully raised, it should be
+			// morphable, right?
+			bDontMorph = false;
+			bSpecialFloorClip = false;
+			SetStateLabel("Chase");
+			// [RH] Reset PainChance to a normal wraith's.
+			PainChance = GetDefaultByType("Wraith").PainChance;
+		}
+
+		SpawnDirt(radius);
+	}
+}
+
+class WraithBody : CollisionBox
+{
+	Default
+	{
+		Radius 20;
+		Height 32;
+	}
+}
+
+class WraithHead : CollisionBox
+{
+	Default
+	{
+		CollisionBox.Multi 1.5;
+		CollisionBox.ForwardOffset 11;
+		CollisionBox.UpOffset 32;
+		Radius 9;
+		Height 12;
+		
+		+COLLISIONBOX.CRITICALZONE
+	}
+}
+
+class WraithRFX1 : RPGMissile
+{
+	Default
+	{
+		Speed 16;
+		Radius 6;
+		Height 12;
+		Mass 5;
+		Damage 25;
+		DamageType "Fire";
+		RPGMissile.AilmentType "Burn";
+		RPGMissile.AilmentPower 50;
+		RPGMissile.AilmentDamage 10;
+		SeeSound "WraithMissileFire";
+		DeathSound "WraithMissileExplode";
+	}
+
+
+	States
+	{
+		Spawn:
+			WRBL A 3 Bright;
+			WRBL B 3 Bright A_WraithFX2;
+			WRBL C 3 Bright;
+			Loop;
+			
+		Death:
+			WRBL D 4 Bright;
+			WRBL E 4 Bright A_WraithFX2;
+			WRBL F 4 Bright;
+			WRBL GH 3 Bright A_WraithFX2;
+			WRBL I 3 Bright;
+			Stop;
+	}
+
+	void A_WraithFX2()
+	{
+		for (int i = 2; i; --i)
+		{
+			Actor mo = Spawn ("WraithFX2", Pos, ALLOW_REPLACE);
+			if(mo)
+			{
+				double newangle = random[WraithFX2]() * (360 / 1024.f);
+				if (random[WraithFX2]() >= 128)
+				{
+					newangle = -newangle;
+				}
+				newangle += angle;
+				mo.Vel.X = ((random[WraithFX2]() / 512.) + 1) * cos(newangle);
+				mo.Vel.Y = ((random[WraithFX2]() / 512.) + 1) * sin(newangle);
+				mo.Vel.Z = 0;
+				mo.target = self;
+				mo.Floorclip = 10;
+			}
+		}
+	}
+}
