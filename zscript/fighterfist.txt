@@ -5,7 +5,7 @@ class FistShield : BlockBox
 		Radius 10;
 		Height 20;
 		BlockBox.Width 10;
-		BlockBox.Height 8;
+		BlockBox.Height 16;
 		BlockBox.Length 6;
 		BlockBox.BlockSound "FighterHammerHitWall";
 		BlockBox.BlockReduction 0.2;

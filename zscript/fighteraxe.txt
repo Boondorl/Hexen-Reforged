@@ -427,7 +427,7 @@ class ReforgedAxe : RPGMelee replaces FWeapAxe
 					rol *= -1;
 				}
 				
-				A_Melee("AxeHurtBox", 75, 25, 5, 48, minAng, maxAng, 10, -15, rol, rol);
+				A_Melee("HeavyAxeHurtBox", 75, 25, 5, 48, minAng, maxAng, 10, -15, rol, rol);
 			}
 			FAXE P 2 Offset (-25, 90);
 			FAXE Q 1 Offset (15, 32);
