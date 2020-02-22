@@ -5,7 +5,7 @@ class MaceShield : BlockBox
 		Radius 12;
 		Height 24;
 		BlockBox.Width 12;
-		BlockBox.Height 16;
+		BlockBox.Height 24;
 		BlockBox.Length 6;
 		BlockBox.BlockSound "FighterHammerHitWall";
 		BlockBox.BlockReduction 0.5;
