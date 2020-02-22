@@ -26,6 +26,8 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 	Default
 	{
 		RPGMonster.XP 30;
+		RPGMonster.MinMissileCoolDown 175;
+		RPGMonster.MaxMissileCoolDown 280;
 		Health 90;
 		PainChance 96;
 		Speed 12;
@@ -50,6 +52,7 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		+NOTELEOTHER
 		+INVISIBLE
 		-SHOOTABLE
+		-RPGMONSTER.TRACKER
 	}
 
 	States
@@ -68,7 +71,7 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		Surface:
 			SSPT A 3 A_UnHideThing;
 			SSPT A 3 A_StartSound("SerpentBirth", CHAN_BODY);
-			SSPT B 5 A_SetShootable;
+			SSPT B 5 A_StalkerShootable;
 			SSPT C 5;
 			SSPT D 6;
 		Walk:
@@ -99,7 +102,7 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 			SSPT L 5 A_Pain;
 		Dive:
 			SSDV ABC 5;
-			SSDV D 5 A_UnSetShootable;
+			SSDV D 5 A_StalkerNonShootable;
 			SSDV E 4 A_StartSound("SerpentActive", CHAN_BODY);
 			SSDV F 4;
 			SSDV GH 5;
@@ -110,7 +113,7 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		Melee:
 			SSPT A 3 A_UnHideThing;
 			SSPT A 3 A_StartSound("SerpentBirth", CHAN_BODY);
-			SSPT B 5 A_SetShootable;
+			SSPT B 5 A_StalkerShootable;
 			SSPT C 5;
 			SSPT D 6;
 		Attack:
@@ -158,17 +161,48 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 			SSPT F 3 A_SerpentHide;
 			Goto See;
 	}
+	
+	void A_StalkerShootable()
+	{
+		bShootable = true;
+		bNonShootable = false;
+		CreateBox("SwampHead");
+		CreateBox("SwampBody");
+	}
+	
+	void A_StalkerNonShootable()
+	{
+		bShootable = false;
+		bNonShootable = true;
+		for (uint i = 0; i < collisionBoxes.Size(); ++i)
+		{
+			if (collisionBoxes[i])
+				collisionBoxes[i].Destroy();
+		}
+		collisionBoxes.Clear();
+	}
 
 	void A_SerpentUnHide()
 	{
 		bInvisible = false;
+		bShootable = true;
+		bNonShootable = false;
 		Floorclip = 24;
+		CreateBox("StalkerHump");
 	}
 
 	void A_SerpentHide()
 	{
 		bInvisible = true;
+		bShootable = false;
+		bNonShootable = true;
 		Floorclip = 0;
+		for (uint i = 0; i < collisionBoxes.Size(); ++i)
+		{
+			if (collisionBoxes[i])
+				collisionBoxes[i].Destroy();
+		}
+		collisionBoxes.Clear();
 	}
 
 	void A_SerpentRaiseHump()
@@ -242,14 +276,6 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		}
 	}
 	
-	override void BeginPlay()
-	{
-		super.BeginPlay();
-		
-		CreateBox("SwampBody");
-		CreateBox("SwampHead");
-	}
-	
 	override void InitializeAilments()
 	{
 		SetAilment(0, 'Shock');
@@ -265,9 +291,8 @@ class SwampBody : CollisionBox
 {
 	Default
 	{
-		CollisionBox.Length 32;
 		Radius 32;
-		Height 54;
+		Height 48;
 	}
 }
 
@@ -276,12 +301,24 @@ class SwampHead : CollisionBox
 	Default
 	{
 		CollisionBox.Multi 1.5;
-		CollisionBox.UpOffset 54;
+		CollisionBox.UpOffset 48;
 		CollisionBox.Length 13;
 		Radius 13;
 		Height 16;
 		
 		+COLLISIONBOX.CRITICALZONE
+	}
+}
+
+class StalkerHump : CollisionBox
+{
+	Default
+	{
+		CollisionBox.Length 32;
+		Radius 16;
+		Height 24;
+		
+		+COLLISIONBOX.ORIENTED
 	}
 }
 

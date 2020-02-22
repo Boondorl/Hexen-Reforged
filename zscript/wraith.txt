@@ -16,6 +16,7 @@ class ReforgedWraith : RPGMonster replaces Wraith
 {
 	Default
 	{
+		RPGMonster.XP 40;
 		RPGMonster.ArmorType AR_HELM|AR_CHEST;
 		Health 150;
 		PainChance 25;

@@ -6,6 +6,7 @@ class ReforgedFireDemon : RPGMonster replaces FireDemon
 
 	Default
 	{
+		RPGMonster.XP 20;
 		RPGMonster.MaxBlockCoolDown 105;
 		RPGMonster.BlockChance 0.5;
 		RPGMonster.FailBlockCoolDown 3;

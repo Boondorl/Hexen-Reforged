@@ -2,6 +2,7 @@ class ReforgedWendigo : RPGMonster replaces IceGuy
 {
 	Default
 	{
+		RPGMonster.XP 30;
 		Health 120;
 		PainChance 144;
 		Speed 15;
