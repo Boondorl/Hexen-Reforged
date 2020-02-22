@@ -16,8 +16,8 @@ class ReforgedFireDemon : RPGMonster replaces FireDemon
 		Height 68;
 		Mass 75;
 		Damage 1;
-		DamageFactor "Ice", 1.5;
-		DamageFactor "Fire", 0.5;
+		DamageFactor "Ice", 1.25;
+		DamageFactor "Fire", 0.75;
 		SeeSound "FireDemonSpawn";
 		PainSound "FireDemonPain";
 		DeathSound "FireDemonDeath";
@@ -192,7 +192,7 @@ class ReforgedFireDemon : RPGMonster replaces FireDemon
 		if (!mo || bDontBlock || blockCoolDown > 0 || health <= 0)
 			return false;
 		
-		if (InStateSequence(CurState, SpawnState))
+		if (InStateSequence(CurState, SpawnState) || InStateSequence(CurState, SeeState))
 			return false;
 		
 		if (AbsAngle(idealAngle, AngleTo(mo)) > maxAng)

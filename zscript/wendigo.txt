@@ -1,0 +1,203 @@
+class ReforgedWendigo : RPGMonster replaces IceGuy
+{
+	Default
+	{
+		Health 120;
+		PainChance 144;
+		Speed 15;
+		Radius 22;
+		Height 75;
+		Mass 150;
+		DamageFactor "Ice", 0.75;
+		DamageFactor "Fire", 1.25;
+		SeeSound "IceGuySight";
+		AttackSound "IceGuyAttack";
+		ActiveSound "IceGuyActive";
+		Obituary "$OB_ICEGUY";
+		Tag "$FN_ICEGUY";
+		
+		+NOBLOOD
+	}
+
+
+	States
+	{
+		Spawn:
+			ICEY A 5 A_IceGuyLook;
+			Loop;
+			
+		See:
+			ICEY A 4 A_MonsterChase;
+			ICEY B 4 A_IceGuyChase;
+			ICEY CD 4 A_MonsterChase;
+			Loop;
+			
+		Pain:
+			ICEY A 1 A_Pain;
+			Goto See;
+			
+		Missile:
+			ICEY EF 3 A_MonsterFaceTarget;
+			ICEY G 8 Bright A_IceGuyAttack;
+			ICEY F 4 A_MonsterFaceTarget;
+			Goto See;
+			
+		Death:
+			ICEY A 1 A_IceGuyDie;
+			Stop;
+			
+		Inactive:
+			ICEY A -1;
+			Goto See;
+	}
+
+	private void SpawnWisp()
+	{
+		static const class<Actor> WispTypes[] = { "IceGuyWisp1", "IceGuyWisp2" };
+
+		double dist = (random[IceGuyLook]() - 128) * radius / 128.;
+		double an = angle + 90;
+		Actor mo = Spawn(WispTypes[random[IceGuyLook](0, 1)], Vec3Angle(dist, an, 60.), ALLOW_REPLACE);
+		if (mo)
+		{
+			mo.Vel = Vel;
+			mo.target = self;
+		}
+	}
+
+	void A_IceGuyLook()
+	{
+		A_MonsterLook();
+		if (random[IceGuyLook]() < 64)
+			SpawnWisp();
+	}
+
+	void A_IceGuyChase()
+	{
+		A_MonsterChase();
+		if (random[IceGuyLook]() < 128)
+			SpawnWisp();
+	}
+
+	void A_IceGuyAttack()
+	{
+		if(!target) 
+		{
+			return;
+		}
+		A_MonsterFaceTarget();
+		missileCoolDown = random(minMissileCoolDown, maxMissileCoolDown);
+		SpawnMissileXYZ(Vec3Angle(radius / 2, angle + 90, 40.), target, "IceGuyRFX");
+		SpawnMissileXYZ(Vec3Angle(radius / 2, angle - 90, 40.), target, "IceGuyRFX");
+		A_StartSound (AttackSound, CHAN_WEAPON);
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		CreateBox("WendigoBody");
+		CreateBox("WendigoShoulder");
+		CreateBox("WendigoHead");
+	}
+}
+
+class WendigoBody : CollisionBox
+{
+	Default
+	{
+		Radius 22;
+		Height 54;
+	}
+}
+
+class WendigoShoulder : CollisionBox
+{
+	Default
+	{
+		CollisionBox.Length 9;
+		CollisionBox.ForwardOffset -12;
+		CollisionBox.UpOffset 54;
+		Radius 22;
+		Height 17;
+		
+		+COLLISIONBOX.ORIENTED
+	}
+}
+
+class WendigoHead : CollisionBox
+{
+	Default
+	{
+		CollisionBox.Multi 1.5;
+		CollisionBox.ForwardOffset 9;
+		CollisionBox.UpOffset 54;
+		Radius 13;
+		Height 17;
+		
+		+COLLISIONBOX.CRITICALZONE
+	}
+}
+
+class IceGuyRFX : RPGMissile
+{
+	Default
+	{
+		Speed 16;
+		Radius 6;
+		Height 12;
+		Damage 15;
+		DamageType "Ice";
+		RPGMissile.AilmentType "Chill";
+		RPGMissile.AilmentPower 15;
+		DeathSound "IceGuyMissileExplode";
+		
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+	}
+
+	States
+	{
+		Spawn:
+			ICPR ABC 3 Bright A_SpawnItemEx("IceFXPuff", 0,0,2);
+			Loop;
+			
+		Death:
+			ICPR D 4 Bright;
+			ICPR E 4 Bright A_IceGuyMissileExplode;
+			ICPR FG 4 Bright;
+			ICPR H 3 Bright;
+			Stop;
+	}
+
+	void A_IceGuyMissileExplode()
+	{
+		for (int i = 0; i < 8; i++)
+		{
+			Actor mo = SpawnMissileAngleZ(pos.z+3, "IceGuyRFX2", i*45., -0.3);
+			if (mo)
+				mo.target = target;
+		}
+	}
+}
+
+class IceGuyRFX2 : RPGMissile
+{
+	Default
+	{
+		Speed 12;
+		Radius 2;
+		Height 4;
+		Damage 8;
+		DamageType "Ice";
+		RPGMissile.AilmentType "Chill";
+		RPGMissile.AilmentPower 10;
+	}
+	
+	States
+	{
+		Spawn:
+			ICPR NOP 3 Bright;
+			Loop;
+	}
+}

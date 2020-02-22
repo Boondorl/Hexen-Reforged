@@ -1,3 +1,26 @@
+class StalkerBox : HurtBox
+{
+	Default
+	{
+		Radius 3;
+		Height 6;
+		AttackSound "SerpentMeleeHit";
+		ActiveSound "FighterPunchHitWall";
+		DamageType "Cleave";
+		HurtBox.AilmentPower 35;
+		HurtBox.AilmentType "Bleed";
+		HurtBox.AilmentDamage 5;
+		HurtBox.BonusDamageType "Poison";
+		HurtBox.BonusAilmentType "Poison";
+		HurtBox.BonusAilmentPower 25;
+		HurtBox.BonusAilmentDamage 3;
+		HurtBox.SideOffset 8;
+		HurtBox.UpOffset 4;
+		
+		+HURTBOX.NOREVERSE
+	}
+}
+
 class ReforgedSwampMonster : RPGMonster replaces Serpent
 {
 	Default
@@ -75,9 +98,16 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 			SSPT B 5 A_SetShootable;
 			SSPT C 5;
 			SSPT D 6;
+		Attack:
 			SSPT K 6 A_MonsterFaceTarget;
-			SSPT L 5 A_SerpentChooseAttack;
-			SSPT N 5 A_SerpentMeleeAttack;
+			SSPT L 5 A_MonsterFaceTarget;
+			TNT1 A 0 A_SerpentChooseAttack;
+			SSPT N 5 A_MonsterMelee("StalkerBox", 20, 5, 6, 64, 45, -50, minForw: -32);
+			TNT1 A 0
+			{
+				if (CheckMelee3D())
+					SetStateLabel("Attack");
+			}
 			Goto Dive;
 				
 		Missile:
@@ -171,22 +201,6 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 			return;
 		
 		SetState(MissileState);
-	}
-
-	void A_SerpentMeleeAttack()
-	{
-		let targ = target;
-		if (!targ)
-		{
-			return;
-		}
-		if (CheckMelee3D())
-		{
-			int damage = random[SerpentAttack](1, 8) * 5;
-			int newdam = targ.DamageMobj (self, self, damage, 'Melee');
-			targ.TraceBleed (newdam > 0 ? newdam : damage, self);
-			A_StartSound ("SerpentMeleeHit", CHAN_BODY);
-		}
 	}
 
 	void A_SerpentSpawnGibs()

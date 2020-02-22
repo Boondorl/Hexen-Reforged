@@ -143,7 +143,7 @@ class ArmorPieceManager : Inventory
 			}
 			
 			double sp = GetSavePercent(piece);
-			int saved = ceil(damage * sp);
+			int saved = round(damage * sp);
 			if (saved > 0)
 				saved -= ApplyDamageFactors(piece.GetClass(), damageType, saved, saved) - saved;
 			

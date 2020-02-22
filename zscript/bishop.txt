@@ -1,0 +1,271 @@
+class ReforgedBishop : RPGMonster replaces Bishop
+{
+	int bobstate;
+	int strafeCount;
+	bool bInStrafe;
+	bool dir;
+	
+	Default
+	{
+		RPGMonster.MaxBlockCoolDown 105;
+		RPGMonster.BlockChance 0.5;
+		RPGMonster.FailBlockCoolDown 3;
+		RPGMonster.ArmorType AR_AMUL;
+		Health 130;
+		Radius 22;
+		Height 65;
+		Speed 15;
+		PainChance 110;
+		SeeSound "BishopSight";
+		AttackSound "BishopAttack";
+		PainSound "BishopPain";
+		DeathSound "BishopDeath";
+		ActiveSound "BishopActiveSounds";
+		Obituary"$OB_BISHOP";
+		Tag "$FN_BISHOP";
+		
+		+FLOAT
+		+NOGRAVITY
+		+NOBLOOD
+	}
+
+	States
+	{
+		Spawn:
+			BISH A 5 A_MonsterLook;
+			Loop;
+			
+		See:
+			BISH A 2 A_MonsterChase;
+			BISH A 2 A_BishopChase;
+			BISH A 2;
+			BISH B 2 A_BishopChase;
+			BISH B 2 A_MonsterChase;
+			BISH B 2 A_BishopChase;
+			Loop;
+			
+		Pain:
+			BISH C 6 A_Pain;
+			Goto See;
+			
+		Missile:
+			BISH A 3 A_MonsterFaceTarget;
+			BISH DE 3 A_MonsterFaceTarget;
+			TNT1 A 0 A_StartSound(AttackSound, CHAN_BODY);
+			BISH F 4 A_BishopAttack;
+			BISH F 4 A_BishopAttack;
+			BISH F 4 A_BishopAttack;
+			BISH F 4 A_BishopAttack;
+			Goto See;
+			
+		Death:
+			BISH G 6;
+			BISH H 6 Bright A_Scream;
+			BISH I 5 Bright A_NoBlocking;
+			BISH J 5 BRIGHT;
+			BISH K 5 Bright;
+			BISH LM 4 Bright;
+			BISH N 4 A_SpawnItemEx("BishopPuff", 0,0,40, 0,0,-0.5);
+			BISH O 4 A_QueueCorpse;
+			BISH P -1;
+			Stop;
+			
+		Ice:
+			BISH X 5 A_FreezeDeath;
+			BISH X 1 A_FreezeDeathChunks;
+			Wait;
+			
+		Raise:
+			BISH ONML 4;
+			BISH KJI 5;
+			BISH HG 6;
+			Goto See;
+	}
+
+	void A_BishopAttack()
+	{
+		if (!target)
+		{
+			return;
+		}
+		
+		A_MonsterFaceTarget();
+		missileCoolDown = random(minMissileCoolDown, maxMissileCoolDown);
+		Actor mo = SpawnMissile(target, "BishopRFX");
+		if (mo)
+		{
+			mo.tracer = target;
+		}
+	}
+
+	void A_BishopChase()
+	{
+		double newz = pos.z - BobSin(bobstate) / 2.;
+		bobstate = (bobstate + 4) & 63;
+		newz += BobSin(bobstate) / 2.;
+		SetZ(newz);
+	}
+	
+	override bool Block(Actor mo, double maxAng, bool fromDamage)
+	{
+		if (!mo || bDontBlock || blockCoolDown > 0 || health <= 0)
+			return false;
+		
+		if (InStateSequence(CurState, SpawnState))
+			return false;
+		
+		if (AbsAngle(idealAngle, AngleTo(mo)) > maxAng)
+			return false;
+		
+		if (!fromDamage && !CheckSight(mo))
+			return false;
+		
+		if (blockChance >= 1. || frandom(0,1) < blockChance)
+		{
+			blockCoolDown = maxBlockCoolDown;
+			strafeCount = 12;
+			bInStrafe = true;
+			dir = random(0,1);
+			A_StartSound("BishopBlur", CHAN_BODY);
+			return true;
+		}
+		else
+			blockCoolDown = failBlockCoolDown;
+		
+		return false;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (health > 0)
+		{
+			if (strafeCount > 0)
+			{
+				--strafeCount;
+				
+				double ang = target ? AngleTo(target) : idealAngle;
+				if (dir)
+					VelFromAngle(12, ang-90);
+				else
+					VelFromAngle(12, ang+90);
+			}
+			else if (bInStrafe)
+			{
+				bInStrafe = false;
+				vel.xy = (0,0);
+			}
+		}
+		else
+		{
+			bInStrafe = false;
+			strafeCount = 0;
+		}
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		CreateBox("BishopBody");
+		CreateBox("BishopHead");
+	}
+}
+
+class BishopBody : CollisionBox
+{
+	Default
+	{
+		Radius 22;
+		Height 50;
+	}
+}
+
+class BishopHead : CollisionBox
+{
+	Default
+	{
+		CollisionBox.Multi 1.5;
+		CollisionBox.UpOffset 50;
+		CollisionBox.ForwardOffset 4;
+		Radius 8;
+		Height 9;
+		
+		+COLLISIONBOX.CRITICALZONE
+	}
+}
+
+class BishopRFX : RPGMissile
+{
+	Default
+	{
+		Radius 6;
+		Height 12;
+		Speed 16;
+		Damage 15;
+		DamageType "Electric";
+		RPGMissile.AilmentType "Shock";
+		RPGMissile.AilmentPower 15;
+		RenderStyle "Add";
+		DeathSound "BishopMissileExplode";
+		
+		+SEEKERMISSILE
+		+ZDOOMTRANS
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+	}
+	
+	States
+	{
+		Spawn:
+			BPFX ABAB 1 Bright A_BishopMissileWeave;
+			BPFX B 0 Bright A_BishopTracer;
+			Loop;
+			
+		Death:
+			BPFX CDEF 4 Bright;
+			BPFX GH 3 Bright;
+			Stop;
+	}
+	
+	void A_BishopTracer(double maxAngle = 2)
+	{
+		// Calculate the new direction
+		Actor dest = tracer;
+		
+		if (!dest || Speed == 0 || !CanSeek(dest))
+			return;
+		
+		vel = ProjectDirection(vel, Vec3To(dest) + (0,0,dest.height/2 - height/2), maxAngle) * speed;
+		angle = VectorAngle(vel.x, vel.y);
+	}
+	
+	Vector3 ProjectDirection(Vector3 current, Vector3 wish, double maxOfs)
+	{
+		current = current.Unit();
+		wish = wish.Unit();
+		
+		if (current == wish || wish == (0,0,0))
+			return current;
+		
+		if (current == (0,0,0))
+			return wish;
+		
+		maxOfs = abs(maxOfs);
+		if (maxOfs > 180)
+			return wish;
+		
+		double ang = acos(current dot wish);
+		if (ang > maxOfs)
+			ang = maxOfs;
+		else
+			return wish;
+		
+		Vector3 rot = (current cross wish).Unit();
+		double c = cos(ang);
+		double s = sin(ang);
+		
+		return (current*c + (rot cross current)*s + rot*(rot dot current)*(1 - c)).Unit();
+	}
+}

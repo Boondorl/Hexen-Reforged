@@ -109,6 +109,8 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 	}
 }
 
+class ReforgedSerpent2 : ReforgedSerpent replaces Demon2 {}
+
 class SerpentBody : CollisionBox
 {
 	Default

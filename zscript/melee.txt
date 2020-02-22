@@ -139,7 +139,7 @@ class BlockBox : Actor
 		{
 			let rpgm = RPGMonster(master);
 			State unblock = master.FindState("Unblock");
-			if (rpgm && unblock)
+			if (rpgm && unblock && rpgm.health > 0)
 			{
 				rpgm.SetState(unblock);
 				return;
