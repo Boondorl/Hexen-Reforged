@@ -69,11 +69,11 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 			Loop;
 			
 		Surface:
-			SSPT A 3 A_UnHideThing;
+			SSPT A 3 A_UnHideStalker;
 			SSPT A 3 A_StartSound("SerpentBirth", CHAN_BODY);
-			SSPT B 5 A_StalkerShootable;
+			SSPT B 5;
 			SSPT C 5;
-			SSPT D 6;
+			SSPT D 6 A_StalkerShootable;
 		Walk:
 			SSPT I 0 A_MonsterLook;
 			SSPT I 5 A_MonsterWander;
@@ -111,11 +111,11 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 			Goto See;
 			
 		Melee:
-			SSPT A 3 A_UnHideThing;
+			SSPT A 3 A_UnHideStalker;
 			SSPT A 3 A_StartSound("SerpentBirth", CHAN_BODY);
-			SSPT B 5 A_StalkerShootable;
+			SSPT B 5;
 			SSPT C 5;
-			SSPT D 6;
+			SSPT D 6 A_StalkerShootable;
 		Attack:
 			SSPT K 6 A_MonsterFaceTarget;
 			SSPT L 5 A_MonsterFaceTarget;
@@ -164,22 +164,24 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 	
 	void A_StalkerShootable()
 	{
-		bShootable = true;
-		bNonShootable = false;
 		CreateBox("SwampHead");
-		CreateBox("SwampBody");
 	}
 	
 	void A_StalkerNonShootable()
 	{
-		bShootable = false;
-		bNonShootable = true;
 		for (uint i = 0; i < collisionBoxes.Size(); ++i)
 		{
-			if (collisionBoxes[i])
+			if (collisionBoxes[i] is "SwampHead")
 				collisionBoxes[i].Destroy();
 		}
-		collisionBoxes.Clear();
+	}
+	
+	void A_UnHideStalker()
+	{
+		bInvisible = false;
+		bShootable = true;
+		bNonShootable = false;
+		CreateBox("SwampBody");
 	}
 
 	void A_SerpentUnHide()

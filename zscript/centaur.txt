@@ -107,9 +107,8 @@ class ReforgedCentaur : RPGMonster replaces Centaur
 			Goto See;
 			
 		Melee:
-			CENT H 5 A_MonsterFaceTarget;
-			CENT I 4 A_MonsterFaceTarget;
-			CENT J 7 A_MonsterMelee("CentaurSwordBox", 25, 0, 5, 48, 10, -20, 10, -15, 20, 20);
+			CENT HI 6 A_MonsterFaceTarget;
+			CENT J 8 A_MonsterMelee("CentaurSwordBox", 25, 0, 5, 48, 10, -20, 10, -15, 20, 20);
 			Goto See;
 			
 		Death:
