@@ -79,6 +79,21 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 			SSPT J 0 A_WalkDecide;
 			Goto Dive;
 			
+		Parry:
+			SSPT L 35 A_Pain;
+			Goto Dive;
+			
+		Shock:
+			SSPT L 9 A_StartSound(PainSound, CHAN_VOICE);
+			SSPT L 9;
+			SSPT L 9 A_StartSound(PainSound, CHAN_VOICE);
+			SSPT L 9;
+			SSPT L 9 A_StartSound(PainSound, CHAN_VOICE);
+			SSPT L 9;
+			SSPT L 9 A_StartSound(PainSound, CHAN_VOICE);
+			SSPT L 9;
+			Goto Dive;
+			
 		Pain:
 			SSPT L 5;
 			SSPT L 5 A_Pain;
@@ -233,6 +248,15 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		
 		CreateBox("SwampBody");
 		CreateBox("SwampHead");
+	}
+	
+	override void InitializeAilments()
+	{
+		SetAilment(0, 'Shock');
+		SetAilment(1, 'Chill');
+		SetAilment(2, 'Poison');
+		SetAilment(3, 'Flinch');
+		SetAilment(4, 'Bleed');
 	}
 }
 

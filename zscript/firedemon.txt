@@ -250,6 +250,15 @@ class ReforgedFireDemon : RPGMonster replaces FireDemon
 		
 		CreateBox("FireDemonBall");
 	}
+	
+	override void InitializeAilments()
+	{
+		SetAilment(0, 'Shock');
+		SetAilment(1, 'Poison');
+		SetAilment(2, 'Stumble');
+		SetAilment(3, 'Flinch');
+		SetAilment(4, 'Bleed');
+	}
 }
 
 class FireDemonBall : CollisionBox

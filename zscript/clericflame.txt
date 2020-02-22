@@ -339,7 +339,7 @@ class GroundFire : AreaOfEffect
 		AreaOfEffect.AilmentType "Burn";
 		AreaOfEffect.AilmentDamage 10;
 		AreaOfEffect.CoolDownToken "GroundFireHit";
-		Height 4;
+		Height 16;
 		Radius 128;
 		Damage 10;
 		DamageType "Fire";
