@@ -271,7 +271,7 @@ class UpperCut : HurtBox
 	
 	override int DoSpecialDamage(Actor victim, int damage, name damagetype)
 	{
-		if (victim.bIsMonster || victim.player)
+		if ((victim.bIsMonster || victim.player) && !victim.bCantLeaveFloorPic)
 			victim.vel.z += 4;
 		
 		return super.DoSpecialDamage(victim, damage, damagetype);
