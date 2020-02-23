@@ -107,7 +107,6 @@ class ReforgedHammer : RPGMelee replaces FWeapHammer
 {
 	Default
 	{
-		Weapon.SlotNumber 3;
 		Weapon.SelectionOrder 900;
 		Weapon.AmmoUse2 5;
 		Weapon.YAdjust -10;
