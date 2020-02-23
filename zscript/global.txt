@@ -25,7 +25,7 @@ class GlobalEventsHandler : EventHandler
 		}
 		else if (e.thing is "Inventory")
 		{
-			if (e.thing is "ArtiEgg" || e.thing is "ArtiHealingRadius")
+			if (e.thing is "ArtiEgg" || e.thing is "ArtiHealingRadius" || e.thing is "CrystalVial")
 				e.thing.Destroy();
 			else if (e.thing is "ArtiInvulnerability2")
 			{

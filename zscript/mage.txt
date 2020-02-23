@@ -194,7 +194,7 @@ class Desecrate : Skill
 			if (tracer.results.hitActor)
 			{
 				TakeAmmo(5, type, reserveType);
-				let mo = Spawn("CrystalVial", tracer.results.hitActor.pos, ALLOW_REPLACE);
+				let mo = Spawn("ReforgedCrystalVial", tracer.results.hitActor.pos, ALLOW_REPLACE);
 				if (mo && !mo.bNoGravity)
 					mo.vel.z += 7;
 				

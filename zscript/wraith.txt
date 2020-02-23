@@ -1,3 +1,21 @@
+class WraithBlock : BlockBox
+{
+	Default
+	{
+		Radius 20;
+		Height 40;
+		BlockBox.Width 20;
+		BlockBox.Height 12;
+		BlockBox.Length 6;
+		BlockBox.BlockSound "FighterHammerHitWall";
+		BlockBox.BlockReduction 0.3;
+		BlockBox.ParryReduction 0.5;
+		BlockBox.ParryWindow 4;
+		BlockBox.ForwardOffset 28;
+		BlockBox.UpOffset 20;
+	}
+}
+
 class WraithSlap : HurtBox
 {
 	Default
@@ -16,6 +34,7 @@ class ReforgedWraith : RPGMonster replaces Wraith
 {
 	Default
 	{
+		RPGMonster.ShieldType "WraithBlock";
 		RPGMonster.XP 40;
 		RPGMonster.ArmorType AR_HELM|AR_CHEST;
 		Health 150;
@@ -37,6 +56,7 @@ class ReforgedWraith : RPGMonster replaces Wraith
 		+NOGRAVITY
 		+DROPOFF
 		+FLOAT
+		+RPGMONSTER.BLOCKER
 	}
 
 	States
@@ -51,6 +71,15 @@ class ReforgedWraith : RPGMonster replaces Wraith
 		See:
 			WRTH ABCD 4 A_WraithChase;
 			Loop;
+			
+		Block:
+			WRTH E 2 A_MonsterFaceTarget;
+			TNT1 A 0 A_MonsterBlock;
+			WRTH FFFFFFF 5 A_MonsterFaceTarget;
+		Unblock:
+			TNT1 A 0 A_MonsterUnblock;
+			WRTH E 2 A_MonsterFaceTarget;
+			Goto See;
 			
 		Parry:
 			WRTH A 2;
@@ -265,6 +294,7 @@ class ReforgedWraithBuried : ReforgedWraith replaces WraithBuried
 		+INVISIBLE
 		-SHOOTABLE
 		-SOLID
+		-RPGMONSTER.BLOCKER
 	}
 	
 	
@@ -281,6 +311,7 @@ class ReforgedWraithBuried : ReforgedWraith replaces WraithBuried
 			Goto See+1;
 			
 		Chase:
+			TNT1 A 0 {bBlocker = true;}
 			Goto Super::See;
 	}
 

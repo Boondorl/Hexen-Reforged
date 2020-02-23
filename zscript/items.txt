@@ -145,11 +145,22 @@ class RPGPowerupGiver : RPGItem
 	}
 }
 
-class ReforgedCrystalVial : CrystalVial replaces CrystalVial
+// Create a new class for this since we're deleting CrystalVials
+class ReforgedCrystalVial : Health
 {
 	Default
 	{
 		Inventory.Amount 5;
+		Inventory.PickupMessage "$TXT_ITEMHEALTH";
+		
+		+FLOATBOB
+	}
+	
+	States
+	{
+		Spawn:
+			PTN1 ABC 3;
+			Loop;
 	}
 }
 

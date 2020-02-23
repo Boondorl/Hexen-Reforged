@@ -261,6 +261,8 @@ class UpperCut : HurtBox
 		AttackSound "FighterPunchHitThing";
 		ActiveSound "FighterPunchHitWall";
 		DamageType "Blunt";
+		HurtBox.AilmentType "Flinch";
+		HurtBox.AilmentPower 100;
 		HurtBox.BonusDamageType "Pierce";
 		HurtBox.SideOffset 8;
 		HurtBox.UpOffset 4;
