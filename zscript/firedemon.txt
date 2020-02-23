@@ -6,6 +6,7 @@ class ReforgedFireDemon : RPGMonster replaces FireDemon
 
 	Default
 	{
+		RPGMonster.BlastDamageType "Fire";
 		RPGMonster.XP 20;
 		RPGMonster.MaxBlockCoolDown 105;
 		RPGMonster.BlockChance 0.5;
@@ -16,7 +17,7 @@ class ReforgedFireDemon : RPGMonster replaces FireDemon
 		Radius 20;
 		Height 68;
 		Mass 75;
-		Damage 1;
+		Damage 25;
 		DamageFactor "Ice", 1.25;
 		DamageFactor "Fire", 0.75;
 		SeeSound "FireDemonSpawn";
@@ -91,7 +92,7 @@ class ReforgedFireDemon : RPGMonster replaces FireDemon
 			Stop;
 			
 		Death:
-			FDMN D 4 Bright A_MonsterFaceTarget;
+			FDMN D 4 Bright A_FaceTarget;
 			FDMN L 4 Bright A_Scream;
 			FDMN L 4 Bright A_NoBlocking;
 			FDMN L 200 Bright;

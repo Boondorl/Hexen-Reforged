@@ -16,6 +16,7 @@ class ReforgedBishop : RPGMonster replaces Bishop
 		Radius 22;
 		Height 65;
 		Speed 15;
+		Damage 35;
 		PainChance 110;
 		SeeSound "BishopSight";
 		AttackSound "BishopAttack";

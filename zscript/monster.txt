@@ -178,6 +178,7 @@ class RPGMonster : Actor
 	int failBlockCoolDown;
 	int minBlockCoolDown;
 	int maxBlockCoolDown;
+	Name blastDamageType;
 	
 	int rageTimer;
 	int searchTimer;
@@ -205,6 +206,7 @@ class RPGMonster : Actor
 	property MaxBlockCoolDown : maxBlockCoolDown;
 	property MinMissileCoolDown : minMissileCoolDown;
 	property MaxMissileCoolDown : maxMissileCoolDown;
+	property BlastDamageType : blastDamageType;
 	
 	deprecated("3.7") private int rpgMonsterFlags;
 	flagdef AttackThruMonst: rpgMonsterFlags, 0;
@@ -225,6 +227,7 @@ class RPGMonster : Actor
 		RPGMonster.TrackRange 256;
 		RPGMonster.TrackAccuracy 0.75;
 		RPGMonster.TurnSpeed 10;
+		RPGMonster.BlastDamageType "Blunt";
 		MeleeRange 32;
 		
 		+QUICKTORETALIATE
@@ -706,12 +709,35 @@ class RPGMonster : Actor
 	
 	override int DamageMobj(Actor inflictor, Actor source, int damage, Name mod, int flags, double angle)
 	{
-		if (source && !source.bDoHarmSpecies && source is GetClass() && bFriendly == source.bFriendly)
-			return -1;
+		if (source)
+		{
+			if (source.bBlasted && inflictor == source && mod == source.damageType)
+			{
+				damage = source.damage;
+				let rpg = RPGMonster(source);
+				if (rpg)
+					mod = rpg.blastDamageType;
+				source.bBlasted = false;
+				flags |= DMG_NOBLOCK;
+			}
+			else if (!bDoHarmSpecies && !source.bDoHarmSpecies && source is GetClass() && bFriendly == source.bFriendly)
+				return -1;
+		}
+		else if (bBlasted && !inflictor && mod == 'Melee') // Damage type for hitting lines is hardcoded
+		{
+			damage = self.damage;
+			mod = blastDamageType;
+			bBlasted = false;
+			flags |= DMG_NOBLOCK;
+		}
 			
 		Vector3 prevVel = vel;
 		
+		Actor oldTarg = target;
 		int newdam = super.DamageMobj(inflictor, source, damage, mod, flags, angle);
+		if (target is GetClass() && !bDoHarmSpecies && !target.bDoHarmSpecies)
+			target = oldTarg;
+		
 		lastHit = source;
 		
 		if (health > 0)

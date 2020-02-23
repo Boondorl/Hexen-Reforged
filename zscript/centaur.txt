@@ -50,6 +50,7 @@ class ReforgedCentaur : RPGMonster replaces Centaur
 		Radius 20;
 		Height 64;
 		Mass 120;
+		Damage 50;
 		SeeSound "CentaurSight";
 		AttackSound "CentaurAttack";
 		PainSound "CentaurPain";

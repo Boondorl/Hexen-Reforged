@@ -10,6 +10,7 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 		Height 80;
 		DeathHeight 40;
 		Mass 220;
+		Damage 75;
 		DamageFactor "Poison", 0.75;
 		DamageFactor "Illness", 0.75;
 		SeeSound "DemonSight";

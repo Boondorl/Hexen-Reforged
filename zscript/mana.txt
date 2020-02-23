@@ -2,9 +2,9 @@ class BlueMana : Ammo replaces Mana1
 {
 	Default
 	{
-		Inventory.Amount 10;
+		Inventory.Amount 15;
 		Inventory.MaxAmount 100;
-		Ammo.BackpackAmount 10;
+		Ammo.BackpackAmount 15;
 		Ammo.BackpackMaxAmount 100;
 		Radius 8;
 		Height 8;
@@ -28,9 +28,9 @@ class GreenMana : Ammo replaces Mana2
 {
 	Default
 	{
-		Inventory.Amount 10;
+		Inventory.Amount 15;
 		Inventory.MaxAmount 100;
-		Ammo.BackpackAmount 10;
+		Ammo.BackpackAmount 15;
 		Ammo.BackpackMaxAmount 100;
 		Radius 8;
 		Height 8;
@@ -54,9 +54,9 @@ class RedMana : Ammo replaces Mana3
 {
 	Default
 	{
-		Inventory.Amount 10;
+		Inventory.Amount 15;
 		Inventory.MaxAmount 100;
-		Ammo.BackpackAmount 10;
+		Ammo.BackpackAmount 15;
 		Ammo.BackpackMaxAmount 100;
 		Radius 8;
 		Height 8;

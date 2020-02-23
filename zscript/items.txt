@@ -158,13 +158,13 @@ class RPGFlask : RPGHealthPickup replaces ArtiHealth
 	Default
 	{
 		RPGItem.Weight 5;
-		Health 10;
+		Health 15;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIPTN2";
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIHEALTH";
 		Tag "$TAG_ARTIHEALTH";
-		RPGItem.Description "A lightweight flask that restores up to 10 health";
+		RPGItem.Description "A lightweight flask that restores up to 15 health";
 		
 		+FLOATBOB
 		+INVENTORY.FANCYPICKUPSOUND
@@ -371,7 +371,7 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIBLASTRADIUS";
 		Tag "$TAG_ARTIBLASTRADIUS";
-		RPGItem.Description "A small disc capable of repelling away enemies and reflecting projectiles in front of you";
+		RPGItem.Description "A small disc capable of reflecting enemies and projectiles in front of you";
 		
 		+INVENTORY.INVBAR
 		+INVENTORY.FANCYPICKUPSOUND
@@ -402,13 +402,22 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 		double ang = VectorAngle(dir.xy.x, dir.xy.y);
 		if (victim.bMissile)
 		{
-			victim.vel = dir * GetDefaultSpeed(victim.GetClass());
+			double misSpeed = GetDefaultSpeed(victim.GetClass());
+			if (!misSpeed)
+				misSpeed = speed;
+			
+			victim.vel = dir * misSpeed;
 			victim.tracer = victim.target;
 			victim.target = owner;
 			victim.angle = ang;
 		}
 		else
+		{
+			if (victim.bIsMonster)
+				victim.target = owner;
+			
 			victim.vel += dir * speed;
+		}
 
 		ang -= 180.;
 		Vector3 spawnpos = victim.Vec3Offset((victim.radius + 1) * cos(ang), (victim.radius + 1) * sin(ang), (victim.Height / 2) - victim.Floorclip);
@@ -470,9 +479,6 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 			if (acos(dirTo dot viewDir) > maxAng)
 				continue;
 			
-			if (mo is 'RPoisonCloud')
-				blastflags |= BF_NOIMPACTDAMAGE;
-			
 			InvBlastActor(mo, dirTo, strength, speed, blasteffect, !!(blastflags & BF_NOIMPACTDAMAGE));
 		}
 	}
@@ -488,7 +494,7 @@ class RPGBanish : RPGItem replaces ArtiTeleportOther
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTITELEPORTOTHER";
 		Tag "$TAG_ARTITELEPORTOTHER";
-		RPGItem.Description "A strange device that teleports nearby enemies to the location it hit";
+		RPGItem.Description "A strange device that teleports surrounding enemies to the location it hit";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR

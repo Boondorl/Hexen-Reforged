@@ -2,6 +2,7 @@ class ReforgedWendigo : RPGMonster replaces IceGuy
 {
 	Default
 	{
+		RPGMonster.BlastDamageType "Ice";
 		RPGMonster.XP 30;
 		Health 120;
 		PainChance 144;
@@ -9,6 +10,7 @@ class ReforgedWendigo : RPGMonster replaces IceGuy
 		Radius 22;
 		Height 75;
 		Mass 150;
+		Damage 50;
 		DamageFactor "Ice", 0.75;
 		DamageFactor "Fire", 1.25;
 		SeeSound "IceGuySight";

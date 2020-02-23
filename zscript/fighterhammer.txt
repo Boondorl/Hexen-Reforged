@@ -1,0 +1,222 @@
+class HammerBox : HurtBox
+{
+	Default
+	{
+		Radius 2;
+		Height 6;
+		HurtBox.BonusDamageType "Blunt";
+		HurtBox.BonusAilmentPower 50;
+		HurtBox.BonusAilmentType "Stumble";
+		HurtBox.BonusType "GreenMana";
+		HurtBox.ReserveBonusType "RedMana";
+		HurtBox.ForwardOffset 32;
+		ActiveSound "FighterHammerHitWall";
+		AttackSound "FighterHammerHitThing";
+	}
+	
+	override void BonusAttack(Actor mo)
+	{
+		if (!mo || mo.health > 0)
+			return;
+		
+		bool useNormal = false;
+		bool useReserve = false;
+		bool spawnExplosion = true;
+						
+		Ammo normal;
+		Ammo reserve;
+						
+		if (!sv_infiniteammo && !target.FindInventory("PowerInfiniteAmmo"))
+		{
+			normal = Ammo(target.FindInventory(bonusType));
+			reserve = Ammo(target.FindInventory(reserveBonusType));
+							
+			if (normal && normal.amount < 2)
+			{
+				if (!reserve || (reserve.amount+normal.amount) < 2)
+					spawnExplosion = false;
+				else
+				{
+					if (normal.amount > 0)
+						useNormal = true;
+									
+					useReserve = true;
+				}
+			}
+			else if (normal)
+				useNormal = true;
+		}
+		
+		if (spawnExplosion)
+		{
+			if (useNormal || useReserve)
+			{
+				int cost = 2;
+										
+				if (normal && useNormal)
+				{
+					int take = min(normal.amount, 2);
+					cost -= take;
+					normal.amount -= take;
+				}
+										
+				if (reserve && useReserve)
+					reserve.amount -= cost;
+			}
+			
+			let ex = Spawn("HammerExplosion", mo.pos+(0,0,mo.default.height/2), ALLOW_REPLACE);
+			if (ex)
+			{
+				ex.target = target;
+				ex.ExplodeMissile();
+			}
+		}
+	}
+}
+
+class HammerExplosion : RPGMissile
+{
+	Default
+	{
+		Radius 64;
+		Damage 50;
+		DamageType "Blunt";
+		RPGMissile.AilmentPower 100;
+		RPGMissile.AilmentType "Flinch";
+		RenderStyle "Add";
+		
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+		Death:
+			TNT1 A 0 A_Explode(damage, radius, 0);
+			FHFX I 3 Bright A_SetRenderStyle(1, STYLE_Add);
+			FHFX J 3 Bright;
+			FHFX K 3 Bright;
+			FHFX LM 3 Bright;
+			FHFX N 3;
+			FHFX OPQR 3 Bright;
+			Stop;
+	}
+}
+
+class ReforgedHammer : RPGMelee replaces FWeapHammer
+{
+	Default
+	{
+		Weapon.SlotNumber 3;
+		Weapon.SelectionOrder 900;
+		Weapon.AmmoUse2 5;
+		Weapon.YAdjust -10;
+		Weapon.AmmoType1 "GreenMana";
+		Weapon.AmmoType2 "RedMana";
+		Inventory.PickupMessage "$TXT_WEAPON_F3";
+		Obituary "$OB_MPFWEAPHAMMERM";
+		Tag "$TAG_FWEAPHAMMER";
+		
+		+WEAPON.ALT_AMMO_OPTIONAL
+	}
+
+	States
+	{
+		Spawn:
+			WFHM A -1;
+			Stop;
+			
+		Select:
+			FHMR A 1 A_Raise;
+			Loop;
+			
+		Deselect:
+			FHMR A 1 A_Lower;
+			Loop;
+			
+		Ready:
+			FHMR A 1 A_BashWeaponReady;
+			Loop;
+			
+		Fire:
+			FHMR B 6 Offset (5, 0);
+			FHMR C 3 Offset (5, 0) A_Melee("HammerBox", 0, 70, 6, 64, 10, -20, 15, -15, 20, 20);
+			FHMR D 3 Offset (5, 0);
+			FHMR E 2 Offset (5, 0);
+			FHMR E 10 Offset (5, 150);
+			FHMR A 1 Offset (0, 60);
+			FHMR A 1 Offset (0, 55);
+			FHMR A 1 Offset (0, 50);
+			FHMR A 1 Offset (0, 45);
+			FHMR A 1 Offset (0, 40);
+			FHMR A 1 Offset (0, 35);
+			FHMR A 1;
+			Goto Ready;
+			
+		AltFire:
+			FHMR B 6 Offset (5, 0);
+			FHMR C 3 Offset (5, 0) A_Melee("HammerBox", 0, 140, 6, 64, 10, -20, 15, -15, 20, 20);
+			FHMR D 3 Offset (5, 0);
+			FHMR E 2 Offset (5, 0);
+			FHMR E 10 Offset (5, 150) A_FHammerThrow;
+			FHMR A 1 Offset (0, 60);
+			FHMR A 1 Offset (0, 55);
+			FHMR A 1 Offset (0, 50);
+			FHMR A 1 Offset (0, 45);
+			FHMR A 1 Offset (0, 40);
+			FHMR A 1 Offset (0, 35);
+			FHMR A 1;
+			Goto Ready;
+	}
+
+	action void A_FHammerThrow()
+	{
+		if (player == null)
+		{
+			return;
+		}
+
+		Weapon weapon = player.ReadyWeapon;
+		if (weapon != null)
+		{
+			if (!weapon.DepleteAmmo(weapon.bAltFire, true))
+				return;
+		}
+		SpawnPlayerMissile("ReforgedHammerMissile"); 
+	}
+}
+
+class ReforgedHammerMissile : RPGMissile
+{
+	Default
+	{
+		Speed 32;
+		Radius 10;
+		Height 20;
+		Damage 80;
+		DamageType "Blunt";
+		RPGMissile.AilmentType "Flinch";
+		RPGMissile.AilmentPower 100;
+		DeathSound "FighterHammerExplode";
+		Obituary "$OB_MPFWEAPHAMMERR";
+	}
+
+	States
+	{
+		Spawn:
+			FHFX A 2 Bright;
+			FHFX B 2 Bright A_StartSound("FighterHammerContinuous");
+			FHFX CDEFGH 2 Bright;
+			Loop;
+			
+		Death:
+			TNT1 A 0 A_Explode(64, 128, 0);
+			FHFX I 3 Bright A_SetRenderStyle(1, STYLE_Add);
+			FHFX J 3 Bright;
+			FHFX K 3 Bright;
+			FHFX LM 3 Bright;
+			FHFX N 3;
+			FHFX OPQR 3 Bright;
+			Stop;
+	}
+}

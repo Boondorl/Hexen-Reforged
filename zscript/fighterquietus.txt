@@ -47,7 +47,6 @@ class ReforgedQuietus : RPGMelee replaces FWeapQuietus
 	{
 		RPGMelee.ShieldType "SwordBlock";
 		Weapon.SelectionOrder 2900;
-		Weapon.KickBack 150;
 		Weapon.YAdjust 10;
 		Weapon.AmmoUse2 5;
 		Weapon.AmmoType1 "RedMana";

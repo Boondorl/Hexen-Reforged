@@ -24,7 +24,7 @@ class ReforgedWraith : RPGMonster replaces Wraith
 		Radius 20;
 		Height 55;
 		Mass 75;
-		Damage 10;
+		Damage 30;
 		SeeSound "WraithSight";
 		AttackSound "WraithAttack";
 		PainSound "WraithPain";

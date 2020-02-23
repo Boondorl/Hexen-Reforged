@@ -43,6 +43,7 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		DamageFactor "Poison", 0.75;
 		DamageFactor "Illness", 0.75;
 		DamageFactor "Fire", 0.75;
+		DamageFactor "Electric", 1.25;
 		
 		+NOBLOOD
 		+CANTLEAVEFLOORPIC
