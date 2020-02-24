@@ -107,7 +107,7 @@ class ArmorPieceManager : Inventory
 		if (!pieces.Size())
 		{
 			if (damageType == "Cleave")
-				newdamage = round(newdamage * 1.2);
+				newdamage = round(newdamage * 1.25);
 				
 			return;
 		}
