@@ -60,7 +60,7 @@ class RPGWeapon : Weapon
 			if (acos(dir dot viewDir) > maxAng)
 				continue;
 			
-			mo.DamageMobj(self, self, dmg, dmgType);
+			mo.DamageMobj(self, self, dmg, dmgType, DMG_NOBLOCK);
 			let ail = Ailment(mo.FindInventory("Stumble"));
 			if (ail)
 				ail.AddAilment(self, 100);

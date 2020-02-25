@@ -194,6 +194,7 @@ class RPGMonster : Actor
 	bool bDontBlock;
 	bool bCancelled;
 	bool bCancelDelay;
+	bool bInLeap;
 	
 	property XP : XP;
 	property ArmorType : armorType;
@@ -342,20 +343,61 @@ class RPGMonster : Actor
 				return;
 			}
 			
-			flags |= CHF_NODIRECTIONTURN;
-			A_Chase(null, null, flags);
+			if (pos.z <= floorz)
+			{
+				if (bInLeap)
+					vel.xy = (0,0);
+				
+				bInLeap = false;
+			}
+			
+			double ang = AngleTo(target);
+			if (!bInLeap && !bFloat && !bNoGravity)
+			{
+				FLineTraceData data;
+				LineTrace(ang, radius*3, 0, TRF_THRUHITSCAN|TRF_ALLACTORS|TRF_SOLIDACTORS, data: data);
+				
+				if (data.hitLine && (data.hitLine.flags & Line.ML_TWOSIDED))
+				{
+					double secZ = data.hitLine.sidedef[!data.lineside].sector.floorplane.ZAtPoint(data.hitLocation.xy);
+					double delta = secZ - pos.z;
+					if (delta > MaxStepHeight && delta < 48)
+					{
+						vel.z += 8;
+						idealAngle = ang;
+						bInLeap = true;
+					}
+				}
+			}
+			
+			if (bInLeap)
+				VelFromAngle(5, ang);
+			else
+			{
+				if (!bFloat && !bNoGravity)
+				{
+					Vector2 ofs = Vec2Offset(speed*tics*cos(idealAngle), speed*tics*sin(idealAngle));
+					let sec = level.PointInSector(ofs);
+					double diff = pos.z - sec.floorplane.ZAtPoint(ofs);
+					if (diff >= 112)
+						bDropOff = false;
+					else
+						bDropOff = true;
+				}
+			
+				flags |= CHF_NODIRECTIONTURN;
+				A_Chase(null, null, flags);
+				idealAngle = movedir * 45;
+			}
 			
 			if (!bDontAttack && missile && FindState(missile) && CheckMissile())
 			{
 				SetStateLabel(missile);
 				if (target.bShadow && !bSawTarget)
-					idealAngle = AngleTo(target) + frandom(-45, 45);
+					idealAngle = ang + frandom(-45, 45);
 				
 				bJustAttacked = true;
-				return;
 			}
-			
-			idealAngle = movedir * 45;
 		}
 		else
 		{
@@ -697,26 +739,38 @@ class RPGMonster : Actor
 				else
 					bJustAttacked = false;
 			}
+			
+			if (CurState && tics != CurState.tics)
+			{
+				if (chaseState)
+				{
+					if (CurState == chaseState)
+					{
+						if (!bInLeap)
+						{
+							A_Chase(null, null, CHF_NODIRECTIONTURN|CHF_NORANDOMTURN|CHF_NOPLAYACTIVE);
+							idealAngle = movedir * 45;
+						}
+					}
+					else
+						chaseState = null;
+				}
+				else if (wanderState)
+				{
+					if (CurState == wanderState)
+					{
+						A_Wander(CHF_NODIRECTIONTURN|CHF_NORANDOMTURN);
+						idealAngle = movedir * 45;
+					}
+					else
+						wanderState = null;
+				}
+			}
 		}
 		else
-			bJustAttacked = false;
-		
-		if (CurState && tics != CurState.tics)
 		{
-			if (chaseState)
-			{
-				if (CurState == chaseState)
-					A_Chase(null, null, CHF_NODIRECTIONTURN|CHF_NORANDOMTURN|CHF_NOPLAYACTIVE);
-				else
-					chaseState = null;
-			}
-			else if (wanderState)
-			{
-				if (CurState == wanderState)
-					A_Wander(CHF_NODIRECTIONTURN|CHF_NORANDOMTURN);
-				else
-					wanderState = null;
-			}
+			bInLeap = false;
+			bJustAttacked = false;
 		}
 	}
 	
