@@ -54,7 +54,7 @@ class Ailment : Inventory abstract
 			return;
 		}
 		
-		if (globalfreeze || level.frozen)
+		if (isFrozen())
 			return;
 		
 		if (coolDownTimer > 0)
@@ -209,14 +209,24 @@ class Burn : Ailment
 	
 	override void Effect()
 	{
-		if (owner.tics == 1 && owner.InStateSequence(owner.CurState, owner.SeeState))
+		if (owner.InStateSequence(owner.CurState, owner.SeeState))
 		{
-			owner.speed = owner.default.speed * 1.5;
-			owner.A_Wander();
-			owner.speed = 0;
 			let rpgm = RPGMonster(owner);
-			if (!rpgm)
-				owner.bJustAttacked = true;
+			if (rpgm)
+			{
+				if (owner.tics == owner.CurState.tics)
+					rpgm.A_MonsterWander();
+			}
+			else
+			{
+				if (owner.tics == 1)
+				{
+					owner.speed = owner.default.speed * 1.25;
+					owner.A_Wander();
+					owner.speed = 0;
+					owner.bJustAttacked = true;
+				}
+			}
 		}
 	}
 	
@@ -231,10 +241,15 @@ class Burn : Ailment
 				!owner.InStateSequence(owner.CurState, owner.FindState("Parry")))
 			{
 				owner.SetState(owner.SeeState, true);
-				owner.speed = owner.default.speed * 1.5;
-				owner.A_Wander();
+				owner.speed = owner.default.speed * 1.25;
+				
 				if (rpgm)
+				{
+					rpgm.A_MonsterWander();
 					rpgm.bCancelled = true;
+				}
+				else
+					owner.A_Wander();
 			}
 			
 			if (rpgm)
@@ -280,10 +295,20 @@ class Chill : Ailment
 				bJustSlowed = false;
 			else
 			{
-				owner.tics = ceil(owner.tics * 1.2);
+				owner.tics = ceil(owner.tics * 1.25);
 				bJustSlowed = true;
 			}
 		}
+	}
+	
+	override void OnSet()
+	{
+		owner.speed = owner.default.speed * 0.75;
+	}
+	
+	override void OnLoss()
+	{
+		owner.speed = owner.default.speed;
 	}
 }
 

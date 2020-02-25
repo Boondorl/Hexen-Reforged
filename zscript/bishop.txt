@@ -144,6 +144,9 @@ class ReforgedBishop : RPGMonster replaces Bishop
 	{
 		super.Tick();
 		
+		if (isFrozen())
+			return;
+		
 		if (health > 0)
 		{
 			if (strafeCount > 0)

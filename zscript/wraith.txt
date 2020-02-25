@@ -269,6 +269,9 @@ class ReforgedWraith : RPGMonster replaces Wraith
 	{
 		super.Tick();
 		
+		if (isFrozen())
+			return;
+		
 		if (health > 0 && bNoGravity && bFloat && floorclip <= 0)
 		{
 			int weaveindex = WeaveIndexZ;
