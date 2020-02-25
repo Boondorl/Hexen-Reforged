@@ -39,7 +39,7 @@ class ReforgedWraith : RPGMonster replaces Wraith
 		RPGMonster.ArmorType AR_HELM|AR_CHEST;
 		Health 150;
 		PainChance 25;
-		Speed 12;
+		Speed 3;
 		Radius 20;
 		Height 55;
 		Mass 75;
@@ -165,9 +165,6 @@ class ReforgedWraith : RPGMonster replaces Wraith
 
 	void A_WraithChase()
 	{
-		int weaveindex = WeaveIndexZ;
-		AddZ(BobSin(weaveindex));
-		WeaveIndexZ = (weaveindex + 2) & 63;
 		A_MonsterChase();
 		A_WraithFX4();
 	}
@@ -249,17 +246,6 @@ class ReforgedWraith : RPGMonster replaces Wraith
 			}
 		}
 	}
-
-	void A_WraithMelee()
-	{
-		// Steal health from target and give to self
-		if (CheckMeleeRange() && (random[StealHealth]()<220))
-		{
-			int amount = random[StealHealth](1, 8) * 2;
-			target.DamageMobj (self, self, amount, 'Melee');
-			health += amount;
-		}
-	}
 	
 	override void InitializeAilments()
 	{
@@ -277,6 +263,18 @@ class ReforgedWraith : RPGMonster replaces Wraith
 		
 		CreateBox("WraithBody");
 		CreateBox("WraithHead");
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (health > 0 && bNoGravity && bFloat && floorclip <= 0)
+		{
+			int weaveindex = WeaveIndexZ;
+			AddZ(BobSin(weaveindex) / 3.);
+			WeaveIndexZ = (weaveindex + 1) & 63;
+		}
 	}
 }
 
@@ -304,10 +302,16 @@ class ReforgedWraithBuried : ReforgedWraith replaces WraithBuried
 			Goto Super::Idle;
 			
 		See:
-			WRTH A 2 A_WraithRaiseInit;
-			WRTH A 2 A_WraithRaise;
-			WRTH A 2 A_MonsterFaceTarget;
-			WRTH BB 2 A_WraithRaise;
+			WRTH A 1 A_WraithRaiseInit;
+			WRTH A 1 A_WraithRaise;
+			WRTH AA 1 A_WraithRaise;
+			WRTH A 1
+			{
+				A_WraithRaise();
+				A_MonsterFaceTarget();
+			}
+			WRTH A 1 A_WraithRaise;
+			WRTH BBBB 1 A_WraithRaise;
 			Goto See+1;
 			
 		Chase:
@@ -323,6 +327,7 @@ class ReforgedWraithBuried : ReforgedWraith replaces WraithBuried
 		bShootable = true;
 		bSolid = true;
 		Floorclip = Height;
+		A_WraithRaise();
 	}
 
 	void A_WraithRaise()

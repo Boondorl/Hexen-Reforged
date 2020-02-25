@@ -5,7 +5,7 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 		RPGMonster.XP 100;
 		RPGMonster.MissileCheckHeight 62;
 		Health 250;
-		Speed 15;
+		Speed 4;
 		Radius 32;
 		Height 80;
 		DeathHeight 40;

@@ -15,7 +15,7 @@ class ReforgedBishop : RPGMonster replaces Bishop
 		Health 130;
 		Radius 22;
 		Height 65;
-		Speed 15;
+		Speed 3;
 		Damage 35;
 		PainChance 110;
 		SeeSound "BishopSight";
@@ -39,11 +39,11 @@ class ReforgedBishop : RPGMonster replaces Bishop
 			
 		See:
 			BISH A 2 A_MonsterChase;
-			BISH A 2 A_BishopChase;
-			BISH A 2;
-			BISH B 2 A_BishopChase;
+			BISH A 2 A_MonsterChase;
+			BISH A 2 A_MonsterChase;
 			BISH B 2 A_MonsterChase;
-			BISH B 2 A_BishopChase;
+			BISH B 2 A_MonsterChase;
+			BISH B 2 A_MonsterChase;
 			Loop;
 			
 		Shock:
@@ -110,14 +110,6 @@ class ReforgedBishop : RPGMonster replaces Bishop
 			mo.tracer = target;
 		}
 	}
-
-	void A_BishopChase()
-	{
-		double newz = pos.z - BobSin(bobstate) / 2.;
-		bobstate = (bobstate + 4) & 63;
-		newz += BobSin(bobstate) / 2.;
-		SetZ(newz);
-	}
 	
 	override bool Block(Actor mo, double maxAng, bool fromDamage)
 	{
@@ -168,6 +160,14 @@ class ReforgedBishop : RPGMonster replaces Bishop
 			{
 				bInStrafe = false;
 				vel.xy = (0,0);
+			}
+			
+			if (bNoGravity && bFloat)
+			{
+				double newz = pos.z - BobSin(bobstate) / 2.;
+				bobstate = (bobstate + 1) & 63;
+				newz += BobSin(bobstate) / 2.;
+				SetZ(newz);
 			}
 		}
 		else

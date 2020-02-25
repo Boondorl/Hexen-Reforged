@@ -713,11 +713,66 @@ class RPGPork : RPGItem replaces ArtiPork
 	
 	override bool Use(bool pickup)
 	{
-		for (double i = -15; i <= 15; i += 7.5)
-		{
-			owner.SpawnPlayerMissile("PorkFX", owner.angle+i);
-		}
+		owner.SpawnPlayerMissile("PorkRFX");
 		
 		return true;
+	}
+}
+
+class PorkRFX : Actor
+{
+	Default
+	{
+		Radius 4;
+		Height 8;
+		Speed 24;
+		Projectile;
+		
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+	}
+	
+	States
+	{
+		Spawn:
+			PRKM ABCDE 4;
+			Loop;
+			
+		Death:
+			FHFX I 3 Bright
+			{
+				BlockThingsIterator it = BlockThingsIterator.Create(self, 160);
+				Actor mo;
+				
+				while (it.Next())
+				{
+					mo = it.thing;
+					if (!mo || mo == target || (!mo.player && !mo.bIsMonster) || !mo.bShootable || mo.health <= 0)
+						continue;
+					
+					if (target && target.IsFriend(mo))
+						continue;
+					
+					if (Distance3DSquared(mo) <= (160 + mo.radius)**2 && CheckSight(mo))
+					{
+						if (mo.bIsMonster)
+							mo.target = target;
+						
+						if (mo.bBoss || mo.bDontMorph)
+						{
+							let ail = Ailment(mo.FindInventory("Flinch"));
+							if (ail)
+								ail.AddAilment(target, 100);
+						}
+						else
+						{
+							class<Actor> morphType = mo.player ? "PigPlayer" : "Pig";
+							mo.A_Morph(morphType, 120*TICRATE, MRF_UNDOBYTOMEOFPOWER|MRF_UNDOBYCHAOSDEVICE);
+						}
+					}
+				}
+			}
+			FHFX JKL 3 Bright;
+			Stop;
 	}
 }

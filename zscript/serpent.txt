@@ -30,7 +30,7 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		RPGMonster.MaxMissileCoolDown 280;
 		Health 90;
 		PainChance 96;
-		Speed 12;
+		Speed 2;
 		Radius 32;
 		Height 70;
 		Mass 0x7fffffff;

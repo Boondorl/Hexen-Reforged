@@ -6,7 +6,7 @@ class ReforgedWendigo : RPGMonster replaces IceGuy
 		RPGMonster.XP 30;
 		Health 120;
 		PainChance 144;
-		Speed 15;
+		Speed 4;
 		Radius 22;
 		Height 75;
 		Mass 150;
