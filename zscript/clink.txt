@@ -37,7 +37,7 @@ class ReforgedClink : RPGMonster
 			Loop;
 			
 		See:
-			CLNK ABCD 3 A_SabreChase;
+			CLNK ABCD 3 A_MonsterChase;
 			Loop;
 			
 		Missile:
@@ -47,8 +47,10 @@ class ReforgedClink : RPGMonster
 			CLNK F 2 {vel.z += 6;}
 			CLNK F 1
 			{
+				missileCoolDown = random(minMissileCoolDown, maxMissileCoolDown);
 				oldPos = pos;
-				A_SkullAttack(15);
+				A_SkullAttack(14);
+				bInLeap = true;
 				vel.z += 5;
 			}
 			CLNK F 1
@@ -95,7 +97,7 @@ class ReforgedClink : RPGMonster
 	
 	override bool Slam(Actor victim)
 	{
-		if (!victim.bSolid)
+		if (!victim.bSolid && !(victim is "BlockBox"))
 			return true;
 			
 		bSkullFly = false;
@@ -132,50 +134,23 @@ class ReforgedClink : RPGMonster
 		return false; 
 	}
 	
-	void A_SabreChase()
-	{
-		if (target && OnGround())
-		{
-			double distance = Distance3D(target) - target.radius;
-			if (distance <= MaxTargetRange && distance > MeleeRange*2 && (target.pos.z - pos.z) <= 64)
-			{
-				FLineTraceData t;
-				LineTrace(0, 96, -90, TRF_THRUHITSCAN | TRF_ALLACTORS | TRF_SOLIDACTORS, 0, 0, 0, t); // Check to make sure there's enough head room
-				if (t.Distance >= 96)
-				{
-					A_MonsterChase();
-					return;
-				}
-			}
-		}
-			
-		A_MonsterChase("Melee", null);
-	}
-	
 	override bool CheckMissile()
 	{
 		if (target && missileCoolDown <= 0 && Distance3DSquared(target) <= random(0, MaxTargetRange**2))
 		{
-			let tracer = SightTracer(new("SightTracer"));
-			if (tracer)
-			{
-				tracer.master = self;
-				tracer.target = target;
-				tracer.bThruObj = bAttackThruObj;
-				tracer.bThruMonst = bAttackThruMonst;
-				
-				double h = missileCheckHeight ? missileCheckHeight : height/2 + 4;
-				h -= floorclip;
-				Vector3 start = pos + (0,0,h);
-				Vector3 dir = Vec3To(target) + (0,0,(target.height/2-target.floorclip) - h);
-				
-				tracer.Trace(start, CurSector, dir.Unit(), dir.Length(), 0);
-				if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
-				{
-					missileCoolDown = random(minMissileCoolDown, maxMissileCoolDown);
-					return true;
-				}
-			}
+			if (target.pos.z - target.floorZ > 112)
+				return false;
+			
+			Vector3 vecTo = Vec3To(target) + (0,0,target.height/2-target.floorclip - height/2-floorclip);
+			Vector3 forw = (vecTo.xy, 0);
+			
+			Vector3 dir = vecTo.Unit();
+			
+			if (acos(dir dot forw.Unit()) > 30)
+				return false;
+			
+			if (CheckLeap(dir, vecTo.Length()))
+				return true;
 		}
 		
 		return false;
