@@ -279,12 +279,7 @@ class RFSwordMissile : RPGMissile
 	
 	override void Tick()
 	{
-		super.Tick();
-		
-		if (isFrozen())
-			return;
-		
-		if (radius < threshold && bMissile)
+		if (bMissile && radius < threshold && !isFrozen())
 		{
 			double c = abs(cos(roll));
 			double s = abs(sin(roll));
@@ -292,6 +287,8 @@ class RFSwordMissile : RPGMissile
 			A_SetSize(radius+2*c, height+4*s);
 			width += 2;
 		}
+		
+		super.Tick();
 	}
 
 	void A_FSwordFlames()

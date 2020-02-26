@@ -61,6 +61,24 @@ class GlobalEventsHandler : EventHandler
 		}
 	}
 	
+	override void CheckReplacement(ReplaceEvent e)
+	{
+		if (e.replacee == "Ettin")
+		{
+			if (random(0,1))
+				e.replacement = "ReforgedClink";
+			else
+				e.replacement = "ReforgedEttin";
+		}
+		else if (e.replacee == "Centaur")
+		{
+			if (random(0,1))
+				e.replacement = "ReforgedKnight";
+			else
+				e.replacement = "ReforgedCentaur";
+		}
+	}
+	
 	override void NetworkProcess(ConsoleEvent e)
 	{
 		Array<string> command;

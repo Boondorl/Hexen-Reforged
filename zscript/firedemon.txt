@@ -16,10 +16,12 @@ class ReforgedFireDemon : RPGMonster replaces FireDemon
 		Speed 3;
 		Radius 20;
 		Height 68;
+		DeathHeight 34;
 		Mass 75;
 		Damage 25;
 		DamageFactor "Ice", 1.25;
 		DamageFactor "Fire", 0.75;
+		DamageFactor "Burn", 0.75;
 		SeeSound "FireDemonSpawn";
 		PainSound "FireDemonPain";
 		DeathSound "FireDemonDeath";

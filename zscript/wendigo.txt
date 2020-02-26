@@ -9,10 +9,12 @@ class ReforgedWendigo : RPGMonster replaces IceGuy
 		Speed 4;
 		Radius 22;
 		Height 75;
+		DeathHeight 37;
 		Mass 150;
 		Damage 50;
 		DamageFactor "Ice", 0.75;
 		DamageFactor "Fire", 1.25;
+		DamageFactor "Burn", 1.25;
 		SeeSound "IceGuySight";
 		AttackSound "IceGuyAttack";
 		ActiveSound "IceGuyActive";
@@ -20,6 +22,7 @@ class ReforgedWendigo : RPGMonster replaces IceGuy
 		Tag "$FN_ICEGUY";
 		
 		+NOBLOOD
+		+RPGMONSTER.JUMPER
 	}
 
 

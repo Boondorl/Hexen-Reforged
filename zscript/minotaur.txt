@@ -1,0 +1,551 @@
+class MinotaurTracer : LineTracer
+{
+	Actor master;
+	Actor target;
+	double heightDiff;
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				int blockFlags = results.hitLine.ML_BLOCKING | results.hitLine.ML_BLOCKMONSTERS | results.hitLine.ML_BLOCKEVERYTHING;
+				if (!(results.hitLine.flags & blockFlags)
+					&& (results.hitLine.flags & results.hitLine.ML_TWOSIDED))
+				{
+					Sector hitSector = results.hitLine.sidedef[results.side].sector;
+					Sector otherSector = results.hitLine.sidedef[!results.side].sector;
+					
+					double floorZ = hitSector.floorPlane.ZatPoint(hitSector.centerSpot);
+					double ceilingZ = hitSector.ceilingPlane.ZatPoint(hitSector.centerSpot);
+						
+					double delta = floorZ - otherSector.floorPlane.ZatPoint(otherSector.centerSpot);
+					if (delta <= heightDiff && (!master || (ceilingZ - floorZ) > master.height))
+						break;
+				}
+			case TRACE_HasHitSky:
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (results.hitActor == target || (results.hitActor.bSolid && !results.hitActor.bShootable))
+					return TRACE_Stop;
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
+class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
+{
+	Array<Actor> alreadyHit;
+	private int chargeDuration;
+	
+	Default
+	{
+		Health 2000;
+		Radius 28;
+		Height 100;
+		Mass 800;
+		Speed 16;
+		Damage 20;
+		Painchance 8;
+		MeleeRange 96;
+		SeeSound "minotaur/sight";
+		AttackSound "minotaur/attack1";
+		PainSound "minotaur/pain";
+		DeathSound "minotaur/death";
+		ActiveSound "minotaur/active";
+		DropItem "ArtiSuperHealth", 51;
+		DropItem "HellStaffHefty", 84, 175;
+		Obituary "$OB_MINOTAUR";
+		HitObituary "$OB_MINOTAURHIT";
+		Tag "$FN_MINOTAUR";
+		Species "Minotaur";
+		
+		+DROPOFF
+		+BOSS
+		+NORADIUSDMG
+		+DONTMORPH
+		+BOSSDEATH
+		+MISSILEMORE
+	}
+
+	States
+	{
+		Spawn:
+			MNTR AB 10 A_ReforgedLook;
+			Loop;
+			
+		See:
+			MNTR ABCD 5 A_MinotaurChase;
+			Loop;
+			
+		Melee:
+			MNTR V 10 A_ReforgedFaceTarget;
+			MNTR W 7 A_ReforgedFaceTarget;
+			MNTR X 12 A_MinotaurAtk1;
+			Goto See;
+			
+		Missile:
+			MNTR V 5 A_MinotaurDecide;
+			MNTR V 3 A_ReforgedProjectileAttack("MinotaurRFX1", -10, 40);
+			MNTR V 2 A_ReforgedProjectileAttack("MinotaurRFX1", -5, 40);
+			MNTR Y 1;
+			MNTR Y 3 A_ReforgedProjectileAttack("MinotaurRFX1", 0, 40);
+			MNTR Z 3 A_ReforgedProjectileAttack("MinotaurRFX1", 5, 40);
+			MNTR Z 3 A_ReforgedProjectileAttack("MinotaurRFX1", 10, 40);
+			MNTR Z 3;
+			TNT1 A 0 {SetState(SeeState);}
+			
+		// Hammer
+			MNTR V 10 A_ReforgedFaceTarget;
+			MNTR W 7 A_ReforgedFaceTarget;
+			MNTR X 12 A_MinotaurAtk3;
+			TNT1 A 0 {SetState(SeeState);}
+			
+		// Charge
+			MNTR X 10 A_ReforgedFaceTarget;
+			MNTR U 2 A_MinotaurAtk4;
+			MNTR U 2 A_MinotaurCharge;
+			Goto Missile+15;
+			
+		Pain:
+			MNTR E 3;
+			MNTR E 6 A_Pain;
+			Goto See;
+			
+		Death:
+			MNTR F 6;
+			MNTR G 5;
+			MNTR H 6 A_Scream;
+			MNTR I 5;
+			MNTR J 6;
+			MNTR K 5;
+			MNTR L 6;
+			MNTR M 5 A_NoBlocking;
+			MNTR N 6;
+			MNTR O 5;
+			MNTR P 6;
+			MNTR Q 5;
+			MNTR R 6;
+			MNTR S 5;
+			MNTR T -1 A_BossDeath;
+			Stop;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (!bSkullFly)
+		{
+			for (int i = 0; i < alreadyHit.Size(); ++i)
+			{
+				if (!Math.CheckIntersection(self, alreadyHit[i]))
+				{
+					alreadyHit.Delete(i);
+					--i;
+				}
+			}
+		}
+	}
+	
+	override bool CanCollideWith(Actor other, bool passive)
+	{
+		if (alreadyHit.Find(other) != alreadyHit.Size())
+			return false;
+		
+		return super.CanCollideWith(other, passive);
+	}
+
+	override bool Slam(Actor victim)
+	{
+		if (!victim.bSolid)
+			return true;
+		
+		if (victim.bSolid && !victim.bShootable)
+		{
+			bSkullFly = false;
+			vel = (0,0,0);
+			
+			if (SeeState)
+				SetState(SeeState);
+			else
+				SetIdle();
+					
+			return false;
+		}
+		
+		if (health > 0)
+		{
+			if (!bDormant)
+			{
+				double ang = AngleTo(victim);
+				victim.VelFromAngle(radius+victim.radius, ang);
+				
+				if (alreadyHit.Find(victim) == alreadyHit.Size())
+				{
+					if (!victim.bGhost)
+					{
+						int newdam = victim.DamageMobj(self, self, damage, 'Melee');
+						victim.TraceBleedAngle(newdam > 0 ? newdam : damage, ang, 0.);
+					}
+					
+					alreadyHit.Push(victim);
+				}
+				
+				if (health > 0)
+					return true;
+			}
+			else
+			{
+				SetIdle();
+				tics = -1;
+			}
+		}
+		
+		bSkullFly = false;
+		vel = (0,0,0);
+		
+		return false; 
+	}
+	
+	void A_MinotaurChase()
+	{
+		StateLabel melee = "Melee";
+		if (target && abs(target.pos.z - pos.z) > 48)
+			melee = null;
+		
+		A_ReforgedChase(melee, checkMelee: false, checkMissile: false);
+	}
+
+	void A_MinotaurAtk1()
+	{
+		A_ReforgedFaceTarget();
+		if (CurState == SeeState)
+			return;
+		
+		A_PlaySound("minotaur/melee", CHAN_WEAPON);
+		FLineTraceData data;
+		LineTrace(angle, MeleeRange, 0, TRF_THRUACTORS, data: data);
+		let mo = Spawn("MinotaurExplosion", data.hitLocation, ALLOW_REPLACE);
+		if (mo)
+		{
+			mo.target = self;
+			mo.A_Explode(35, 48, 0, false, 48);
+		}
+		
+		if (target && target.player && target.player.mo == target && CheckMelee3D())
+			target.player.deltaviewheight = -16;
+	}
+
+	void A_MinotaurDecide()
+	{
+		A_PlaySound("minotaur/sight", CHAN_WEAPON);
+		double dist = target ? Distance2D(target) : 0;
+		
+		if (skill >= 4 && !CheckClear(true))
+		{
+			if (target
+				&& (target.pos.z+target.height) > pos.z && target.pos.z < (pos.z+height)
+				&& dist < 512 && dist > 64
+				&& random[MinotaurDecide]() < 150 && CheckMinotaurDash())
+			{ // Charge attack
+				SetState(FindState("Missile")+13);
+			}
+			else if (target && target.pos.z <= target.floorz+24)
+			{ // Floor fire attack
+				SetState(FindState("Missile")+9);
+			}
+			else
+			{
+				A_ReforgedFaceTarget();
+			}
+		}
+		else
+		{
+			if (target
+				&& (target.pos.z+target.height) > pos.z && target.pos.z < (pos.z+height)
+				&& dist < 512 && dist > 64
+				&& random[MinotaurDecide]() < 150 && CheckMinotaurDash())
+			{ // Charge attack
+				SetState(FindState("Missile")+13);
+			}
+			else if (target && target.pos.z <= target.floorz+24 && dist < 576. && random[MinotaurDecide]() < 220)
+			{ // Floor fire attack
+				SetState(FindState("Missile")+9);
+			}
+			else
+			{ // Swing attack
+				A_ReforgedFaceTarget();
+				// Don't need to call P_SetMobjState because the current state
+				// falls through to the swing attack
+			}
+		}
+	}
+
+	void A_MinotaurCharge()
+	{
+		if (--chargeDuration > 0)
+		{
+			Actor puff = Spawn("PhoenixPuff", pos, ALLOW_REPLACE);
+			if (puff)
+				puff.vel.z = 2;
+		}
+		else
+		{
+			bSkullFly = false;
+			vel = (0,0,0);
+			SetState(SeeState);
+		}
+	}
+
+	void A_MinotaurAtk2()
+	{
+		A_PlaySound ("minotaur/attack2", CHAN_WEAPON);
+		double angOfs = -6;
+		for (int i = 0; i < 5; ++i)
+		{
+			A_ReforgedProjectileAttack("MinotaurRFX1", angOfs, 40);
+			angOfs += 3;
+		}
+	}
+
+	void A_MinotaurAtk3()
+	{
+		A_PlaySound ("minotaur/attack3", CHAN_VOICE);
+		double angOfs = -75;
+		for (int i = 0; i < 5; ++i)
+		{
+			A_ReforgedProjectileAttack("MinotaurRFX2", angOfs, 0, false);
+			angOfs += 37.5;
+		}
+	}
+	
+	void A_MinotaurAtk4()
+	{
+		A_ReforgedFaceTarget();
+		if (CurState == SeeState)
+			return;
+		
+		alreadyHit.Clear();
+		bSkullFly = true;
+		vel.xy = AngleToVector(wishAngle, 15);
+		chargeDuration = TICRATE/2;
+	}
+	
+	bool CheckMinotaurDash()
+	{
+		if (!target)
+			return false;
+		
+		double dist = Distance3D(target);
+		Vector3 dir = (Vec3To(target) + (0,0,target.height/2 - height/2)).Unit();
+		
+		let tracer = new('MinotaurTracer');
+		if (tracer)
+		{
+			tracer.master = self;
+			tracer.target = target;
+			tracer.heightDiff = MaxStepHeight;
+			
+			if (CheckMinotaurClear(tracer, pos+(0,0,height/2), dist, dir))
+			{
+				dist = Distance2D(target);
+				dir = (AngleToVector(AngleTo(target)), 0);
+				
+				if (CheckMinotaurClear(tracer, pos, dist, dir)
+					&& CheckMinotaurClear(tracer, pos+(0,0,height), dist, dir))
+				{
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	bool CheckMinotaurClear(MinotaurTracer tracer, Vector3 start, double dist, Vector3 dir)
+	{
+		if (!tracer)
+			return false;
+
+		tracer.Trace(start, CurSector, dir, dist, 0);
+		if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
+		{
+			tracer.Trace(start+(AngleToVector(angle+90, ceil(radius*1.42)),0), CurSector, dir, dist, 0);
+			if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
+			{
+				tracer.Trace(start+(AngleToVector(angle-90, ceil(radius*1.42)),0), CurSector, dir, dist, 0);
+				if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
+					return true;
+			}
+		}
+		
+		return false;
+	}
+}
+
+class MinotaurExplosion : Actor
+{
+	Default
+	{
+		+NOINTERACTION
+		+FORCERADIUSDMG
+	}
+	
+	States
+	{
+		Spawn:
+			TNT1 A 1;
+			Stop;
+	}
+}
+
+class MinotaurRFX1 : Actor
+{
+	Default
+	{
+		Radius 5;
+		Height 10;
+		Speed 20;
+		FastSpeed 26;
+		DamageFunction (10);
+		DamageType "Fire";
+		Projectile;
+		RenderStyle "Add";
+		
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+			FX12 AB 6 Bright;
+			Loop;
+			
+		Death:
+			FX12 CDEFGH 5 Bright;
+			Stop;
+	}
+}
+
+class MinotaurRFX2 : Actor
+{
+	private int prevDirection;
+	private double spawnAngle;
+	
+	Default
+	{
+		Radius 5;
+		Height 10;
+		Speed 14;
+		FastSpeed 20;
+		Threshold 6;
+		DamageType "Fire";
+		Projectile;
+		RenderStyle "Add";
+		DeathSound "minotaur/fx2hit";
+		
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+		+ZDOOMTRANS
+		+FLOORHUGGER
+	}
+	
+	States
+	{
+		Spawn:
+			FX13 A 3 Bright A_MntrFloorFire;
+			Loop;
+			
+		Death:
+			FX13 I 4 Bright;
+			FX13 JKLM 4 Bright;
+			Stop;
+	}
+
+	void A_MntrFloorFire()
+	{
+		Actor mo = Spawn("MinotaurRFX3", pos, ALLOW_REPLACE);
+		if (mo)
+			mo.target = target;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (--threshold <= 0)
+		{
+			int ran;
+			if (!prevDirection)
+			{
+				ran = random(-1,1);
+				if (ran == 1)
+					angle += frandom(30,90);
+				else if (ran == -1)
+					angle -= frandom(30,90);
+				
+				prevDirection = ran;
+			}
+			else
+			{
+				ran = random(0,3);
+				if (ran > 0)
+				{
+					angle = spawnAngle;
+					prevDirection = 0;
+				}
+			}
+			
+			VelFromAngle();
+			threshold = random(1,2);
+			if (!prevDirection)
+				threshold += random(1,2);
+		}
+	}
+	
+	override int SpecialMissileHit(Actor victim)
+	{
+		return 1;
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		spawnAngle = angle;
+	}
+}
+
+class MinotaurRFX3 : Actor
+{
+	Default
+	{
+		RenderStyle "Add";
+		
+		+NOINTERACTION
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+			TNT1 A 0 NoDelay
+			{
+				A_PlaySound("minotaur/fx3hit", CHAN_BODY);
+				A_Explode(16, 24, 0, false, 24);
+			}
+			FX13 DC 4 Bright;
+			FX13 BCDE 5 Bright;
+			FX13 FGH 4 Bright;
+			Stop;
+	}
+}

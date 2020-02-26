@@ -15,6 +15,7 @@ class ReforgedBishop : RPGMonster replaces Bishop
 		Health 130;
 		Radius 22;
 		Height 65;
+		DeathHeight 32;
 		Speed 3;
 		Damage 35;
 		PainChance 110;
@@ -104,7 +105,7 @@ class ReforgedBishop : RPGMonster replaces Bishop
 		
 		A_MonsterFaceTarget();
 		missileCoolDown = random(minMissileCoolDown, maxMissileCoolDown);
-		Actor mo = SpawnMissile(target, "BishopRFX");
+		Actor mo = SpawnMissile(target, "DummyBishopMissile");
 		if (mo)
 		{
 			mo.tracer = target;
@@ -222,40 +223,24 @@ class BishopHead : CollisionBox
 	}
 }
 
-class BishopRFX : RPGMissile
+class DummyBishopMissile : DummyMissile
 {
 	Default
 	{
-		Radius 6;
-		Height 12;
 		Speed 16;
-		Damage 15;
-		DamageType "Electric";
-		RPGMissile.AilmentType "Shock";
-		RPGMissile.AilmentPower 15;
-		RenderStyle "Add";
-		DeathSound "BishopMissileExplode";
 		
+		+MISSILE
 		+SEEKERMISSILE
-		+ZDOOMTRANS
-		-ACTIVATEIMPACT
-		-ACTIVATEPCROSS
 	}
 	
 	States
 	{
 		Spawn:
-			BPFX ABAB 1 Bright A_BishopMissileWeave;
-			BPFX B 0 Bright A_BishopTracer;
+			TNT1 A 4 A_BishopTracer;
 			Loop;
-			
-		Death:
-			BPFX CDEF 4 Bright;
-			BPFX GH 3 Bright;
-			Stop;
 	}
 	
-	void A_BishopTracer(double maxAngle = 2)
+	void A_BishopTracer(double maxAngle = 5)
 	{
 		// Calculate the new direction
 		Actor dest = tracer;
@@ -265,6 +250,17 @@ class BishopRFX : RPGMissile
 		
 		vel = ProjectDirection(vel, Vec3To(dest) + (0,0,dest.height/2 - height/2), maxAngle) * speed;
 		angle = VectorAngle(vel.x, vel.y);
+		pitch = -VectorAngle(vel.xy.Length(), vel.z);
+		
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			if (children[i] && children[i].bMissile)
+			{
+				children[i].angle = angle;
+				children[i].pitch = pitch;
+				children[i].vel = vel;
+			}
+		}
 	}
 	
 	Vector3 ProjectDirection(Vector3 current, Vector3 wish, double maxOfs)
@@ -293,5 +289,75 @@ class BishopRFX : RPGMissile
 		double s = sin(ang);
 		
 		return (current*c + (rot cross current)*s + rot*(rot dot current)*(1 - c)).Unit();
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		let orb = Spawn("BishopRFX", pos, ALLOW_REPLACE);
+		if (orb)
+		{
+			children.Push(orb);
+			orb.target = target;
+			orb.tracer = tracer;
+			orb.master = self;
+			orb.vel = vel;
+			orb.angle = angle;
+		}
+	}
+}
+
+class BishopRFX : RPGMissile
+{
+	private double offsetDist;
+	private double pchOfs;
+	
+	Default
+	{
+		Radius 6;
+		Height 12;
+		Damage 15;
+		DamageType "Electric";
+		RPGMissile.AilmentType "Shock";
+		RPGMissile.AilmentPower 15;
+		RenderStyle "Add";
+		DeathSound "BishopMissileExplode";
+		
+		+SEEKERMISSILE
+		+ZDOOMTRANS
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+	}
+	
+	States
+	{
+		Spawn:
+			BPFX ABAB 1 Bright A_TrackBishop;
+			Loop;
+			
+		Death:
+			BPFX CDEF 4 Bright;
+			BPFX GH 3 Bright;
+			Stop;
+	}
+	
+	void A_TrackBishop()
+	{
+		if (master)
+		{
+			if (offsetDist < 16)
+				++offsetDist;
+			
+			Vector3 up = (0,0,-sin(pitch - 90));
+			up.xy = AngleToVector(angle, cos(pitch - 90));
+			up *= sin(pchOfs)*offsetDist;
+			
+			Vector2 xyOffset = AngleToVector(angle-90, cos(pchOfs)*offsetDist);
+			
+			SetOrigin(master.pos + up + (xyOffset.x, xyOffset.y, 0), true);
+					
+			pchOfs += 15;
+		}
 	}
 }

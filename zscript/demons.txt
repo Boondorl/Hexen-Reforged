@@ -2,6 +2,7 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 {
 	Default
 	{
+		RPGMonster.JumpSpeed 6;
 		RPGMonster.XP 100;
 		RPGMonster.MissileCheckHeight 62;
 		Health 250;
@@ -20,6 +21,8 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 		ActiveSound "DemonActive";
 		Obituary "$OB_DEMON1";
 		Tag "$FN_DEMON1";
+		
+		+RPGMONSTER.JUMPER
 	}
 	
 	const ChunkFlags = SXF_TRANSFERTRANSLATION | SXF_ABSOLUTEVELOCITY;
@@ -119,8 +122,6 @@ class ReforgedSerpent : RPGMonster replaces Demon1
 		SetAilment(5, 'Bleed');
 	}
 }
-
-class ReforgedSerpent2 : ReforgedSerpent replaces Demon2 {}
 
 class SerpentBody : CollisionBox
 {

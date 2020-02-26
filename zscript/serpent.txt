@@ -33,7 +33,9 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		Speed 2;
 		Radius 32;
 		Height 70;
+		DeathHeight 35;
 		Mass 0x7fffffff;
+		Damage 30;
 		SeeSound "SerpentSight";
 		AttackSound "SerpentAttack";
 		PainSound "SerpentPain";
@@ -43,6 +45,7 @@ class ReforgedSwampMonster : RPGMonster replaces Serpent
 		DamageFactor "Poison", 0.75;
 		DamageFactor "Illness", 0.75;
 		DamageFactor "Fire", 0.75;
+		DamageFactor "Burn", 0.75;
 		DamageFactor "Electric", 1.25;
 		
 		+NOBLOOD

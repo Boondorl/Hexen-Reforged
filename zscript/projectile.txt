@@ -992,3 +992,41 @@ class RPGMissile : FasterProjectile
 		currentPenetration = maxPenetration;
 	}
 }
+
+class DummyMissile : Actor
+{
+	array<Actor> children;
+	
+	Default
+	{
+		Radius 2;
+		Height 4;
+		
+		+NOINTERACTION
+	}
+	
+	States
+	{
+		Spawn:
+			TNT1 A 1;
+			Loop;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		bool childAlive = false;
+		for (int i = 0; i < children.Size(); ++i)
+		{
+			if (children[i])
+			{
+				childAlive = true;
+				break;
+			}
+		}
+		
+		if (!childAlive)
+			Destroy();
+	}
+}

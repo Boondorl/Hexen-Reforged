@@ -33,10 +33,11 @@ class CentaurSwordBox : HurtBox
 }
 
 // Thank god
-class ReforgedCentaur : RPGMonster replaces Centaur
+class ReforgedCentaur : RPGMonster
 {
 	Default
 	{
+		RPGMonster.JumpSpeed 5;
 		RPGMonster.XP 70;
 		RPGMonster.ArmorType AR_CHEST|AR_HELM|AR_SHIELD|AR_BRACE;
 		RPGMonster.ShieldType "CentaurBlock";
@@ -49,6 +50,7 @@ class ReforgedCentaur : RPGMonster replaces Centaur
 		Speed 3;
 		Radius 20;
 		Height 64;
+		DeathHeight 32;
 		Mass 120;
 		Damage 50;
 		SeeSound "CentaurSight";
@@ -61,6 +63,7 @@ class ReforgedCentaur : RPGMonster replaces Centaur
 		Tag "$FN_CENTAUR";
 		
 		+RPGMONSTER.BLOCKER
+		+RPGMONSTER.JUMPER
 	}
 	
 	States
@@ -175,8 +178,6 @@ class ReforgedCentaur : RPGMonster replaces Centaur
 		CreateBox("CentaurHead");
 	}
 }
-
-class ReforgedCentaurLeader : ReforgedCentaur replaces CentaurLeader {}
 
 class CentaurBody : CollisionBox
 {

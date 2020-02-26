@@ -179,6 +179,7 @@ class RPGMonster : Actor
 	int minBlockCoolDown;
 	int maxBlockCoolDown;
 	Name blastDamageType;
+	double jumpSpeed;
 	
 	int rageTimer;
 	int searchTimer;
@@ -210,17 +211,20 @@ class RPGMonster : Actor
 	property MinMissileCoolDown : minMissileCoolDown;
 	property MaxMissileCoolDown : maxMissileCoolDown;
 	property BlastDamageType : blastDamageType;
+	property JumpSpeed : jumpSpeed;
 	
 	deprecated("3.7") private int rpgMonsterFlags;
 	flagdef AttackThruMonst: rpgMonsterFlags, 0;
 	flagdef AttackThruObj: rpgMonsterFlags, 1;
 	flagdef Tracker: rpgMonsterFlags, 2;
 	flagdef Blocker: rpgMonsterFlags, 3;
+	flagdef Jumper: rpgMonsterFlags, 4;
 	
 	Default
 	{
 		Monster;
 		MaxTargetRange 2048;
+		MaxDropOffHeight 112;
 		RPGMonster.MinMissileCoolDown 70;
 		RPGMonster.MaxMissileCoolDown 105;
 		RPGMonster.BlockChance 0.2;
@@ -230,6 +234,7 @@ class RPGMonster : Actor
 		RPGMonster.TrackRange 256;
 		RPGMonster.TrackAccuracy 0.75;
 		RPGMonster.TurnSpeed 10;
+		RPGMonster.JumpSpeed 8;
 		RPGMonster.BlastDamageType "Blunt";
 		MeleeRange 32;
 		
@@ -237,7 +242,6 @@ class RPGMonster : Actor
 		+TELESTOMP
 		+FLOORCLIP
 		+SEEINVISIBLE
-		+DROPOFF
 		+NOPAIN
 		+NOICEDEATH
 		+RPGMONSTER.TRACKER
@@ -313,17 +317,35 @@ class RPGMonster : Actor
 		}
 	}
 	
+	bool OnGround()
+	{
+		return ((bFloat && bNoGravity) || pos.z <= floorz || bOnMobj);
+	}
+	
 	void A_MonsterWander(int flags = 0, bool isWandering = true)
 	{
+		if (health <= 0)
+			return;
+		
 		if (isWandering)
 		{
 			chaseState = null;
 			wanderState = CurState;
 		}
 		
-		flags |= CHF_NODIRECTIONTURN;
-		A_Wander(flags);
-		idealAngle = movedir * 45;
+		if (OnGround())
+		{
+			if (bInLeap)
+				vel.xy = (0,0);
+				
+			bInLeap = false;
+			flags |= CHF_NODIRECTIONTURN;
+			A_Wander(flags);
+			idealAngle = movedir * 45;
+		}
+		
+		if (bInLeap)
+			VelFromAngle(speed, idealAngle);
 	}
 	
 	void A_MonsterChase(StateLabel melee = "Melee", StateLabel missile = "Missile", int flags = 0)
@@ -343,54 +365,44 @@ class RPGMonster : Actor
 				return;
 			}
 			
-			if (pos.z <= floorz)
+			double ang = AngleTo(target);
+			if (OnGround())
 			{
 				if (bInLeap)
 					vel.xy = (0,0);
 				
 				bInLeap = false;
-			}
-			
-			double ang = AngleTo(target);
-			if (!bInLeap && !bFloat && !bNoGravity)
-			{
-				FLineTraceData data;
-				LineTrace(ang, radius*3, 0, TRF_THRUHITSCAN|TRF_ALLACTORS|TRF_SOLIDACTORS, data: data);
-				
-				if (data.hitLine && (data.hitLine.flags & Line.ML_TWOSIDED))
+				if (!bFloat && !bNoGravity && bJumper && AbsAngle(idealAngle, ang) <= 45)
 				{
-					double secCeilZ = data.hitLine.sidedef[!data.lineside].sector.ceilingplane.ZAtPoint(data.hitLocation.xy);
-					double secFloorZ = data.hitLine.sidedef[!data.lineside].sector.floorplane.ZAtPoint(data.hitLocation.xy);
-					double secHeight = secCeilZ - secFloorZ;
-					double delta = secFloorZ - pos.z;
-					if (secHeight > height*1.25 && delta > MaxStepHeight && delta < 48)
+					FLineTraceData data;
+					LineTrace(ang, radius*3, 0, TRF_THRUHITSCAN|TRF_ALLACTORS|TRF_SOLIDACTORS, data: data);
+						
+					if (data.hitLine && (data.hitLine.flags & Line.ML_TWOSIDED))
 					{
-						vel.z += 8;
-						idealAngle = ang;
-						bInLeap = true;
+						double secCeilZ = data.hitLine.sidedef[!data.lineside].sector.ceilingplane.ZAtPoint(data.hitLocation.xy);
+						double secFloorZ = data.hitLine.sidedef[!data.lineside].sector.floorplane.ZAtPoint(data.hitLocation.xy);
+						double secHeight = secCeilZ - secFloorZ;
+						double delta = secFloorZ - pos.z;
+							
+						if (secHeight >= height*1.25 && delta > MaxStepHeight && delta <= (jumpSpeed*6 / GetGravity()))
+						{
+							vel.z += jumpSpeed;
+							idealAngle = ang;
+							bInLeap = true;
+						}
 					}
+				}
+				
+				if (!bInLeap)
+				{
+					flags |= CHF_NODIRECTIONTURN;
+					A_Chase(null, null, flags);
+					idealAngle = movedir * 45;
 				}
 			}
 			
 			if (bInLeap)
-				VelFromAngle(5, ang);
-			else
-			{
-				if (!bFloat && !bNoGravity)
-				{
-					Vector2 ofs = Vec2Offset(speed*tics*cos(idealAngle), speed*tics*sin(idealAngle));
-					let sec = level.PointInSector(ofs);
-					double diff = pos.z - sec.floorplane.ZAtPoint(ofs);
-					if (diff >= 112)
-						bDropOff = false;
-					else
-						bDropOff = true;
-				}
-			
-				flags |= CHF_NODIRECTIONTURN;
-				A_Chase(null, null, flags);
-				idealAngle = movedir * 45;
-			}
+				VelFromAngle(speed, idealAngle);
 			
 			if (!bDontAttack && missile && FindState(missile) && CheckMissile())
 			{
@@ -742,17 +754,14 @@ class RPGMonster : Actor
 					bJustAttacked = false;
 			}
 			
-			if (CurState && tics != CurState.tics)
+			if (CurState && tics != CurState.tics && OnGround())
 			{
 				if (chaseState)
 				{
 					if (CurState == chaseState)
 					{
-						if (!bInLeap)
-						{
-							A_Chase(null, null, CHF_NODIRECTIONTURN|CHF_NORANDOMTURN|CHF_NOPLAYACTIVE);
-							idealAngle = movedir * 45;
-						}
+						A_Chase(null, null, CHF_NODIRECTIONTURN|CHF_NORANDOMTURN|CHF_NOPLAYACTIVE);
+						idealAngle = movedir * 45;
 					}
 					else
 						chaseState = null;
