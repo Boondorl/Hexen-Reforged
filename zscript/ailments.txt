@@ -48,6 +48,9 @@ class Ailment : Inventory abstract
 	{
 		super.DoEffect();
 		
+		if (!owner)
+			return;
+		
 		if (owner.health <= 0)
 		{
 			Clear();

@@ -359,9 +359,11 @@ class RPGMonster : Actor
 				
 				if (data.hitLine && (data.hitLine.flags & Line.ML_TWOSIDED))
 				{
-					double secZ = data.hitLine.sidedef[!data.lineside].sector.floorplane.ZAtPoint(data.hitLocation.xy);
-					double delta = secZ - pos.z;
-					if (delta > MaxStepHeight && delta < 48)
+					double secCeilZ = data.hitLine.sidedef[!data.lineside].sector.ceilingplane.ZAtPoint(data.hitLocation.xy);
+					double secFloorZ = data.hitLine.sidedef[!data.lineside].sector.floorplane.ZAtPoint(data.hitLocation.xy);
+					double secHeight = secCeilZ - secFloorZ;
+					double delta = secFloorZ - pos.z;
+					if (secHeight > height*1.25 && delta > MaxStepHeight && delta < 48)
 					{
 						vel.z += 8;
 						idealAngle = ang;
