@@ -4,6 +4,8 @@ class ReforgedClink : RPGMonster
 	
 	Default
 	{
+		RPGMonster.MinMissileCoolDown 175;
+		RPGMonster.MaxMissileCoolDown 245;
 		RPGMonster.XP 60;
 		Health 200;
 		Radius 20;
@@ -148,6 +150,35 @@ class ReforgedClink : RPGMonster
 		}
 			
 		A_MonsterChase("Melee", null);
+	}
+	
+	override bool CheckMissile()
+	{
+		if (target && missileCoolDown <= 0 && Distance3DSquared(target) <= random(0, MaxTargetRange**2))
+		{
+			let tracer = SightTracer(new("SightTracer"));
+			if (tracer)
+			{
+				tracer.master = self;
+				tracer.target = target;
+				tracer.bThruObj = bAttackThruObj;
+				tracer.bThruMonst = bAttackThruMonst;
+				
+				double h = missileCheckHeight ? missileCheckHeight : height/2 + 4;
+				h -= floorclip;
+				Vector3 start = pos + (0,0,h);
+				Vector3 dir = Vec3To(target) + (0,0,(target.height/2-target.floorclip) - h);
+				
+				tracer.Trace(start, CurSector, dir.Unit(), dir.Length(), 0);
+				if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
+				{
+					missileCoolDown = random(minMissileCoolDown, maxMissileCoolDown);
+					return true;
+				}
+			}
+		}
+		
+		return false;
 	}
 	
 	override void InitializeAilments()
