@@ -165,7 +165,7 @@ class RPGPlayer : PlayerPawn abstract
 			currentXP -= nextLevelXP;
 		
 		++currentLevel;
-		nextLevelXP += default.nextLevelXP*0.75;
+		nextLevelXP += default.nextLevelXP;
 		++points;
 			
 		switch (currentLevel)

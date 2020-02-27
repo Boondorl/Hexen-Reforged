@@ -360,7 +360,7 @@ class Dexterity : Stat
 					
 					bool inParry = psp.CurState.InStateSequence(weap.FindState("Parry"));
 					bool inBlock = psp.CurState.InStateSequence(weap.FindState("Reload"));
-					bool inReady = psp.CurState.InStateSequence(ready);
+					bool inReady = !(weap is "CastWeapon") && psp.CurState.InStateSequence(ready);
 					
 					if (inParry || inBlock)
 						ticsToRemove = 0;

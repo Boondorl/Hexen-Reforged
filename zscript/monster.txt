@@ -210,7 +210,7 @@ class ObstacleTracer : LineTracer
 				break;
 			
 			case TRACE_HitActor:
-				if (results.hitActor != master && results.hitActor.bShootable && !(results.hitActor.bIsMonster || results.hitActor.player))
+				if (results.hitActor != master && results.hitActor.bShootable && !(results.hitActor.bIsMonster || results.hitActor.player) && results.hitActor.FindState("Death"))
 					return TRACE_Stop;
 				results.hitType = TRACE_HitNone;
 				results.hitActor = null;

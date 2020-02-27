@@ -13,6 +13,7 @@ class Skill : Inventory abstract
 	class<Buff> buffType;
 	double range;
 	class<Weapon> activeWeapon;
+	class<CastWeapon> cast;
 	string weaponName;
 	
 	bool bActive;
@@ -39,6 +40,7 @@ class Skill : Inventory abstract
 	property Range : range;
 	property ActiveWeapon : activeWeapon;
 	property WeaponName : weaponName;
+	property Cast : cast;
 	
 	deprecated("3.7") private int skillFlags;
 	flagdef NoEffect: skillFlags, 0;
@@ -134,6 +136,13 @@ class Skill : Inventory abstract
 			useSkill = false;
 		}
 		
+		if (useSkill && cast && owner.player.ReadyWeapon is "CastWeapon")
+		{
+			Console.Printf("Currently casting a spell");
+			
+			useSkill = false;
+		}
+		
 		if (useSkill && activeWeapon && (!owner.player.ReadyWeapon || owner.player.ReadyWeapon.GetClass() != activeWeapon))
 		{
 			Console.Printf("You must have "..weaponName.." out to use this");
@@ -170,6 +179,9 @@ class Skill : Inventory abstract
 			
 			if (bToggle)
 				bCurToggle = !bCurToggle;
+			
+			if (cast)
+				SetWeapon(cast);
 			
 			if (!bToggle || bCurToggle)
 				UseSkill();
@@ -300,15 +312,7 @@ class Skill : Inventory abstract
 		}
 	}
 	
-	void SetWeaponState(StateLabel sl)
-	{
-		if (!sl)
-			return;
-			
-		owner.player.GetPSprite(PSP_WEAPON).SetState(owner.player.ReadyWeapon.FindState(sl));
-	}
-	
-	void FireMissile(class<Actor> missile, class<CastWeapon> cweap = null, StateLabel sl = null, int flags = 0)
+	void FireMissile(class<Actor> missile, StateLabel sl = null, int flags = 0)
 	{
 		if (!missile)
 			return;
@@ -320,6 +324,26 @@ class Skill : Inventory abstract
 			proj.A_PlaySound(proj.SeeSound, CHAN_WEAPON);
 			proj.target = owner;
 			proj.vel = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch)) * proj.speed;
+		}
+	}
+	
+	void SetWeapon(class<CastWeapon> weap)
+	{
+		if (!weap)
+			return;
+		
+		let mo = CastWeapon(Spawn(weap));
+		if (mo)
+		{
+			mo.AttachToOwner(owner);
+			mo.prevWeapon = owner.player.ReadyWeapon;
+			owner.player.ReadyWeapon = mo;
+			let psp = owner.player.GetPSprite(PSP_WEAPON);
+			if (psp)
+			{
+				psp.SetState(mo.GetReadyState());
+				psp.y = WEAPONTOP;
+			}
 		}
 	}
 }

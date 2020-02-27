@@ -351,6 +351,33 @@ class RPGWeapon : Weapon
 class CastWeapon : RPGWeapon
 {
 	Weapon prevWeapon;
+	
+	Default
+	{
+		+WEAPON.CHEATNOTWEAPON
+		+INVENTORY.UNDROPPABLE
+	}
+	
+	override void DoEffect()
+	{
+		super.DoEffect();
+		
+		if (owner && prevWeapon)
+		{
+			let psp = owner.player.GetPSprite(PSP_WEAPON);
+			if (psp && psp.tics == -1)
+			{
+				owner.player.ReadyWeapon = prevWeapon;
+				psp = owner.player.GetPSprite(PSP_WEAPON);
+				if (psp)
+				{
+					psp.SetState(prevWeapon.GetReadyState());
+					psp.y = WEAPONTOP;
+					Destroy();
+				}
+			}
+		}
+	}
 }
 
 class AreaOfEffect : Actor
