@@ -29,6 +29,7 @@ class AimTracer : LineTracer
 			
 			case TRACE_HitActor:
 				if (!bPenetrating && results.hitActor != master && results.hitActor.bSolid && results.hitActor.health > 0 &&
+					(!master || !master.IsFriend(results.hitActor)) &&
 					(!results.hitActor.bShootable || results.hitActor.player || results.hitActor.bIsMonster))
 				{
 					return TRACE_Stop;
