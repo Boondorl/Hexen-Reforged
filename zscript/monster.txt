@@ -291,7 +291,7 @@ class RPGMonster : Actor
 	double jumpSpeed;
 	
 	int rageTimer;
-	int searchTimer;
+	int searchCoolDown;
 	State chaseState;
 	State wanderState;
 	
@@ -497,6 +497,21 @@ class RPGMonster : Actor
 		{
 			target = prevTarget;
 			prevTarget = null;
+		}
+		
+		if (!bFriendly && target && target.health > 0 && target.bIsMonster && !target.bFriendly)
+		{
+			if (--rageTimer <= 0 && --searchCoolDown <= 0)
+			{
+				Actor oldTarg = target;
+				target = null;
+					
+				A_MonsterLook();
+				if (!target)
+					target = oldTarg;
+					
+				searchCoolDown = 4;
+			}
 		}
 		
 		if (target && target.health > 0 && target != self)
@@ -968,6 +983,8 @@ class RPGMonster : Actor
 		{
 			bInLeap = false;
 			bJustAttacked = false;
+			rageTimer = 0;
+			searchCoolDown = 0;
 		}
 	}
 	
@@ -1028,21 +1045,21 @@ class RPGMonster : Actor
 		{
 			if (newdam > 0)
 			{
-				/*if (skill >= 4 && !bFriendly && source && source.bIsMonster)
+				if (!bFriendly && source && source.bIsMonster)
 				{
 					if (source == target)
 					{
-						rageTimer = 350;
+						rageTimer = 90;
 						searchCoolDown = 0;
 					}
 					
 					if (source.target == self && source is 'RPGMonster')
 					{
 						let mo = RPGMonster(source);
-						mo.rageTimer = 350;
+						mo.rageTimer = 90;
 						mo.searchCoolDown = 0;
 					}	
-				}*/
+				}
 				
 				if (source && source.player)
 				{
