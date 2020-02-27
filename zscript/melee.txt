@@ -202,14 +202,14 @@ class BlockBox : Actor
 				
 			if (!isFrozen())
 			{
-				Spawn("Marker", pos+(0,0,height/2)+forward*length+right*width-up*(realHeight/2));
-				Spawn("Marker", pos+(0,0,height/2)+forward*length-right*width-up*(realHeight/2));
-				Spawn("Marker", pos+(0,0,height/2)-forward*length+right*width-up*(realHeight/2));
-				Spawn("Marker", pos+(0,0,height/2)-forward*length-right*width-up*(realHeight/2));
-				Spawn("Marker", pos+(0,0,height/2)+forward*length+right*width+up*(realHeight/2));
-				Spawn("Marker", pos+(0,0,height/2)+forward*length-right*width+up*(realHeight/2));
-				Spawn("Marker", pos+(0,0,height/2)-forward*length+right*width+up*(realHeight/2));
-				Spawn("Marker", pos+(0,0,height/2)-forward*length-right*width+up*(realHeight/2));
+				Spawn("Marker2", pos+(0,0,height/2)+forward*length+right*width-up*(realHeight/2));
+				Spawn("Marker2", pos+(0,0,height/2)+forward*length-right*width-up*(realHeight/2));
+				Spawn("Marker2", pos+(0,0,height/2)-forward*length+right*width-up*(realHeight/2));
+				Spawn("Marker2", pos+(0,0,height/2)-forward*length-right*width-up*(realHeight/2));
+				Spawn("Marker2", pos+(0,0,height/2)+forward*length+right*width+up*(realHeight/2));
+				Spawn("Marker2", pos+(0,0,height/2)+forward*length-right*width+up*(realHeight/2));
+				Spawn("Marker2", pos+(0,0,height/2)-forward*length+right*width+up*(realHeight/2));
+				Spawn("Marker2", pos+(0,0,height/2)-forward*length-right*width+up*(realHeight/2));
 			}
 			
 			if (parryWindow > 0)
@@ -544,9 +544,9 @@ class HurtBox : Actor
 		
 		SetXYZ(start+(hbForward*hbLength)-(hbUp*height/2));
 		
-		Spawn("Marker", pos+(hbUp*height/2));
-		Spawn("Marker", pos+(hbForward*hbLength)+(hbUp*height/2));
-		Spawn("Marker", pos-(hbForward*hbLength)+(hbUp*height/2));
+		Spawn("Marker2", pos+(hbUp*height/2));
+		Spawn("Marker2", pos+(hbForward*hbLength)+(hbUp*height/2));
+		Spawn("Marker2", pos-(hbForward*hbLength)+(hbUp*height/2));
 		
 		currentAngle += angInt;
 		currentPitch += pchInt;

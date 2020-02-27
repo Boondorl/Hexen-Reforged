@@ -21,6 +21,7 @@ class ReforgedSnake : RPGMonster replaces CentaurLeader
 		Tag "$FN_SNAKE";
 		
 		+RPGMONSTER.BLOCKER
+		-NOICEDEATH
 	}
 	
 	States

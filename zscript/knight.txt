@@ -24,6 +24,7 @@ class ReforgedKnight : RPGMonster
 		Tag "$FN_BONEKNIGHT";
 		
 		+RPGMONSTER.JUMPER
+		-NOICEDEATH
 	}
 	
 	States
