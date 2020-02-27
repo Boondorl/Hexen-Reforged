@@ -1,6 +1,5 @@
 # WARNING: THIS MOD IS CURRENTLY IN ALPHA
 Systems are not complete, the game is not balanced, there are optimization problems, assets are missing, and not all content is in currently. These will be updated and added somewhat regularly based on my schedule and what mod I'm working on at the time.
-It's recommended you run this mod with DamNums since it has not currently been built in yet. You can grab it here: https://forum.zdoom.org/viewtopic.php?t=55048
 # Important Keybinds
 Reload key blocks on melee weapons. User1 is the bash key for all weapons. Make sure to bind the 3 active spells (and the menu keys).
 # What is Hexen Reforged?
