@@ -185,6 +185,78 @@ class LeapTracer : LineTracer
 	}
 }
 
+class ObstacleTracer : LineTracer
+{
+	Actor master;
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				int blockFlags = Line.ML_BLOCKEVERYTHING | Line.ML_BLOCKHITSCAN;
+				if (!(results.hitLine.flags & blockFlags) &&
+					(results.hitLine.flags & Line.ML_TWOSIDED) &&
+					results.tier == TIER_Middle)
+				{
+					results.hitLine = null;
+					results.hitType = TRACE_HitNone;
+					break;
+				}
+			case TRACE_HasHitSky:
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (results.hitActor != master && results.hitActor.bShootable && !(results.hitActor.bIsMonster || results.hitActor.player))
+					return TRACE_Stop;
+				results.hitType = TRACE_HitNone;
+				results.hitActor = null;
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
+class JumpCheckTracer : LineTracer
+{
+	Actor master;
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				int blockFlags = Line.ML_BLOCKEVERYTHING | Line.ML_BLOCKMONSTERS;
+				if (!(results.hitLine.flags & blockFlags) &&
+					(results.hitLine.flags & Line.ML_TWOSIDED) &&
+					results.tier == TIER_Middle)
+				{
+					results.hitLine = null;
+					results.hitType = TRACE_HitNone;
+					break;
+				}
+			case TRACE_HasHitSky:
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (results.hitActor != master && results.hitActor.bSolid)
+					return TRACE_Stop;
+				results.hitType = TRACE_HitNone;
+				results.hitActor = null;
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
 class RPGMonster : Actor
 {
 	enum EArmorTypes
@@ -196,6 +268,7 @@ class RPGMonster : Actor
 		AR_AMUL = 16
 	};
 	
+	Actor prevTarget; // Used when hitting props
 	Actor lastHit;
 	Array<CollisionBox> collisionBoxes;
 	Array<class<Ailment> > ailments;
@@ -362,7 +435,7 @@ class RPGMonster : Actor
 			double width = radius*1.42;
 			
 			tracer.master = self;
-			Vector3 start = pos + (0,0,height*3/4 - floorclip);
+			Vector3 start = pos + (0,0,jumpSpeed*6 + 4);
 			tracer.Trace(start, CurSector, dir, distance, 0);
 			if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
 			{
@@ -420,8 +493,35 @@ class RPGMonster : Actor
 		chaseState = CurState;
 		wanderState = null;
 		
+		if (prevTarget)
+		{
+			target = prevTarget;
+			prevTarget = null;
+		}
+		
 		if (target && target.health > 0 && target != self)
 		{
+			double ang = AngleTo(target);
+			
+			let tracer = new("ObstacleTracer");
+			if (tracer)
+			{
+				tracer.master = self;
+				Vector3 start = pos + (0,0,height/2-floorclip);
+				Vector3 dir = (AngleToVector(ang), 0);
+				tracer.Trace(start, CurSector, dir, radius*3, 0);
+				if (tracer.results.hitActor && tracer.results.hitActor != target)
+				{
+					double hitZ = tracer.results.hitActor.pos.z + tracer.results.hitActor.height - pos.z;
+					double secHeight = tracer.results.hitActor.ceilingZ - tracer.results.hitActor.pos.z + hitZ;
+					if (secHeight < height*1.25 || hitZ > (jumpSpeed*6 / GetGravity()) || !CheckLeap((AngleToVector(ang), 0), radius*2.5))
+					{
+						prevTarget = target;
+						target = tracer.results.hitActor;
+					}
+				}
+			}
+			
 			if (!bDontAttack && melee && FindState(melee) && CheckMelee())
 			{
 				SetStateLabel(melee);
@@ -429,7 +529,12 @@ class RPGMonster : Actor
 				return;
 			}
 			
-			double ang = AngleTo(target);
+			if (prevTarget)
+			{
+				target = prevTarget;
+				prevTarget = null;
+			}
+			
 			if (OnGround())
 			{
 				if (bInLeap)
@@ -438,21 +543,38 @@ class RPGMonster : Actor
 				bInLeap = false;
 				if (!bFloat && !bNoGravity && bJumper && AbsAngle(idealAngle, ang) <= 45)
 				{
-					FLineTraceData data;
-					LineTrace(ang, radius*2.5, 0, TRF_THRUHITSCAN|TRF_ALLACTORS|TRF_SOLIDACTORS, data: data);
-						
-					if (data.hitLine && (data.hitLine.flags & Line.ML_TWOSIDED))
+					let tracer = new("JumpCheckTracer");
+					if (tracer)
 					{
-						double secCeilZ = data.hitLine.sidedef[!data.lineside].sector.ceilingplane.ZAtPoint(data.hitLocation.xy);
-						double secFloorZ = data.hitLine.sidedef[!data.lineside].sector.floorplane.ZAtPoint(data.hitLocation.xy);
-						double secHeight = secCeilZ - secFloorZ;
-						double delta = secFloorZ - pos.z;
-							
-						if (secHeight >= height*1.25 && delta > MaxStepHeight && delta <= (jumpSpeed*6 / GetGravity()) && CheckLeap((AngleToVector(ang), 0), radius*2.5))
+						tracer.master = self;
+						Vector3 dir = (AngleToVector(ang), 0);
+						tracer.Trace(pos+(0,0,MaxStepHeight/2), CurSector, dir, radius*2.5, 0);
+						
+						if (tracer.results.hitLine && (tracer.results.hitLine.flags & Line.ML_TWOSIDED))
 						{
-							vel.z += jumpSpeed;
-							idealAngle = ang;
-							bInLeap = true;
+							double secCeilZ = tracer.results.hitLine.sidedef[!tracer.results.side].sector.ceilingplane.ZAtPoint(tracer.results.hitPos.xy);
+							double secFloorZ = tracer.results.hitLine.sidedef[!tracer.results.side].sector.floorplane.ZAtPoint(tracer.results.hitPos.xy);
+							double secHeight = secCeilZ - secFloorZ;
+							double delta = secFloorZ - pos.z;
+								
+							if (secHeight >= height*1.25 && delta > MaxStepHeight && delta <= (jumpSpeed*6 / GetGravity()) && CheckLeap((AngleToVector(ang), 0), radius*2.5))
+							{
+								vel.z += jumpSpeed;
+								idealAngle = ang;
+								bInLeap = true;
+							}
+						}
+						
+						if (!bInLeap && tracer.results.hitActor && tracer.results.hitActor != target)
+						{
+							double hitZ = tracer.results.hitActor.pos.z + tracer.results.hitActor.height - pos.z;
+							double secHeight = tracer.results.hitActor.ceilingZ - tracer.results.hitActor.pos.z + hitZ;
+							if (secHeight >= height*1.25 && hitZ <= (jumpSpeed*6 / GetGravity()) && CheckLeap((AngleToVector(ang), 0), radius*2.5))
+							{
+								vel.z += jumpSpeed;
+								idealAngle = ang;
+								bInLeap = true;
+							}
 						}
 					}
 				}

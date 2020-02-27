@@ -419,7 +419,8 @@ class HurtBox : Actor
 		double pch = target.pitch;
 		if (!target.player && target.target)
 		{
-			Vector3 vecTo = target.Vec3To(target.target) + (0,0,target.target.height/2 - target.height/2);
+			double testHeight = min(target.target.height, 64); // Don't aim too high
+			Vector3 vecTo = target.Vec3To(target.target) + (0,0,testHeight/2 - target.height/2);
 			pch = -VectorAngle(vecTo.xy.Length(), vecTo.z);
 		}
 		
