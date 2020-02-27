@@ -4,6 +4,42 @@ enum EExtendedDmgFlags
 	DMG_NOBLOCK = 1<<21
 }
 
+class AimTracer : LineTracer
+{
+	Actor master;
+	bool bPenetrating;
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				int blockFlags = Line.ML_BLOCKEVERYTHING | Line.ML_BLOCKPROJECTILE;
+				if (!(results.hitLine.flags & blockFlags) &&
+					(results.hitLine.flags & Line.ML_TWOSIDED) &&
+					results.tier == TIER_Middle)
+				{
+					break;
+				}
+			case TRACE_HasHitSky:
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (!bPenetrating && results.hitActor != master && results.hitActor.bSolid && results.hitActor.health > 0 &&
+					(!results.hitActor.bShootable || results.hitActor.player || results.hitActor.bIsMonster))
+				{
+					return TRACE_Stop;
+				}
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
 class RPGWeapon : Weapon
 {
 	bool bBash;
@@ -96,24 +132,29 @@ class RPGWeapon : Weapon
 			else
 				proj.A_StartSound(proj.SeeSound, CHAN_WEAPON);
 			
-			int flags;
-			let rpg = RPGMissile(proj);
-			if (bRipper || (rpg && rpg.bPenetrating))
-				flags = TRF_THRUACTORS;
+			Vector3 forward = (AngleToVector(angle, cos(pitch)), -sin(pitch));
+			Vector3 hit;
+			let tracer = new("AimTracer");
+			if (tracer)
+			{
+				let rpg = RPGMissile(proj);
+				tracer.master = self;
+				tracer.bPenetrating = (proj.bRipper || (rpg && rpg.bPenetrating));
+				tracer.Trace(pos+(0,0,player.viewHeight), CurSector, forward, PLAYERMISSILERANGE, 0);
+				hit = tracer.results.hitPos;
+			}
 			else
-				flags = (TRF_ALLACTORS|TRF_SOLIDACTORS);
+				hit = pos+(0,0,player.viewHeight) + forward*PLAYERMISSILERANGE;
 			
 			Vector3 dir;
-			FLineTraceData data;
-			LineTrace(angle, PLAYERMISSILERANGE, pitch, flags, player.viewHeight, data: data);
-			let mo = Spawn("Marker", data.hitLocation);
+			let mo = Spawn("Marker", hit);
 			if (mo)
 			{
 				dir = (Vec3To(mo) + (0,0,-(newZ+proj.height/2))).Unit();
 				mo.Destroy();
 			}
 			else
-				dir = (AngleToVector(angle, cos(pitch)), -sin(pitch));
+				dir = forward;
 			
 			dir = RPGWeapon.GetNewDirection(self, dir, angOfs, pchOfs, absolute);
 			proj.angle = VectorAngle(dir.xy.x, dir.xy.y);
