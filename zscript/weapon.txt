@@ -140,11 +140,11 @@ class RPGWeapon : Weapon
 				let rpg = RPGMissile(proj);
 				tracer.master = self;
 				tracer.bPenetrating = (proj.bRipper || (rpg && rpg.bPenetrating));
-				tracer.Trace(pos+(0,0,player.viewHeight), CurSector, forward, PLAYERMISSILERANGE, 0);
+				tracer.Trace(pos+(0,0,player.viewHeight-floorclip), CurSector, forward, PLAYERMISSILERANGE, 0);
 				hit = tracer.results.hitPos;
 			}
 			else
-				hit = pos+(0,0,player.viewHeight) + forward*PLAYERMISSILERANGE;
+				hit = pos+(0,0,player.viewHeight-floorclip) + forward*PLAYERMISSILERANGE;
 			
 			Vector3 dir;
 			let mo = Spawn("Marker", hit);
