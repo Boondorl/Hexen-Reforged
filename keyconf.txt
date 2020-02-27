@@ -19,3 +19,7 @@ DefaultBind H Spell2
 AddMenuKey "Spell 3" Spell3
 Alias Spell3 "netevent Spell:2"
 DefaultBind X Spell3
+
+AddMenuKey "Toggle Debug Markers" ToggleMarker
+Alias ToggleMarker "netevent ToggleMarker"
+DefaultBind ' ToggleMarker

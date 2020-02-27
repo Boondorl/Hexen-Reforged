@@ -1,0 +1,7 @@
+server bool   hr_dam_enabled = true;
+server bool   hr_dam_shootable = false;
+server int    hr_dam_spray = 1;
+user   string hr_dam_fontclass = "DamNumFontRavenBig";
+user   string hr_dam_translation = "DamDefault";
+user   int    hr_dam_physics = 0;
+user   bool   hr_dam_usetypes = true;

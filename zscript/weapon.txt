@@ -148,7 +148,7 @@ class RPGWeapon : Weapon
 				hit = pos+(0,0,player.viewHeight-floorclip) + forward*PLAYERMISSILERANGE;
 			
 			Vector3 dir;
-			let mo = Spawn("Marker", hit);
+			let mo = Spawn("Marker2", hit);
 			if (mo)
 			{
 				dir = (Vec3To(mo) + (0,0,-(newZ+proj.height/2))).Unit();

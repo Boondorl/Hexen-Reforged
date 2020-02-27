@@ -2,5 +2,5 @@ GameInfo
 {
    PlayerClasses = "ReforgedFighter", "ReforgedCleric", "ReforgedMage"
    StatusBarClass = "ReforgedStatusBar"
-   AddEventHandlers = "RPGMenuHandler", "XPHandler", "GlobalEventsHandler"
+   AddEventHandlers = "RPGMenuHandler", "XPHandler", "GlobalEventsHandler", "DamNumEventHandler"
 }

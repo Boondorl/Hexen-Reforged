@@ -1,5 +1,28 @@
 version "3.7"
 
+// Xaser's DamNums
+
+#include "zscript/xaser/constants.txt"
+#include "zscript/xaser/damnum.txt"
+#include "zscript/xaser/events.txt"
+#include "zscript/xaser/fonts/base.txt"
+#include "zscript/xaser/fonts/doomclassic.txt"
+#include "zscript/xaser/fonts/doomsmall.txt"
+#include "zscript/xaser/fonts/doommodern.txt"
+#include "zscript/xaser/fonts/ravenbig.txt"
+#include "zscript/xaser/fonts/ravensmall.txt"
+#include "zscript/xaser/fonts/raventory.txt"
+#include "zscript/xaser/fonts/strife.txt"
+#include "zscript/xaser/fonts/chex.txt"
+#include "zscript/xaser/fonts/hacx.txt"
+#include "zscript/xaser/fonts/harmony.txt"
+#include "zscript/xaser/fonts/square.txt"
+#include "zscript/xaser/fonts/urbanbrawl.txt"
+#include "zscript/xaser/fonts/borderlands.txt"
+#include "zscript/xaser/fonts/gamedefaults.txt"
+
+// Hexen Reforged
+
 #include "zscript/melee.txt"
 #include "zscript/weapon.txt"
 #include "zscript/projectile.txt"

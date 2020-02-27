@@ -1,0 +1,88 @@
+AddOptionMenu "OptionsMenu"
+{
+	StaticText " "
+	Submenu "DamNums Options", "DamNumsOptions"
+}
+
+OptionValue "DamPhysics"
+{
+	0, "Toss"
+	1, "Float"
+}
+
+OptionValue "DamShootable"
+{
+	0, "Monsters Only"
+	1, "All Shootable Objects"
+}
+
+OptionValue "DamEnabled"
+{
+	0, "Disabled"
+	1, "Enabled"
+}
+
+OptionString "DamFonts"
+{
+	"DamNumFontGameDefault", "Game Default"
+	"DamNumFontGameSmall"  , "Game Default (small)"
+	"DamNumFontClassic"    , "Classic Doom"
+	"DamNumFontSmall"      , "Classic Doom (small)"
+	"DamNumFontModern"     , "Modern Doom"
+	"DamNumFontRavenBig"   , "Raven (big)"
+	"DamNumFontRavenSmall" , "Raven (small)"
+	"DamNumFontRaventory"  , "Raven (inventory)"
+	"DamNumFontStrife"     , "Strife"
+	"DamNumFontChex"       , "Chex Quest"
+	"DamNumFontHacx"       , "Hacx"
+	"DamNumFontHarmony"    , "Harmony"
+	"DamNumFontSquare"     , "The Adventures of Square"
+	"DamNumFontUrbanBrawl" , "Urban Brawl"
+	"DamNumFontBorderlands", "Borderlands"
+}
+
+OptionString "DamTranslations"
+{
+	"DamDefault"  , "$C_DEFAULT"
+	"DamBrick"    , "$C_BRICK"
+	"DamTan"      , "$C_TAN"
+	"DamGray"     , "$C_GRAY"
+	"DamGreen"    , "$C_GREEN"
+	"DamBrown"    , "$C_BROWN"
+	"DamGold"     , "$C_GOLD"
+	"DamRed"      , "$C_RED"
+	"DamBlue"     , "$C_BLUE"
+	"DamOrange"   , "$C_ORANGE"
+	"DamWhite"    , "$C_WHITE"
+	"DamYellow"   , "$C_YELLOW"
+	"DamBlack"    , "$C_BLACK"
+	"DamLightBlue", "$C_LIGHTBLUE"
+	"DamCream"    , "$C_CREAM"
+	"DamOlive"    , "$C_OLIVE"
+	"DamDarkGreen", "$C_DARKGREEN"
+	"DamDarkRed"  , "$C_DARKRED"
+	"DamDarkBrown", "$C_DARKBROWN"
+	"DamPurple"   , "$C_PURPLE"
+	"DamDarkGray" , "$C_DARKGRAY"
+	"DamCyan"     , "$C_CYAN"
+}
+
+OptionMenu "DamNumsOptions"
+{
+	Position -15
+	Title       "DamNums Options"
+	StaticText 	"Global Settings", 1
+	Option		"Mod Enabled"       , "dam_enabled"  , "DamEnabled"
+	Option      "Spawn Numbers For*", "dam_shootable", "DamShootable"
+	Option      "Shotgun Spray"     , "dam_spray"    , "YesNo"
+	StaticText 	""
+	StaticText 	"User Preferences", 1
+	Option      "Font"         , "dam_fontclass"  , "DamFonts"
+	Option      "Color"        , "dam_translation", "DamTranslations"
+	Option      "Physics"      , "dam_physics"    , "DamPhysics"
+	Option		"Damage Types" , "dam_usetypes"   , "DamEnabled"
+	StaticText 	""
+	StaticText 	"Settings marked with an asterisk (*)", "Brown"
+	StaticText 	"will only take effect after changing", "Brown"
+	StaticText 	"maps or starting a new game.", "Brown"
+}

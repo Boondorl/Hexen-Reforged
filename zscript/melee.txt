@@ -89,6 +89,8 @@ class Marker : Actor
 	}
 }
 
+class Marker2 : Marker {}
+
 class BlockBox : Actor
 {
 	Array<Actor> alreadyHit;
