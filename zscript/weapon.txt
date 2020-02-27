@@ -69,6 +69,60 @@ class RPGWeapon : Weapon
 		}
 	}
 	
+	action Actor A_NewProjectile(class<Actor> missile, double angOfs = 0, bool useAmmo = true, double zOfs = 0, double pchOfs = 0, bool absolute = false)
+	{
+		if (!missile || !player)
+			return null;
+		
+		Weapon weap = player.ReadyWeapon;
+		if (useAmmo && weap && weap == invoker)
+		{
+			if (!weap.DepleteAmmo(weap.bAltFire, true, 1))
+				return null;
+		}
+		
+		double newZ = height/2 - floorclip + (player.mo.AttackZOffset-4)*player.crouchFactor;
+		let proj = Spawn(missile, pos+(0,0,newZ), ALLOW_REPLACE);
+		if (proj)
+		{
+			proj.target = self;
+			if (proj.bSeekerMissile)
+			{
+				
+			}
+			
+			if (proj.bSpawnSoundSource)
+				A_StartSound(proj.SeeSound, CHAN_WEAPON, CHANF_OVERLAP);
+			else
+				proj.A_StartSound(proj.SeeSound, CHAN_WEAPON);
+			
+			int flags;
+			let rpg = RPGMissile(proj);
+			if (bRipper || (rpg && rpg.bPenetrating))
+				flags = TRF_THRUACTORS;
+			else
+				flags = (TRF_ALLACTORS|TRF_SOLIDACTORS);
+			
+			Vector3 dir;
+			FLineTraceData data;
+			LineTrace(angle, PLAYERMISSILERANGE, pitch, flags, player.viewHeight, data: data);
+			let mo = Spawn("Marker", data.hitLocation);
+			if (mo)
+			{
+				dir = (Vec3To(mo) + (0,0,-(newZ+proj.height/2))).Unit();
+				mo.Destroy();
+			}
+			else
+				dir = (AngleToVector(angle, cos(pitch)), -sin(pitch));
+			
+			dir = RPGWeapon.GetNewDirection(self, dir, angOfs, pchOfs, absolute);
+			proj.angle = VectorAngle(dir.xy.x, dir.xy.y);
+			proj.vel = dir * proj.speed;
+		}
+		
+		return proj;
+	}
+	
 	action void A_Melee(class<HurtBox> box, int dmg = -1, int bdmg = -1, double dur = 1, double range = 64, double minAng = 0, double maxAng = 0, double minPch = 0, double maxPch = 0, double minRol = 0, double maxRol = 0, double minForw = 0, double maxForw = 0)
 	{
 		if (!box)
@@ -94,6 +148,65 @@ class RPGWeapon : Weapon
 			hb.forwardOffsets.Push(minForw);
 			hb.forwardOffsets.Push(maxForw);
 		}
+	}
+	
+	static Vector3 GetNewDirection(Actor caller, Vector3 dir, double ang = 0, double pch = 0, bool absolute = false)
+	{
+		if (!caller || (!ang && !pch))
+			return dir;
+		
+		Vector3 right = (AngleToVector(caller.angle+90), 0);
+		Vector3 up = (AngleToVector(caller.angle, cos(caller.pitch-90)), -sin(caller.pitch-90));
+		
+		Vector2 offsets;
+		if (absolute)
+			offsets = (ang, pch);
+		else
+		{
+			double rad = abs(BoxMuller(-1/3., 1/3.));
+			double theta = frandom(0, 359.9999);
+			offsets.x = ang * rad*cos(theta);
+			offsets.y = pch * rad*sin(theta);
+		}
+		
+		return (dir + tan(offsets.x)*right + tan(offsets.y)*up).Unit();
+	}
+	
+	static private double GetGaussian()
+	{
+		double v1, v2, s;
+		
+		do
+		{
+			v1 = 2 * frandom(0,1) - 1;
+			v2 = 2 * frandom(0,1) - 1;
+			s = v1**2 + v2**2;
+		} while (s >= 1 || !s);
+		
+		s = sqrt(-2*log(s) / s);
+		
+		return v1 * s;
+	}
+	
+	static private double ScaledGaussian(double mean, double standDev)
+	{
+		return mean + GetGaussian() * standDev;
+	}
+	
+	static double BoxMuller(double min, double max, double deviations = 3)
+	{
+		double x;
+		double mean = min + (max - min) / 2.;
+		double standDev = (max - min) / 2.;
+		double absMin = mean - standDev*deviations;
+		double absMax = mean + standDev*deviations;
+		
+		do
+		{
+			x = ScaledGaussian(mean, standDev);
+		} while (x < absMin || x > absMax);
+		
+		return x;
 	}
 	
 	override bool CheckAmmo(int fireMode, bool autoSwitch, bool requireAmmo, int ammocount)

@@ -84,47 +84,23 @@ class ReforgedStaff : RPGWeapon replaces CWeapStaff
 
 	action void A_CStaffAttack()
 	{
-		if (player == null)
-		{
-			return;
-		}
-
-		Weapon weap = player.ReadyWeapon;
-		if (weap)
-		{
-			if (!weap.DepleteAmmo(weap.bAltFire, true, 1))
-				return;
-		}
+		let mo = A_NewProjectile("RCStaffMissile");
+		if (mo)
+			RCStaffMissile(mo).direction = -1;
 		
-		Actor mo, missile;
-		[mo, missile] = SpawnPlayerMissile ("RCStaffMissile");
-		if (missile)
-		{
-			RCStaffMissile(missile).direction = -1;
-		}
-		[mo, missile] = SpawnPlayerMissile ("RCStaffMissile");
-		A_PlaySound ("ClericCStaffFire", CHAN_WEAPON);
+		A_NewProjectile("RCStaffMissile", useAmmo: false);
+		A_StartSound ("ClericCStaffFire", CHAN_WEAPON);
 	}
 	
 	action void A_CStaffAttack2()
 	{
-		if (!player)
-			return;
-
-		Weapon weap = player.ReadyWeapon;
-		if (weap)
-		{
-			if (!weap.DepleteAmmo(weap.bAltFire, true, 1))
-				return;
-		}
-		
 		double ang = -7;
 		for (uint i = 0; i < 7; ++i)
 		{
-			A_FireProjectile("RCStaffDart", ang, false);
+			A_NewProjectile("RCStaffDart", ang, !i ? true : false, absolute: true);
 			ang += 2;
 		}
-		A_PlaySound ("ClericCStaffFire", CHAN_WEAPON);
+		A_StartSound ("ClericCStaffFire", CHAN_WEAPON);
 	}
 
 	action void A_CStaffInitBlink()

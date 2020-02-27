@@ -66,7 +66,7 @@ class ReforgedFrost : RPGWeapon replaces MWeapFrost
 			CONE D 3;
 			CONE E 5;
 			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
-			CONE F 3 A_FireProjectile("FrostShatter");
+			CONE F 3 A_NewProjectile("FrostShatter");
 			CONE G 3;
 			CONE A 5;
 			CONE A 5 A_ReFire;
@@ -133,14 +133,18 @@ class FrostShatter : RPGMissile
 	
 	void A_ScatterShot(bool copyHit = false)
 	{
+		Vector3 dir = (AngleToVector(angle, cos(pitch)), -sin(pitch));
+		
 		for (int i = 0; i < 10; ++i)
 		{
 			let frost = Spawn("FrostShard", pos, ALLOW_REPLACE);
 			if (frost)
 			{
+				Vector3 newDir = RPGWeapon.GetNewDirection(self, dir, 4.5, 4.5);
+				
 				frost.target = target;
-				frost.angle = angle+frandom(-3,3);
-				frost.Vel3DFromAngle(frost.speed, frost.angle, pitch+frandom(-3,3));
+				frost.angle = VectorAngle(newDir.xy.x, newDir.xy.y);
+				frost.vel = newDir*frost.speed;
 				if (copyHit)
 				{
 					let rpg = RPGMissile(frost);
