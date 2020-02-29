@@ -16,6 +16,8 @@ class ReforgedStatusBar : BaseStatusBar
 	TextureID orb;
 	TextureID plate;
 	TextureID box;
+	
+	double maxRatio;
 
 	override void Init()
 	{
@@ -44,6 +46,8 @@ class ReforgedStatusBar : BaseStatusBar
 		orb = TexMan.CheckForTexture("ORB", TexMan.TYPE_MiscPatch);
 		plate = TexMan.CheckForTexture("MANABRT1", TexMan.TYPE_MiscPatch);
 		box = TexMan.CheckForTexture("ARTIBOX", TexMan.TYPE_MiscPatch);
+		
+		maxRatio = 16./9;
 	}
 	
 	override void NewGame()
@@ -92,6 +96,18 @@ class ReforgedStatusBar : BaseStatusBar
 
 	protected void DrawFullScreenStuff()
 	{
+		// Get virtual screen width
+		int screenWidth = Screen.GetWidth();
+		int screenHeight = Screen.GetHeight();
+		int aspectOfs = 0;
+		
+		Vector2 HUDScale = GetHUDScale();
+		int vWidth = screenWidth / HUDScale.x;
+		int vHeight = screenHeight / HUDScale.y;
+		
+		if (screenWidth > screenHeight && (screenWidth*1. / screenHeight) > maxRatio)
+			aspectOfs = (screenWidth - screenHeight*maxRatio) / (2*HUDScale.x);
+		
 		// Chain and gem
 		String Gem, Chain;
 		if (CPlayer.mo is "ReforgedCleric")
@@ -111,11 +127,6 @@ class ReforgedStatusBar : BaseStatusBar
 		}
 		
 		// TODO: Keep centered for multi-monitor
-		
-		// Get virtual screen width
-		Vector2 HUDScale = GetHUDScale();
-		int vWidth = Screen.GetWidth() / HUDScale.x;
-		int vHeight = Screen.GetHeight() / HUDScale.y;
 		
 		Vector2 orbSize = TexMan.GetScaledSize(orb);
 		orbSize.y *= 1.2;
@@ -149,13 +160,19 @@ class ReforgedStatusBar : BaseStatusBar
 
 		// Get gem offset
 		curXP = clamp(curXP, 0, nextLevelXP);
-		int offset = ((vWidth - gargrSize.x - gemsize.x) - garglSize.x) * (curXP*1. / max(1, nextLevelXP));
+		int offset = (vWidth - aspectOfs*2 - gargrSize.x - gemsize.x - garglSize.x) * (curXP*1. / max(1, nextLevelXP));
+		
+		int cx, cy, cw, ch;
+		[cx, cy, cw, ch] = Screen.GetClipRect();
+		SetClipRect(aspectOfs, 0, vWidth-aspectOfs*2, screenHeight);
 	
 		// Draw the chain and gem
-		for (int i = 0; i < vWidth; i += chainsize.x)
-			DrawImage(chain, (i + (offset % 15), -chainsize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+		for (int i = 0; i < vWidth-aspectOfs*2; i += chainsize.x)
+			DrawImage(chain, (aspectOfs + i + (offset % 15), -chainsize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
 		
-		DrawImage(gem, (garglSize.x + offset, -gemsize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+		DrawImage(gem, (aspectOfs + garglSize.x + offset, -gemsize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+		
+		Screen.SetClipRect(cx, cy, cw, ch);
 		
 		// Health
 		int maxHealth = CPlayer.mo.maxHealth ? CPlayer.mo.maxHealth : CPlayer.mo.default.health;
@@ -164,20 +181,19 @@ class ReforgedStatusBar : BaseStatusBar
 		double healthRatio = health*1. / maxHealth;
 		healthRatio = clamp(healthRatio, 0, 1);
 		
-		int cx, cy, cw, ch;
 		[cx, cy, cw, ch] = Screen.GetClipRect();
 		
 		int clipHeight = orbSize.y*healthRatio;
-		SetClipRect(0, vHeight-orbSize.y+(orbSize.y-clipHeight), orbSize.x, clipHeight);
+		SetClipRect(aspectOfs, vHeight-orbSize.y+(orbSize.y-clipHeight), orbSize.x, clipHeight);
 		
-		DrawImage("HEALTH", (0, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+		DrawImage("HEALTH", (aspectOfs, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
 		
 		Screen.SetClipRect(cx, cy, cw, ch);
 		
 		int fHeight = mBigFont.mFont.GetHeight();
 		String healthNum = "Life";
-		DrawString(mBigFont, healthNum, (orbSize.x/6, -orbSize.y - fHeight*0.6), scale: (0.3, 0.3));
-		DrawString(mHUDFont, FormatNumber(mHealthInterpolator.GetValue()), (orbSize.x*5/6., -orbSize.y - fHeight*0.6), DI_TEXT_ALIGN_RIGHT, scale: (0.5, 0.5));
+		DrawString(mBigFont, healthNum, (aspectOfs+orbSize.x/6, -orbSize.y - fHeight*0.6), scale: (0.3, 0.3));
+		DrawString(mHUDFont, FormatNumber(mHealthInterpolator.GetValue()), (aspectOfs+orbSize.x*5/6., -orbSize.y - fHeight*0.6), DI_TEXT_ALIGN_RIGHT, scale: (0.5, 0.5));
 		
 		//armor
 		int ac = 0;
@@ -186,8 +202,8 @@ class ReforgedStatusBar : BaseStatusBar
 			ac = am.GetCurrentAC();
 		
 		String acNum = "AC";
-		DrawString(mBigFont, acNum, (orbSize.x/6, -orbSize.y - fHeight*0.3), scale: (0.3, 0.3));
-		DrawString(mHUDFont, FormatNumber(ac), (orbSize.x*5/6., -orbSize.y - fHeight*0.3), DI_TEXT_ALIGN_RIGHT, scale: (0.5, 0.5));
+		DrawString(mBigFont, acNum, (aspectOfs+orbSize.x/6, -orbSize.y - fHeight*0.3), scale: (0.3, 0.3));
+		DrawString(mHUDFont, FormatNumber(ac), (aspectOfs+orbSize.x*5/6., -orbSize.y - fHeight*0.3), DI_TEXT_ALIGN_RIGHT, scale: (0.5, 0.5));
 		
 		// Mana
 		let red = CPlayer.mo.FindInventory("RedMana");
@@ -200,9 +216,9 @@ class ReforgedStatusBar : BaseStatusBar
 			[cx, cy, cw, ch] = Screen.GetClipRect();
 			
 			int clipHeight = orbSize.y*manaRatio;
-			SetClipRect(vWidth-orbSize.x, vHeight-orbSize.y+(orbSize.y-clipHeight), orbSize.x, clipHeight);
+			SetClipRect(vWidth-aspectOfs-orbSize.x, vHeight-orbSize.y+(orbSize.y-clipHeight), orbSize.x, clipHeight);
 			
-			DrawImage("REDMANA", (-orbSize.x, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+			DrawImage("REDMANA", (-orbSize.x-aspectOfs, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
 			
 			Screen.SetClipRect(cx, cy, cw, ch);
 		}
@@ -219,9 +235,9 @@ class ReforgedStatusBar : BaseStatusBar
 				[cx, cy, cw, ch] = Screen.GetClipRect();
 				
 				int clipHeight = orbSize.y*manaRatio;
-				SetClipRect(vWidth-orbSize.x, vHeight-orbSize.y+(orbSize.y-clipHeight), orbSize.x, clipHeight);
+				SetClipRect(vWidth-aspectOfs-orbSize.x, vHeight-orbSize.y+(orbSize.y-clipHeight), orbSize.x, clipHeight);
 				
-				DrawImage("BLUEMANA", (-orbSize.x, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+				DrawImage("BLUEMANA", (-orbSize.x-aspectOfs, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
 				
 				Screen.SetClipRect(cx, cy, cw, ch);
 			}
@@ -234,9 +250,9 @@ class ReforgedStatusBar : BaseStatusBar
 				[cx, cy, cw, ch] = Screen.GetClipRect();
 				
 				int clipHeight = orbSize.y*manaRatio;
-				SetClipRect(vWidth-orbSize.x, vHeight-orbSize.y+(orbSize.y-clipHeight), orbSize.x, clipHeight);
+				SetClipRect(vWidth-aspectOfs-orbSize.x, vHeight-orbSize.y+(orbSize.y-clipHeight), orbSize.x, clipHeight);
 				
-				DrawImage("GREEMANA", (-orbSize.x, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+				DrawImage("GREEMANA", (-orbSize.x-aspectOfs, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
 				
 				Screen.SetClipRect(cx, cy, cw, ch);
 			}
@@ -251,31 +267,31 @@ class ReforgedStatusBar : BaseStatusBar
 		let weap = CPlayer.ReadyWeapon;
 		
 		if (weap && weap.Ammo1 is "BlueMana")
-			DrawImage("MANABRT1", (-orbSize.x*5/6., -orbsize.y - plateSize.y*3), DI_ITEM_OFFSETS, scale: (0.5,0.6));
+			DrawImage("MANABRT1", (-orbSize.x*5/6.-aspectOfs, -orbsize.y - plateSize.y*3), DI_ITEM_OFFSETS, scale: (0.5,0.6));
 		else
-			DrawImage("MANADIM1", (-orbSize.x*5/6., -orbsize.y - plateSize.y*3), DI_ITEM_OFFSETS, scale: (0.5,0.6));
+			DrawImage("MANADIM1", (-orbSize.x*5/6.-aspectOfs, -orbsize.y - plateSize.y*3), DI_ITEM_OFFSETS, scale: (0.5,0.6));
 		
 		if (weap && weap.Ammo1 is "GreenMana")
-			DrawImage("MANABRT2", (-orbSize.x*5/6., -orbsize.y - plateSize.y*2), DI_ITEM_OFFSETS, scale: (0.5,0.6));
+			DrawImage("MANABRT2", (-orbSize.x*5/6.-aspectOfs, -orbsize.y - plateSize.y*2), DI_ITEM_OFFSETS, scale: (0.5,0.6));
 		else
-			DrawImage("MANADIM2", (-orbSize.x*5/6., -orbsize.y - plateSize.y*2), DI_ITEM_OFFSETS, scale: (0.5,0.6));
+			DrawImage("MANADIM2", (-orbSize.x*5/6.-aspectOfs, -orbsize.y - plateSize.y*2), DI_ITEM_OFFSETS, scale: (0.5,0.6));
 		
 		if (weap && (weap.Ammo1 is "RedMana" || weap.Ammo2 is "RedMana"))
-			DrawImage("MANABRT2", (-orbSize.x*5/6., -orbsize.y - plateSize.y), DI_ITEM_OFFSETS, scale: (0.5,0.6));
+			DrawImage("MANABRT2", (-orbSize.x*5/6.-aspectOfs, -orbsize.y - plateSize.y), DI_ITEM_OFFSETS, scale: (0.5,0.6));
 		else
-			DrawImage("MANADIM2", (-orbSize.x*5/6., -orbsize.y - plateSize.y), DI_ITEM_OFFSETS, scale: (0.5,0.6));
+			DrawImage("MANADIM2", (-orbSize.x*5/6.-aspectOfs, -orbsize.y - plateSize.y), DI_ITEM_OFFSETS, scale: (0.5,0.6));
 		
-		DrawString(mHUDFont, FormatNumber(GetAmount("BlueMana")), (-orbSize.x/6, -orbsize.y - plateSize.y*2.9), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
-		DrawString(mHUDFont, FormatNumber(GetAmount("GreenMana")), (-orbSize.x/6, -orbsize.y - plateSize.y*1.9), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
-		DrawString(mHUDFont, FormatNumber(GetAmount("RedMana")), (-orbSize.x/6, -orbsize.y - plateSize.y*0.9), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
+		DrawString(mHUDFont, FormatNumber(GetAmount("BlueMana")), (-orbSize.x/6-aspectOfs, -orbsize.y - plateSize.y*2.9), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
+		DrawString(mHUDFont, FormatNumber(GetAmount("GreenMana")), (-orbSize.x/6-aspectOfs, -orbsize.y - plateSize.y*1.9), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
+		DrawString(mHUDFont, FormatNumber(GetAmount("RedMana")), (-orbSize.x/6-aspectOfs, -orbsize.y - plateSize.y*0.9), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
 		
 		// Orbs
-		DrawImage("ORB", (0, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
-		DrawImage("ORB", (-orbSize.x, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+		DrawImage("ORB", (aspectOfs, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+		DrawImage("ORB", (-orbSize.x-aspectOfs, -orbSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
 		
 		// Gargoyles
-		DrawImage("GARGL", (0, -garglSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
-		DrawImage("GARGR", (-gargrSize.x, -gargrSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+		DrawImage("GARGL", (aspectOfs, -garglSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
+		DrawImage("GARGR", (-gargrSize.x-aspectOfs, -gargrSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
 		
 		// RPG Player specific coding
 		if (rpg)
@@ -299,7 +315,7 @@ class ReforgedStatusBar : BaseStatusBar
 			let bm = BuffManager(rpg.FindInventory("BuffManager"));
 			if (bm)
 			{
-				int xOfs = 2.5*HUDScale.x;
+				int xOfs = aspectOfs+2.5*HUDScale.x;
 				int yOfs = HUDScale.y;
 				int fH = mHUDFont.mFont.GetHeight()*0.5;
 				
@@ -325,7 +341,7 @@ class ReforgedStatusBar : BaseStatusBar
 			Vector2 boxSize = TexMan.GetScaledSize(box);
 			boxsize.y *= 1.2;
 			boxsize *= 0.5;
-			int xOfs = -orbSize.x*1.25;
+			int xOfs = -orbSize.x*1.25-aspectOfs;
 			int yOfs = -chainSize.y-boxsize.y/2;
 			string key;
 			int strWidth;
@@ -365,17 +381,17 @@ class ReforgedStatusBar : BaseStatusBar
 			DrawString(mHUDFont, FormatNumber(CPlayer.FragCount, 3), (70, -16));
 		
 		// Inventory item and bar
-		DrawImage("IBOX", (orbSize.x*1.65, -chainSize.y), 0, scale: (0.7, 0.84));
+		DrawImage("IBOX", (orbSize.x*1.65+aspectOfs, -chainSize.y), 0, scale: (0.7, 0.84));
 		if (!isInventoryBarVisible() && !Level.NoInventoryBar && CPlayer.mo.InvSel != null)
 		{
 			// This code was changed to always fit the item into the box, regardless of alignment or sprite size.
 			// Heretic's ARTIBOX is 30x30 pixels. 
-			DrawInventoryIcon(CPlayer.mo.InvSel, (orbSize.x*1.65, -chainSize.y*3.1), DI_ARTIFLASH|DI_ITEM_CENTER, boxsize:(28, 28), scale: (0.7, 0.84));
-			DrawString(mIndexFont, FormatNumber(CPlayer.mo.InvSel.Amount, 3), (orbSize.x*1.8, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_TEXT_ALIGN_RIGHT);
+			DrawInventoryIcon(CPlayer.mo.InvSel, (orbSize.x*1.65+aspectOfs, -chainSize.y*3.1), DI_ARTIFLASH|DI_ITEM_CENTER, boxsize:(28, 28), scale: (0.7, 0.84));
+			DrawString(mIndexFont, FormatNumber(CPlayer.mo.InvSel.Amount, 3), (orbSize.x*1.8+aspectOfs, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_TEXT_ALIGN_RIGHT);
 		}
 		
 		if (isInventoryBarVisible())
-			DrawReforgedItems(diparms, (orbSize.x*1.65, -chainSize.y*3.1), (orbSize.x*1.8, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_ITEM_CENTER, HX_SHADOW);
+			DrawReforgedItems(diparms, (orbSize.x*1.65+aspectOfs, -chainSize.y*3.1), (orbSize.x*1.8+aspectOfs, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_ITEM_CENTER, HX_SHADOW);
 	}
 	
 	String GetKeyForSpell(string alias)
