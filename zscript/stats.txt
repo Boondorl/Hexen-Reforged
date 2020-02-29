@@ -351,9 +351,9 @@ class Dexterity : Stat
 			if (!psp || !psp.CurState)
 				return;
 			
-			State ready = weap.GetReadyState();
 			State raise = weap.GetUpState();
 			State lower = weap.GetDownState();
+			State ready = weap.GetReadyState();
 			
 			bool inRaise = raise != ready && psp.CurState.InStateSequence(raise);
 			bool inLower = lower != ready && psp.CurState.InStateSequence(lower);
