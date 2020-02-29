@@ -218,7 +218,10 @@ class Burn : Ailment
 			if (rpgm)
 			{
 				if (owner.tics == owner.CurState.tics)
+				{
+					owner.speed = owner.default.speed * 1.25;
 					rpgm.A_MonsterWander();
+				}
 			}
 			else
 			{

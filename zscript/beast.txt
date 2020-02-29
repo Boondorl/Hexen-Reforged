@@ -13,7 +13,7 @@ class ReforgedBeast : RPGMonster replaces Demon2
 		DeathHeight 37;
 		Mass 200;
 		Damage 75;
-		Speed 2.5;
+		Speed 3;
 		MeleeRange 128;
 		Painchance 100;
 		DamageFactor "Fire", 0.75;

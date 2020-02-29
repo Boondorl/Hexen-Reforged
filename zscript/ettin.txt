@@ -29,7 +29,7 @@ class ReforgedEttin : RPGMonster
 		Height 68;
 		DeathHeight 34;
 		Mass 175;
-		Speed 3;
+		Speed 3.5;
 		Damage 60;
 		AttackSound "FighterHammerMiss";
 		SeeSound "EttinSight";

@@ -246,7 +246,7 @@ class JumpCheckTracer : LineTracer
 				break;
 			
 			case TRACE_HitActor:
-				if (results.hitActor != master && results.hitActor.bSolid)
+				if (results.hitActor != master && results.hitActor.bSolid && (!(results.hitActor.bIsMonster || results.hitActor.player) || results.hitActor.health > 0))
 					return TRACE_Stop;
 				results.hitType = TRACE_HitNone;
 				results.hitActor = null;
@@ -305,6 +305,7 @@ class RPGMonster : Actor
 	bool bCancelled;
 	bool bCancelDelay;
 	bool bInLeap;
+	bool bStuck;
 	
 	property XP : XP;
 	property ArmorType : armorType;
@@ -472,6 +473,9 @@ class RPGMonster : Actor
 		
 		if (OnGround())
 		{
+			if (bStuck)
+				speed = default.speed * 5;
+			
 			if (bInLeap)
 				vel.xy = (0,0);
 				
@@ -479,6 +483,12 @@ class RPGMonster : Actor
 			flags |= CHF_NODIRECTIONTURN;
 			A_Wander(flags);
 			idealAngle = movedir * 45;
+			
+			if (bStuck)
+			{
+				bStuck = false;
+				speed = default.speed;
+			}
 		}
 		
 		if (bInLeap)
@@ -552,11 +562,14 @@ class RPGMonster : Actor
 			
 			if (OnGround())
 			{
+				if (bStuck)
+					speed = default.speed * 5;
+				
 				if (bInLeap)
 					vel.xy = (0,0);
 				
 				bInLeap = false;
-				if (!bFloat && !bNoGravity && bJumper && AbsAngle(idealAngle, ang) <= 45)
+				if (!bStuck && !bFloat && !bNoGravity && bJumper && AbsAngle(idealAngle, ang) <= 45)
 				{
 					let tracer = new("JumpCheckTracer");
 					if (tracer)
@@ -599,6 +612,12 @@ class RPGMonster : Actor
 					flags |= CHF_NODIRECTIONTURN;
 					A_Chase(null, null, flags);
 					idealAngle = movedir * 45;
+					
+					if (bStuck)
+					{
+						bStuck = false;
+						speed = default.speed;
+					}
 				}
 			}
 			
@@ -1095,8 +1114,6 @@ class RPGMonster : Actor
 	{
 		super.BeginPlay();
 		
-		idealAngle = angle;
-		
 		GiveInventoryType("ArmorPieceManager");
 		GiveInventoryType("BuffManager");
 		
@@ -1112,5 +1129,16 @@ class RPGMonster : Actor
 			GiveInventoryType("AmuletPiece");
 		
 		InitializeAilments();
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		idealAngle = angle;
+		
+		// Stuck in a wall or something
+		if (!TryMove(pos.xy, bDropOff))
+			bStuck = true;
 	}
 }

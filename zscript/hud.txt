@@ -5,17 +5,22 @@ class ReforgedStatusBar : BaseStatusBar
 	DynamicValueInterpolator mGreenManaInterpolator;
 	DynamicValueInterpolator mRedManaInterpolator;
 	DynamicValueInterpolator mXPInterpolator;
-	DynamicValueInterpolator mCapacityInterpolator;
 	HUDFont mHUDFont;
 	HUDFont mIndexFont;
 	HUDFont mBigFont;
 	InventoryBarState diparms;
-	InventoryBarState diparms_sbar;
 	
+	// Cached textures
+	TextureID gargl;
+	TextureID gargr;
+	TextureID orb;
+	TextureID plate;
+	TextureID box;
 
 	override void Init()
 	{
-		Super.Init();
+		super.Init();
+		
 		SetSize(0, 320, 200);
 
 		// Create the font used for the fullscreen HUD
@@ -25,30 +30,37 @@ class ReforgedStatusBar : BaseStatusBar
 		mIndexFont = HUDFont.Create(fnt, fnt.GetCharWidth("0"), Mono_CellLeft);
 		fnt = "BIGFONT";
 		mBigFont = HUDFont.Create(fnt, fnt.GetCharWidth("0"), Mono_CellLeft, 2, 2);
+		
 		diparms = InventoryBarState.Create(mIndexFont);
-		diparms_sbar = InventoryBarState.CreateNoBox(mIndexFont, boxsize:(31, 31), arrowoffs:(0,-10));
+		
 		mHealthInterpolator = DynamicValueInterpolator.Create(0, 0.25, 1, 8);
 		mBlueManaInterpolator = DynamicValueInterpolator.Create(0, 0.25, 1, 8);
 		mGreenManaInterpolator = DynamicValueInterpolator.Create(0, 0.25, 1, 8);
 		mRedManaInterpolator = DynamicValueInterpolator.Create(0, 0.25, 1, 8);
 		mXPInterpolator = DynamicValueInterpolator.Create(0, 0.25, 1, 200);
-		mCapacityInterpolator = DynamicValueInterpolator.Create(0, 0.25, 1, 8);
+		
+		gargl = TexMan.CheckForTexture("GARGL", TexMan.TYPE_MiscPatch);
+		gargr = TexMan.CheckForTexture("GARGR", TexMan.TYPE_MiscPatch);
+		orb = TexMan.CheckForTexture("ORB", TexMan.TYPE_MiscPatch);
+		plate = TexMan.CheckForTexture("MANABRT1", TexMan.TYPE_MiscPatch);
+		box = TexMan.CheckForTexture("ARTIBOX", TexMan.TYPE_MiscPatch);
 	}
 	
-	override void NewGame ()
+	override void NewGame()
 	{
-		Super.NewGame();
+		super.NewGame();
+		
 		mHealthInterpolator.Reset(0);
 		mBlueManaInterpolator.Reset(0);
 		mGreenManaInterpolator.Reset(0);
 		mRedManaInterpolator.Reset(0);
 		mXPInterpolator.Reset(0);
-		mCapacityInterpolator.Reset(0);
 	}
 
 	override void Tick()
 	{
 		Super.Tick();
+		
 		mHealthInterpolator.Update(CPlayer.health);
 		let bm = CPlayer.mo.FindInventory("BlueMana");
 		if (bm)
@@ -64,20 +76,17 @@ class ReforgedStatusBar : BaseStatusBar
 		
 		let rpg = RPGPlayer(CPlayer.mo);
 		if (rpg)
-		{
 			mXPInterpolator.Update(rpg.currentXP);
-			mCapacityInterpolator.Update(rpg.currentCapacity);
-		}
 	}
 
 	override void Draw (int state, double TicFrac)
 	{
-		Super.Draw (state, TicFrac);
+		super.Draw(state, TicFrac);
 		
 		if (state == HUD_Fullscreen || state == HUD_StatusBar)
 		{
 			BeginHUD();
-			DrawFullScreenStuff ();
+			DrawFullScreenStuff();
 		}
 	}
 
@@ -108,14 +117,11 @@ class ReforgedStatusBar : BaseStatusBar
 		int vWidth = Screen.GetWidth() / HUDScale.x;
 		int vHeight = Screen.GetHeight() / HUDScale.y;
 		
-		TextureID orb = TexMan.CheckForTexture("ORB", TexMan.TYPE_MiscPatch);
 		Vector2 orbSize = TexMan.GetScaledSize(orb);
 		orbSize.y *= 1.2;
 		orbSize *= 0.7;
 		
 		// Get Gargoyle information first to find gem offset
-		TextureID gargl = TexMan.CheckForTexture("GARGL", TexMan.TYPE_MiscPatch);
-		TextureID gargr = TexMan.CheckForTexture("GARGR", TexMan.TYPE_MiscPatch);
 		Vector2 garglSize = TexMan.GetScaledSize(gargl);
 		Vector2 gargrSize = TexMan.GetScaledSize(gargr);
 		
@@ -123,9 +129,8 @@ class ReforgedStatusBar : BaseStatusBar
 		garglSize *= 0.7;
 		gargrSize.y *= 1.2;
 		gargrSize *= 0.7;
-
+		
 		// Chain size and gem information
-		int curXP =  mXPInterpolator.GetValue();
 		TextureID chaintex = TexMan.CheckForTexture(chain, TexMan.TYPE_MiscPatch);
 		TextureID gemtex = TexMan.CheckForTexture(gem, TexMan.TYPE_MiscPatch);
 		Vector2 chainsize = TexMan.GetScaledSize(chaintex);
@@ -136,9 +141,11 @@ class ReforgedStatusBar : BaseStatusBar
 		gemsize.y *= 1.2;
 		gemsize *= 0.7;
 		
+		let rpg = RPGPlayer(CPlayer.mo);
+		int curXP = mXPInterpolator.GetValue();
 		int nextLevelXP = 0;
-		if (CPlayer.mo is 'RPGPlayer')
-			nextLevelXP = RPGPlayer(CPlayer.mo).nextLevelXP;
+		if (rpg)
+			nextLevelXP = rpg.nextLevelXP;
 
 		// Get gem offset
 		curXP = clamp(curXP, 0, nextLevelXP);
@@ -155,8 +162,7 @@ class ReforgedStatusBar : BaseStatusBar
 		int health = mHealthInterpolator.GetValue();
 		
 		double healthRatio = health*1. / maxHealth;
-		if (healthRatio > 1)
-			healthRatio = 1;
+		healthRatio = clamp(healthRatio, 0, 1);
 		
 		int cx, cy, cw, ch;
 		[cx, cy, cw, ch] = Screen.GetClipRect();
@@ -188,8 +194,7 @@ class ReforgedStatusBar : BaseStatusBar
 		if (red)
 		{
 			double manaRatio = mRedManaInterpolator.GetValue()*1. / max(1, red.maxAmount);
-			if (manaRatio > 1)
-				manaRatio = 1;
+			manaRatio = clamp(manaRatio, 0, 1);
 			
 			int cx, cy, cw, ch;
 			[cx, cy, cw, ch] = Screen.GetClipRect();
@@ -208,8 +213,7 @@ class ReforgedStatusBar : BaseStatusBar
 			if (ammo is 'BlueMana')
 			{
 				double manaRatio = mBlueManaInterpolator.GetValue()*1. / max(1, ammo.maxAmount);
-				if (manaRatio > 1)
-					manaRatio = 1;
+				manaRatio = clamp(manaRatio, 0, 1);
 				
 				int cx, cy, cw, ch;
 				[cx, cy, cw, ch] = Screen.GetClipRect();
@@ -224,8 +228,7 @@ class ReforgedStatusBar : BaseStatusBar
 			else if (ammo is 'GreenMana')
 			{
 				double manaRatio = mGreenManaInterpolator.GetValue()*1. / max(1, ammo.maxAmount);
-				if (manaRatio > 1)
-					manaRatio = 1;
+				manaRatio = clamp(manaRatio, 0, 1);
 				
 				int cx, cy, cw, ch;
 				[cx, cy, cw, ch] = Screen.GetClipRect();
@@ -239,7 +242,6 @@ class ReforgedStatusBar : BaseStatusBar
 			}
 		}
 		
-		TextureID plate = TexMan.CheckForTexture("MANABRT1", TexMan.TYPE_MiscPatch);
 		Vector2 plateSize = TexMan.GetScaledSize(plate);
 		plateSize.y *= 1.2;
 		plateSize *= 0.5;
@@ -276,7 +278,6 @@ class ReforgedStatusBar : BaseStatusBar
 		DrawImage("GARGR", (-gargrSize.x, -gargrSize.y), DI_ITEM_OFFSETS, scale: (0.7, 0.84));
 		
 		// RPG Player specific coding
-		let rpg = RPGPlayer(CPlayer.mo);
 		if (rpg)
 		{
 			// Points
@@ -298,94 +299,70 @@ class ReforgedStatusBar : BaseStatusBar
 			let bm = BuffManager(rpg.FindInventory("BuffManager"));
 			if (bm)
 			{
-				int xOfs = 10;
+				int xOfs = 2.5*HUDScale.x;
+				int yOfs = HUDScale.y;
+				int fH = mHUDFont.mFont.GetHeight()*0.5;
+				
 				for (uint i = 0; i < bm.buffs.Size(); ++i)
 				{
 					let bf = bm.buffs[i];
 					if (!bf)
 						continue;
 					
-					DrawTexture(bf.icon, (xOfs, 15), DI_ITEM_CENTER_BOTTOM, scale: (0.6, 0.72));
-					if (!bf.bInfinite)
-						DrawString(mHUDFont, FormatNumber((bf.duration-bf.durationTimer+35) / 35), (xOfs+7, 10), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
+					Vector2 buffsize = TexMan.GetScaledSize(bf.icon);
+					buffsize.y *= 1.2;
+					buffsize *= 0.6;
 					
-					xOfs += 20;
+					DrawTexture(bf.icon, (xOfs, yOfs+buffsize.y), DI_ITEM_CENTER_BOTTOM, scale: (0.6, 0.72));
+					if (!bf.bInfinite)
+						DrawString(mHUDFont, FormatNumber((bf.duration-bf.durationTimer+35) / 35), (xOfs+buffsize.x, yOfs+buffsize.y-fH), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
+					
+					xOfs += buffsize.x + 2.5*HUDScale.x;
 				}
 			}
 			
 			// Active skills
-			int xOfs = -orbSize.x*1.65 + 24;
+			Vector2 boxSize = TexMan.GetScaledSize(box);
+			boxsize.y *= 1.2;
+			boxsize *= 0.5;
+			int xOfs = -orbSize.x*1.25;
+			int yOfs = -chainSize.y-boxsize.y/2;
+			string key;
+			int strWidth;
+			
+			// 3rd spell
 			DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+			key = GetKeyForSpell("Spell3");
+			DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
+			
 			let skill3 = Skill(rpg.FindInventory(rpg.activeSkills[2]));
 			if (skill3)
-			{
-				double alpha = 1;
-				if (skill3.bInCast || skill3.bInCoolDown)
-					alpha = 0.5;
-				
-				int key1, key2;
-				[key1, key2] = Bindings.GetKeysForCommand("Spell3");
-				int useKey = key1 ? key1 : key2;
-				if (useKey)
-					DrawString(mBigFont, KeyBindings.NameKeys(useKey, 0), (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
-				else
-					DrawString(mBigFont, "-", (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
-				
-				DrawTexture(skill3.icon, (xOfs, -chainSize.y-4), DI_ITEM_CENTER_BOTTOM, alpha, scale: (0.5, 0.6));
-				if (skill3.bInCoolDown)
-					DrawString(mHUDFont, FormatNumber((skill3.coolDownTimer+35) / 35), (xOfs+3, -chainSize.y-13), DI_TEXT_ALIGN_RIGHT, scale: (0.7,0.7));
-			}
-			xOfs -= 15;
+				DrawSkill(skill3, xOfs, yOfs);
+			xOfs -= boxsize.x;
 			
+			// 2nd spell
 			DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+			key = GetKeyForSpell("Spell2");
+			DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
+			
 			let skill2 = Skill(rpg.FindInventory(rpg.activeSkills[1]));
 			if (skill2)
-			{
-				double alpha = 1;
-				if (skill2.bInCast || skill2.bInCoolDown)
-					alpha = 0.5;
-				
-				int key1, key2;
-				[key1, key2] = Bindings.GetKeysForCommand("Spell2");
-				int useKey = key1 ? key1 : key2;
-				if (useKey)
-					DrawString(mBigFont, KeyBindings.NameKeys(useKey, 0), (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
-				else
-					DrawString(mBigFont, "-", (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
-				
-				DrawTexture(skill2.icon, (xOfs, -chainSize.y-4), DI_ITEM_CENTER_BOTTOM, alpha, scale: (0.5, 0.6));
-				if (skill2.bInCoolDown)
-					DrawString(mHUDFont, FormatNumber((skill2.coolDownTimer+35) / 35), (xOfs+3, -chainSize.y-13), DI_TEXT_ALIGN_RIGHT, scale: (0.7,0.7));
-			}
-			xOfs -= 15;
+				DrawSkill(skill2, xOfs, yOfs);
+			xOfs -= boxsize.x;
 			
+			// 1st spell
 			DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+			key = GetKeyForSpell("Spell1");
+			DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
+			
 			let skill1 = Skill(rpg.FindInventory(rpg.activeSkills[0]));
 			if (skill1)
-			{
-				double alpha = 1;
-				if (skill1.bInCast || skill1.bInCoolDown)
-					alpha = 0.5;
-				
-				int key1, key2;
-				[key1, key2] = Bindings.GetKeysForCommand("Spell1");
-				int useKey = key1 ? key1 : key2;
-				if (useKey)
-					DrawString(mBigFont, KeyBindings.NameKeys(useKey, 0), (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
-				else
-					DrawString(mBigFont, "-", (xOfs-7, -chainSize.y-7), scale: (0.3,0.3));
-				
-				DrawTexture(skill1.icon, (xOfs, -chainSize.y-4), DI_ITEM_CENTER_BOTTOM, alpha, scale: (0.5, 0.6));
-				if (skill1.bInCoolDown)
-					DrawString(mHUDFont, FormatNumber((skill1.coolDownTimer+35) / 35), (xOfs+3, -chainSize.y-13), DI_TEXT_ALIGN_RIGHT, scale: (0.7,0.7));
-			}
+				DrawSkill(skill1, xOfs, yOfs);
 		}
 
 		//frags/keys
 		if (deathmatch)
-		{
 			DrawString(mHUDFont, FormatNumber(CPlayer.FragCount, 3), (70, -16));
-		}
 		
 		// Inventory item and bar
 		DrawImage("IBOX", (orbSize.x*1.65, -chainSize.y), 0, scale: (0.7, 0.84));
@@ -393,13 +370,45 @@ class ReforgedStatusBar : BaseStatusBar
 		{
 			// This code was changed to always fit the item into the box, regardless of alignment or sprite size.
 			// Heretic's ARTIBOX is 30x30 pixels. 
-			DrawInventoryIcon(CPlayer.mo.InvSel, (orbSize.x*1.65, -chainSize.y-13), DI_ARTIFLASH|DI_ITEM_CENTER, boxsize:(28, 28), scale: (0.7, 0.84));
-			DrawString(mIndexFont, FormatNumber(CPlayer.mo.InvSel.Amount, 3), (orbSize.x*1.65+9, -chainSize.y - mIndexFont.mFont.GetHeight()-1), DI_TEXT_ALIGN_RIGHT);
+			DrawInventoryIcon(CPlayer.mo.InvSel, (orbSize.x*1.65, -chainSize.y*3.1), DI_ARTIFLASH|DI_ITEM_CENTER, boxsize:(28, 28), scale: (0.7, 0.84));
+			DrawString(mIndexFont, FormatNumber(CPlayer.mo.InvSel.Amount, 3), (orbSize.x*1.8, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_TEXT_ALIGN_RIGHT);
 		}
 		
 		if (isInventoryBarVisible())
+			DrawReforgedItems(diparms, (orbSize.x*1.65, -chainSize.y*3.1), (orbSize.x*1.8, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_ITEM_CENTER, HX_SHADOW);
+	}
+	
+	String GetKeyForSpell(string alias)
+	{
+		string bind;
+		int key1, key2;
+		
+		[key1, key2] = Bindings.GetKeysForCommand(alias);
+		int useKey = key1 ? key1 : key2;
+		if (useKey)
+			bind = KeyBindings.NameKeys(useKey, 0);
+		else
+			bind = "-";
+		
+		return bind;
+	}
+	
+	void DrawSkill(Skill spell, int xOfs, int yOfs)
+	{
+		if (!spell)
+			return;
+		
+		double alpha = 1;
+		if (spell.bInCast || spell.bInCoolDown)
+			alpha = 0.5;
+				
+		DrawTexture(spell.icon, (xOfs, yOfs), DI_ITEM_CENTER, alpha, scale: (0.5, 0.6));
+		if (spell.bInCoolDown)
 		{
-			DrawReforgedItems(diparms, (orbSize.x*1.65, -chainSize.y-2), 3, 0, HX_SHADOW);
+			string cd = FormatNumber((spell.coolDownTimer+35) / 35);
+			int height = mHudFont.mFont.GetHeight()*0.7;
+			int width = mHUDFont.mFont.StringWidth(cd)*0.7;
+			DrawString(mHUDFont, cd, (xOfs-width/2, yOfs-height/2), scale: (0.7,0.7));
 		}
 	}
 	
@@ -417,10 +426,11 @@ class ReforgedStatusBar : BaseStatusBar
 		return ammo1, ammo2, ammo3, ammocount1, ammocount2, ammocount3;
 	}
 	
-	void DrawReforgedItems(InventoryBarState parms, Vector2 position, int numfields, int flags = 0, double bgalpha = 1.)
+	void DrawReforgedItems(InventoryBarState parms, Vector2 position, Vector2 textPosition, int flags = 0, double bgalpha = 1.)
 	{
-		double width = parms.boxsize.X*0.8 * numfields;
-		[position, flags] = AdjustPosition(position, flags, width, parms.boxsize.Y);
+		double width = parms.boxsize.x*0.8 * 3;
+		[position, flags] = AdjustPosition(position, flags, width, parms.boxsize.y);
+		textPosition = AdjustPosition(textPosition, flags, width, parms.boxsize.y);
 		
 		// Player has no listed inventory items.
 		if (!CPlayer.mo.FirstInv())
@@ -436,8 +446,8 @@ class ReforgedStatusBar : BaseStatusBar
 		Vector2 boxsize = parms.boxsize;
 		boxsize.x *= 0.8;
 		
-		Vector2 itempos = position + boxsize / 2 + (0, 4);
-		Vector2 textpos = position + boxsize - (3, -1 + parms.amountfont.mFont.GetHeight());
+		Vector2 itempos = position + boxsize / 2;
+		Vector2 textpos = textPosition + (boxsize.x / 2, boxsize.y);
 		
 		int k;
 		for (let item = CPlayer.mo.InvFirst.NextInv(); item != CPlayer.mo.InvFirst; ++k)
@@ -450,7 +460,7 @@ class ReforgedStatusBar : BaseStatusBar
 
 		int i = k > 1 ? 0 : 1;
 		Inventory item;
-		for(item = CPlayer.mo.InvFirst; i < numfields; item = item.NextInv())
+		for(item = CPlayer.mo.InvFirst; i < 3; item = item.NextInv())
 		{
 			if (!item)
 			{
@@ -459,8 +469,8 @@ class ReforgedStatusBar : BaseStatusBar
 					break;
 			}
 			
-			DrawInventoryIcon(item, itempos + (boxsize.X * i, 0), flags | DI_ITEM_CENTER, scale: (0.7, 0.84));
-			DrawString(parms.amountfont, FormatNumber(item.Amount, 0, 5), textpos + (boxsize.X * i, 0), flags | DI_TEXT_ALIGN_RIGHT, parms.cr, parms.itemalpha);
+			DrawInventoryIcon(item, itempos + (boxsize.x * i, 0), flags | DI_ITEM_CENTER, scale: (0.7, 0.84));
+			DrawString(parms.amountfont, FormatNumber(item.Amount, 0, 5), textpos + (boxsize.x * i, 0), flags | DI_TEXT_ALIGN_RIGHT, parms.cr, parms.itemalpha);
 			i++;
 		}
 	}

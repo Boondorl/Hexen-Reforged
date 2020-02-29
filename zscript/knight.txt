@@ -11,7 +11,7 @@ class ReforgedKnight : RPGMonster
 		DeathHeight 39;
 		Damage 50;
 		Mass 150;
-		Speed 3;
+		Speed 3.5;
 		Painchance 100;
 		MeleeRange 64;
 		SeeSound "hknight/sight";

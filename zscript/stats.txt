@@ -297,6 +297,7 @@ class Dexterity : Stat
 {
 	private State prevState;
 	private double prevOffset;
+	private double modifier;
 	
 	private int ticsToRemove;
 	private double interval;
@@ -340,74 +341,87 @@ class Dexterity : Stat
 		
 		if (level > 1)
 		{
+			modifier = (level-1) / (100 / 5.);
+			 
 			let weap = owner.player.ReadyWeapon;
-			if (weap)
+			if (!weap)
+				return;
+			
+			let psp = owner.player.GetPSprite(PSP_WEAPON);
+			if (!psp || !psp.CurState)
+				return;
+			
+			State ready = weap.GetReadyState();
+			State raise = weap.GetUpState();
+			State lower = weap.GetDownState();
+			
+			bool inRaise = raise != ready && psp.CurState.InStateSequence(raise);
+			bool inLower = lower != ready && psp.CurState.InStateSequence(lower);
+			
+			if (inRaise || inLower)
 			{
-				let psp = owner.player.GetPSprite(PSP_WEAPON);
-				
-				if (psp && psp.CurState)
+				int diff = psp.y - prevOffset;
+				psp.y += diff*modifier;
+			}
+			else
+			{
+				bool inParry = psp.CurState.InStateSequence(weap.FindState("Parry"));
+				bool inBlock = psp.CurState.InStateSequence(weap.FindState("Reload"));
+						
+				if (inParry || inBlock)
 				{
-					State raising = weap.GetUpState();
-					State lowering = weap.GetDownState();
-					State ready = weap.GetReadyState();
-					double modifier = (level-1) / (100 / 5.);
-					
-					if (psp.CurState.InStateSequence(raising) || psp.CurState.InStateSequence(lowering))
-					{
-						int diff = psp.y - prevOffset;
-						psp.y += diff*modifier;
-					}
-					
-					bool inParry = psp.CurState.InStateSequence(weap.FindState("Parry"));
-					bool inBlock = psp.CurState.InStateSequence(weap.FindState("Reload"));
-					bool inReady = !(weap is "CastWeapon") && psp.CurState.InStateSequence(ready);
-					
-					if (inParry || inBlock)
-						ticsToRemove = 0;
-					
+					ticsToRemove = 0;
+					ticTimer = 0;
+					interval = 0;
+				}
+				else
+				{
+					bool inReady = weap.GetAtkState(false) != ready && psp.CurState.InStateSequence(ready);
 					int dist = 0;
-					if (!inReady && !inParry && !inBlock)
-					{
-						if (prevState && !prevState.InStateSequence(ready))
-							dist = prevState.DistanceTo(psp.CurState);
-						else
-							dist = 1;
-					}
-						
-					if (dist < 0 || (dist >= 1 && !psp.CurState.InStateSequence(prevState)))
-					{
-						ticTimer = 0;
-						interval = 0;
-							
-						int totalTics = 0;
-						State thisState = psp.CurState;
-						State lastState;
-						do
-						{
-							totalTics += thisState.tics;
+					if (!inReady && prevState)
+						dist = prevState.DistanceTo(psp.CurState);
 								
-							lastState = thisState;
-							thisState = thisState.NextState;
-						} while (thisState && lastState.DistanceTo(thisState) == 1);
-							
-						ticsToRemove = round(totalTics * modifier);
-						ticsToRemove = min(ticsToRemove, totalTics);
-						
-						totalTics -= ticsToRemove;
-						
-						if (totalTics <= 0 && ticsToRemove > 0)
-							interval = -1.;
-						else if (ticsToRemove > 0)
-							interval = totalTics*1. / ticsToRemove;
-					}
-						
-					prevState = psp.CurState;
-					prevOffset = psp.y;
-					
-					RemoveTics();
+					if (dist < 0 || (dist >= 1 && !psp.CurState.InStateSequence(prevState)))
+						CalculateTics(psp.CurState);
 				}
 			}
+						
+			prevState = psp.CurState;
+			prevOffset = psp.y;
+					
+			RemoveTics();
 		}
+	}
+	
+	private void CalculateTics(State current)
+	{
+		ticsToRemove = 0;
+		ticTimer = 0;
+		interval = 0;
+		
+		if (!current)
+			return;
+							
+		int totalTics = 0;
+		State thisState = current;
+		State lastState;
+		do
+		{
+			totalTics += thisState.tics;
+								
+			lastState = thisState;
+			thisState = thisState.NextState;
+		} while (thisState && lastState.DistanceTo(thisState) == 1);
+							
+		ticsToRemove = round(totalTics * modifier);
+		ticsToRemove = min(ticsToRemove, totalTics);
+						
+		totalTics -= ticsToRemove;
+						
+		if (totalTics <= 0 && ticsToRemove > 0)
+			interval = -1.;
+		else if (ticsToRemove > 0)
+			interval = totalTics*1. / ticsToRemove;
 	}
 	
 	private void RemoveTics()
@@ -416,6 +430,8 @@ class Dexterity : Stat
 		if (!psp || !psp.CurState)
 		{
 			ticsToRemove = 0;
+			ticTimer = 0;
+			interval = 0;
 			return;
 		}
 		
@@ -426,7 +442,11 @@ class Dexterity : Stat
 				interval = 1.;
 			
 			if (interval <= 0)
+			{
 				ticsToRemove = 0;
+				ticTimer = 0;
+				interval = 0;
+			}
 			else if (!(ticTimer++ % ceil(interval)))
 			{
 				int mod = 1;

@@ -13,7 +13,7 @@ class ReforgedFireDemon : RPGMonster replaces FireDemon
 		RPGMonster.FailBlockCoolDown 3;
 		Health 80;
 		PainChance 1;
-		Speed 3;
+		Speed 4;
 		Radius 20;
 		Height 68;
 		DeathHeight 34;

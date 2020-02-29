@@ -450,7 +450,7 @@ class RaiseDead : Skill
 				}
 				
 				bool gibbed = tracer.results.hitActor.health <= tracer.results.hitActor.GetGibHealth();
-				if (tracer.results.hitActor.A_RaiseSelf())
+				if (tracer.results.hitActor.A_RaiseSelf(RF_NOCHECKPOSITION))
 				{
 					TakeAmmo(10, type, reserveType);
 					
