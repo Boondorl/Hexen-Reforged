@@ -366,15 +366,27 @@ class RaiseDead : Skill
 	
 	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
 	{
+		if (damage <= 0)
+			return;
+		
 		if (passive)
 		{
-			if (source && damage > 0 && source.bIsMonster && !source.bFriendly)
+			if (source && source.bIsMonster && !owner.IsFriend(source))
 			{
 				for (uint i = 0; i < minions.Size(); ++i)
 				{
 					if (minions[i] && !minions[i].target)
 						minions[i].target = source;
 				}
+			}
+		}
+		else
+		{
+			// TODO: Find way to get thing player is attacking
+			for (uint i = 0; i < minions.Size(); ++i)
+			{
+				if (minions[i] && !minions[i].target)
+					minions[i].target = null;
 			}
 		}
 	}

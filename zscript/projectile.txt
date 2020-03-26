@@ -1,6 +1,5 @@
 class FasterProjectile : Actor
 {
-	const MIN_UNIT = 1/65536.;
 	Vector3 lastPos;
 	
 	// Taken directly from XYMovement function
@@ -501,7 +500,7 @@ class FasterProjectile : Actor
 	
 	private int PointOnLineSide(double x, double y, in Line ld)
 	{
-        return (y - ld.v1.p.y)*ld.delta.x + (ld.v1.p.x - x)*ld.delta.y > MIN_UNIT;
+        return (y - ld.v1.p.y)*ld.delta.x + (ld.v1.p.x - x)*ld.delta.y > double.epsilon;
     }
 }
 

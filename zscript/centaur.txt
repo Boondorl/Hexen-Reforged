@@ -33,7 +33,7 @@ class CentaurSwordBox : HurtBox
 }
 
 // Thank god
-class ReforgedCentaur : RPGMonster
+class ReforgedCentaur : RPGMonster replaces Centaur
 {
 	Default
 	{
@@ -178,6 +178,8 @@ class ReforgedCentaur : RPGMonster
 		CreateBox("CentaurHead");
 	}
 }
+
+class ReforgedCentaurLeader : ReforgedCentaur replaces CentaurLeader {}
 
 class CentaurBody : CollisionBox
 {

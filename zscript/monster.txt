@@ -1080,19 +1080,6 @@ class RPGMonster : Actor
 					}	
 				}
 				
-				if (source && source.player)
-				{
-					let res = RaiseDead(source.FindInventory("RaiseDead"));
-					if (res)
-					{
-						for (uint i = 0; i < res.minions.Size(); ++i)
-						{
-							if (res.minions[i] && !res.minions[i].target)
-								res.minions[i].target = self;
-						}
-					}
-				}
-				
 				// Always wake up when taking damage
 				if (SeeState && target && InStateSequence(CurState, SpawnState))
 				{

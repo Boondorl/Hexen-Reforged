@@ -17,7 +17,7 @@ class EttinBlock : BlockBox
 	}
 }
 
-class ReforgedEttin : RPGMonster
+class ReforgedEttin : RPGMonster replaces Ettin
 {
 	Default
 	{

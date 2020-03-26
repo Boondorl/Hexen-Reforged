@@ -39,19 +39,19 @@ class MinotaurTracer : LineTracer
 	}
 }
 
-class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
+class ReforgedMinotaur : RPGMonster replaces Minotaur
 {
 	Array<Actor> alreadyHit;
 	private int chargeDuration;
 	
 	Default
 	{
-		Health 2000;
+		Health 3000;
 		Radius 28;
 		Height 100;
 		Mass 800;
 		Speed 16;
-		Damage 20;
+		Damage 200;
 		Painchance 8;
 		MeleeRange 96;
 		SeeSound "minotaur/sight";
@@ -59,16 +59,11 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 		PainSound "minotaur/pain";
 		DeathSound "minotaur/death";
 		ActiveSound "minotaur/active";
-		DropItem "ArtiSuperHealth", 51;
-		DropItem "HellStaffHefty", 84, 175;
 		Obituary "$OB_MINOTAUR";
 		HitObituary "$OB_MINOTAURHIT";
 		Tag "$FN_MINOTAUR";
-		Species "Minotaur";
 		
-		+DROPOFF
 		+BOSS
-		+NORADIUSDMG
 		+DONTMORPH
 		+BOSSDEATH
 		+MISSILEMORE
@@ -77,7 +72,7 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 	States
 	{
 		Spawn:
-			MNTR AB 10 A_ReforgedLook;
+			MNTR AB 10 A_MonsterLook;
 			Loop;
 			
 		See:
@@ -85,8 +80,8 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 			Loop;
 			
 		Melee:
-			MNTR V 10 A_ReforgedFaceTarget;
-			MNTR W 7 A_ReforgedFaceTarget;
+			MNTR V 10 A_MonsterFaceTarget;
+			MNTR W 7 A_MonsterFaceTarget;
 			MNTR X 12 A_MinotaurAtk1;
 			Goto See;
 			
@@ -102,13 +97,13 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 			TNT1 A 0 {SetState(SeeState);}
 			
 		// Hammer
-			MNTR V 10 A_ReforgedFaceTarget;
-			MNTR W 7 A_ReforgedFaceTarget;
+			MNTR V 10 A_MonsterFaceTarget;
+			MNTR W 7 A_MonsterFaceTarget;
 			MNTR X 12 A_MinotaurAtk3;
 			TNT1 A 0 {SetState(SeeState);}
 			
 		// Charge
-			MNTR X 10 A_ReforgedFaceTarget;
+			MNTR X 10 A_MonsterFaceTarget;
 			MNTR U 2 A_MinotaurAtk4;
 			MNTR U 2 A_MinotaurCharge;
 			Goto Missile+15;
@@ -191,8 +186,8 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 				{
 					if (!victim.bGhost)
 					{
-						int newdam = victim.DamageMobj(self, self, damage, 'Melee');
-						victim.TraceBleedAngle(newdam > 0 ? newdam : damage, ang, 0.);
+						int newdam = victim.DamageMobj(self, self, 20, 'Pierce');
+						victim.TraceBleedAngle(newdam > 0 ? newdam : 20, ang, 0.);
 					}
 					
 					alreadyHit.Push(victim);
@@ -220,15 +215,12 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 		if (target && abs(target.pos.z - pos.z) > 48)
 			melee = null;
 		
-		A_ReforgedChase(melee, checkMelee: false, checkMissile: false);
+		A_MonsterChase(melee);
 	}
 
 	void A_MinotaurAtk1()
 	{
-		A_ReforgedFaceTarget();
-		if (CurState == SeeState)
-			return;
-		
+		A_MonsterFaceTarget();
 		A_PlaySound("minotaur/melee", CHAN_WEAPON);
 		FLineTraceData data;
 		LineTrace(angle, MeleeRange, 0, TRF_THRUACTORS, data: data);
@@ -248,7 +240,7 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 		A_PlaySound("minotaur/sight", CHAN_WEAPON);
 		double dist = target ? Distance2D(target) : 0;
 		
-		if (skill >= 4 && !CheckClear(true))
+		if (!CheckClear(true))
 		{
 			if (target
 				&& (target.pos.z+target.height) > pos.z && target.pos.z < (pos.z+height)
@@ -263,7 +255,7 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 			}
 			else
 			{
-				A_ReforgedFaceTarget();
+				A_MonsterFaceTarget();
 			}
 		}
 		else
@@ -281,7 +273,7 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 			}
 			else
 			{ // Swing attack
-				A_ReforgedFaceTarget();
+				A_MonsterFaceTarget();
 				// Don't need to call P_SetMobjState because the current state
 				// falls through to the swing attack
 			}
@@ -390,10 +382,14 @@ class ReforgedMinotaur : ReforgedHereticMonster replaces Minotaur
 	}
 }
 
-class MinotaurExplosion : Actor
+class MinotaurExplosion : RPGMissile
 {
 	Default
 	{
+		DamageType "Blunt";
+		RPGMissile.AilmentType "Stumble";
+		RPGMissile.AilmentPower 50;
+		
 		+NOINTERACTION
 		+FORCERADIUSDMG
 	}
