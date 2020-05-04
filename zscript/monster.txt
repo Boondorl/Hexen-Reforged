@@ -1,5 +1,7 @@
 class CollisionBox : Actor
 {
+	Vector3 oldPos;
+	
 	double length;
 	double forwardOffset;
 	double sideOffset;
@@ -26,35 +28,43 @@ class CollisionBox : Actor
 	{
 		CollisionBox.Multi 1;
 		
-		+NOINTERACTION
+		+NOBLOCKMAP
 	}
 	
 	override void Tick()
 	{
-		super.Tick();
-		
-		if (master)
+		if (!master)
 		{
-			if ((master.health <= 0 && !master.bIceCorpse) || !master.bShootable)
-				bDead = true;
-			else
+			Destroy();
+			return;
+		}
+		
+		if ((master.health <= 0 && !master.bIceCorpse) || !master.bShootable || master.bNonshootable)
+		{
+			bDead = true;
+			return;
+		}
+		
+		bDead = false;
+		
+		if (master.pos == oldPos)
+			return;
+				
+		Vector3 masterForward = (AngleToVector(master.angle), 0);
+		Vector3 masterRight = (AngleToVector(master.angle-90), 0);
+					
+		Vector3 offset = masterForward*forwardOffset + masterRight*sideOffset + (0,0,upOffset - master.floorclip);
+		SetXYZ(master.Vec3Offset(offset.x, offset.y, offset.z));
+		
+		if (bOriented)
+		{
+			forward = masterForward;
+			right = masterRight;
+		}
+			
+		// Note: This code is for debugging purposes only
+			if (!isFrozen())
 			{
-				bDead = false;
-				
-				Vector3 masterForward = (AngleToVector(master.angle), 0);
-				Vector3 masterRight = (AngleToVector(master.angle-90), 0);
-				
-				Vector3 offset = masterForward*forwardOffset + masterRight*sideOffset + (0,0,upOffset);
-				SetXYZ(master.pos + offset - (0,0,master.floorclip));
-				
-				if (bOriented)
-				{
-					forward = masterForward;
-					right = masterRight;
-				}
-				
-				if (!isFrozen())
-				{
 					if (bOriented)
 					{
 						Spawn("Marker", pos+forward*length+right*radius);
@@ -77,11 +87,10 @@ class CollisionBox : Actor
 						Spawn("Marker", pos-forward*radius+right*radius+(0,0,height));
 						Spawn("Marker", pos-forward*radius-right*radius+(0,0,height));
 					}
-				}
 			}
-		}
-		else
-			Destroy();
+		// End of debug code
+		
+		oldPos = master.pos;
 	}
 	
 	override void BeginPlay()
@@ -94,7 +103,6 @@ class CollisionBox : Actor
 	}
 }
 
-// TODO: Fix friendly checking
 // Used for checking line of sight before an enemy attacks
 class SightTracer : LineTracer
 {
@@ -102,6 +110,7 @@ class SightTracer : LineTracer
 	Actor target;
 	bool bMelee; // Blocked by no hitscan lines
 	bool bMissile; // Blocked by no projectile lines
+	bool bMonster; // Blocked by no monster lines
 	bool bThruObj; // Should we shoot through solid objects that aren't shootable?
 	bool bThruMonst; // Should we shoot through our allies?
 	
@@ -115,14 +124,13 @@ class SightTracer : LineTracer
 					blockFlags |= Line.ML_BLOCKHITSCAN;
 				else if (bMissile)
 					blockFlags |= Line.ML_BLOCKPROJECTILE;
-				else
-					blockFlags |= Line.ML_BLOCKMONSTERS; // Assume we're throwing ourselves at them
+				else if (bMonster)
+					blockFlags |= Line.ML_BLOCKMONSTERS;
 				
 				if (!(results.hitLine.flags & blockFlags) &&
 					(results.hitLine.flags & Line.ML_TWOSIDED) &&
 					results.tier == TIER_Middle)
 				{
-					results.hitLine = null;
 					results.hitType = TRACE_HitNone;
 					break;
 				}
@@ -134,14 +142,13 @@ class SightTracer : LineTracer
 			
 			case TRACE_HitActor:
 				if (results.hitActor != master &&
-					((target && results.hitActor == target) ||
+					(results.hitActor == target ||
 					(!bThruObj && !results.hitActor.bShootable && results.hitActor.bSolid) ||
-					(!bThruMonst && results.hitActor.bIsMonster && !results.hitActor.bFriendly)))
+					(!bThruMonst && results.hitActor.bIsMonster && (!master || !results.hitActor.IsFriend(master)))))
 				{
 					return TRACE_Stop;
 				}
 				results.hitType = TRACE_HitNone;
-				results.hitActor = null;
 				break;
 		}
 		
@@ -149,6 +156,7 @@ class SightTracer : LineTracer
 	}
 }
 
+// Used to check if there's room for an enemy to leap
 class LeapTracer : LineTracer
 {
 	Actor master;
@@ -163,7 +171,6 @@ class LeapTracer : LineTracer
 					(results.hitLine.flags & Line.ML_TWOSIDED) &&
 					results.tier == TIER_Middle)
 				{
-					results.hitLine = null;
 					results.hitType = TRACE_HitNone;
 					break;
 				}
@@ -177,7 +184,6 @@ class LeapTracer : LineTracer
 				if (results.hitActor != master && results.hitActor.bSolid)
 					return TRACE_Stop;
 				results.hitType = TRACE_HitNone;
-				results.hitActor = null;
 				break;
 		}
 		
@@ -185,6 +191,7 @@ class LeapTracer : LineTracer
 	}
 }
 
+// Used to find any destructible obstacles blocking the enemy's line of sight
 class ObstacleTracer : LineTracer
 {
 	Actor master;
@@ -199,7 +206,6 @@ class ObstacleTracer : LineTracer
 					(results.hitLine.flags & Line.ML_TWOSIDED) &&
 					results.tier == TIER_Middle)
 				{
-					results.hitLine = null;
 					results.hitType = TRACE_HitNone;
 					break;
 				}
@@ -213,7 +219,6 @@ class ObstacleTracer : LineTracer
 				if (results.hitActor != master && results.hitActor.bShootable && !(results.hitActor.bIsMonster || results.hitActor.player) && results.hitActor.FindState("Death"))
 					return TRACE_Stop;
 				results.hitType = TRACE_HitNone;
-				results.hitActor = null;
 				break;
 		}
 		
@@ -221,6 +226,7 @@ class ObstacleTracer : LineTracer
 	}
 }
 
+// Used to check if there's an obstacle to jump over
 class JumpCheckTracer : LineTracer
 {
 	Actor master;
@@ -235,7 +241,6 @@ class JumpCheckTracer : LineTracer
 					(results.hitLine.flags & Line.ML_TWOSIDED) &&
 					results.tier == TIER_Middle)
 				{
-					results.hitLine = null;
 					results.hitType = TRACE_HitNone;
 					break;
 				}
@@ -249,7 +254,6 @@ class JumpCheckTracer : LineTracer
 				if (results.hitActor != master && results.hitActor.bSolid && (!(results.hitActor.bIsMonster || results.hitActor.player) || results.hitActor.health > 0))
 					return TRACE_Stop;
 				results.hitType = TRACE_HitNone;
-				results.hitActor = null;
 				break;
 		}
 		
@@ -268,12 +272,12 @@ class RPGMonster : Actor
 		AR_AMUL = 16
 	};
 	
-	Actor prevTarget; // Used when hitting props
-	Actor lastHit;
+	private Actor realTarget; // Used when hitting props
+	Actor lastHit; // Last actor to hit this one
 	Array<CollisionBox> collisionBoxes;
 	Array<class<Ailment> > ailments;
 	class<BlockBox> shieldType;
-	BlockBox shield;
+	private BlockBox shield;
 	
 	double XP;
 	int armorType;
@@ -292,8 +296,8 @@ class RPGMonster : Actor
 	
 	int rageTimer;
 	int searchCoolDown;
-	State chaseState;
-	State wanderState;
+	private State chaseState; // Used for smooth chasing
+	private State wanderState; // Used for smooth wandering
 	
 	protected bool bBlocking;
 	protected bool bSawTarget;
@@ -303,9 +307,10 @@ class RPGMonster : Actor
 	bool bDontAttack;
 	bool bDontBlock;
 	bool bCancelled;
-	bool bCancelDelay;
-	bool bInLeap;
-	bool bStuck;
+	private bool bCancelDelay; // Make sure bCancelled is set for at least one tick
+	private bool bInLeap;
+	private bool bStuck; // Needs help leaving spawn (sometimes they're slightly in the wall)
+	private bool bJustCalled; // Chase/Wander was just called, so don't smooth move
 	
 	property XP : XP;
 	property ArmorType : armorType;
@@ -370,7 +375,7 @@ class RPGMonster : Actor
 		if (target && target.health <= 0)
 			target = null;
 		
-		if (!target && !bFriendly && GetAge() > delay)
+		if (!target && !bAmbush && !bFriendly && GetAge() > delay)
 		{
 			ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
 			Actor mo;
@@ -379,17 +384,17 @@ class RPGMonster : Actor
 				if (!mo || mo == self || !mo.bIsMonster || mo.health <= 0)
 					continue;
 				
-				if (mo.bFriendly && !mo.bShadow &&
+				if (IsHostile(mo) && !mo.bShadow &&
 					AbsAngle(angle, AngleTo(mo)) <= 90 && CheckSight(mo))
 				{
 					target = mo;
 					break;
 				}
 				
-				if (bAmbush || mo.bFriendly || !mo.target || mo.target.health <= 0)
+				if (!mo.target || mo.target.health <= 0)
 					continue;
 				
-				if ((mo.target.player || mo.target.bFriendly) && !mo.target.bShadow &&
+				if (!IsFriend(mo.target) && !mo.target.bShadow &&
 					AbsAngle(angle, AngleTo(mo)) <= 90 && CheckSight(mo))
 				{
 					target = mo.target;
@@ -399,18 +404,8 @@ class RPGMonster : Actor
 			
 			if (target)
 			{
-				if (InStateSequence(CurState, SpawnState))
-					SetState(SeeState);
-				else
-				{
-					let chase = FindState("Chase");
-					if (chase)
-						SetState(chase);
-					else
-						SetState(SeeState);
-				}
-				
-				A_PlaySound(SeeSound, CHAN_VOICE, 1, false, bBoss ? ATTN_NONE : ATTN_NORM);
+				SetState(SeeState);
+				A_StartSound(SeeSound, CHAN_VOICE, attenuation: bBoss ? ATTN_NONE : ATTN_NORM);
 			}
 		}
 		
@@ -430,25 +425,25 @@ class RPGMonster : Actor
 	bool CheckLeap(Vector3 dir, double distance)
 	{
 		let tracer = new("LeapTracer");
-		if (tracer)
-		{
-			double ang = VectorAngle(dir.x, dir.y);
-			double width = radius*1.42;
+		if (!tracer)
+			return false;
+		
+		double ang = VectorAngle(dir.x, dir.y);
+		double width = radius*1.42;
 			
-			tracer.master = self;
-			Vector3 start = pos + (0,0,jumpSpeed*6 + 4);
+		tracer.master = self;
+		Vector3 start = pos + (0,0,jumpSpeed*6 + 4);
+		tracer.Trace(start, CurSector, dir, distance, 0);
+		if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
+		{
+			start.xy = Vec2Angle(width, angle-90);
 			tracer.Trace(start, CurSector, dir, distance, 0);
 			if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
 			{
-				start.xy = Vec2Offset(width*cos(ang-90), width*sin(ang-90));
+				start.xy = Vec2Angle(width, angle+90);
 				tracer.Trace(start, CurSector, dir, distance, 0);
 				if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
-				{
-					start.xy = Vec2Offset(width*cos(ang+90), width*sin(ang+90));
-					tracer.Trace(start, CurSector, dir, distance, 0);
-					if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
-						return true;
-				}
+					return true;
 			}
 		}
 		
@@ -465,12 +460,6 @@ class RPGMonster : Actor
 		if (health <= 0)
 			return;
 		
-		if (isWandering)
-		{
-			chaseState = null;
-			wanderState = CurState;
-		}
-		
 		if (OnGround())
 		{
 			if (bStuck)
@@ -479,10 +468,17 @@ class RPGMonster : Actor
 			if (bInLeap)
 				vel.xy = (0,0);
 				
+			if (isWandering)
+			{
+				chaseState = null;
+				wanderState = CurState;
+			}
+			
 			bInLeap = false;
 			flags |= CHF_NODIRECTIONTURN;
 			A_Wander(flags);
 			idealAngle = movedir * 45;
+			bJustCalled = true;
 			
 			if (bStuck)
 			{
@@ -500,16 +496,13 @@ class RPGMonster : Actor
 		if (health <= 0)
 			return;
 		
-		chaseState = CurState;
-		wanderState = null;
-		
-		if (prevTarget)
+		if (realTarget)
 		{
-			target = prevTarget;
-			prevTarget = null;
+			target = realTarget;
+			realTarget = null;
 		}
 		
-		if (!bFriendly && target && target.health > 0 && target.bIsMonster && !target.bFriendly)
+		if (!bFriendly && target && target.health > 0 && target.bIsMonster && !IsFriend(target))
 		{
 			if (--rageTimer <= 0 && --searchCoolDown <= 0)
 			{
@@ -524,10 +517,11 @@ class RPGMonster : Actor
 			}
 		}
 		
-		if (target && target.health > 0 && target != self)
+		if (target && target.health > 0)
 		{
 			double ang = AngleTo(target);
 			
+			double grav = GetGravity();
 			let tracer = new("ObstacleTracer");
 			if (tracer)
 			{
@@ -535,29 +529,30 @@ class RPGMonster : Actor
 				Vector3 start = pos + (0,0,height/2-floorclip);
 				Vector3 dir = (AngleToVector(ang), 0);
 				tracer.Trace(start, CurSector, dir, radius*3, 0);
-				if (tracer.results.hitActor && tracer.results.hitActor != target)
+				if (tracer.results.hitType == TRACE_HitActor && tracer.results.hitActor != target)
 				{
-					double hitZ = tracer.results.hitActor.pos.z + tracer.results.hitActor.height - pos.z;
-					double secHeight = tracer.results.hitActor.ceilingZ - tracer.results.hitActor.pos.z + hitZ;
-					if (secHeight < height*1.25 || hitZ > (jumpSpeed*6 / GetGravity()) || !CheckLeap((AngleToVector(ang), 0), radius*2.5))
+					let mo = tracer.results.hitActor;
+					double hitZ = mo.pos.z + mo.height - pos.z;
+					double secHeight = mo.ceilingZ - mo.pos.z + hitZ;
+					if (!grav || secHeight < height*1.25 || hitZ > jumpSpeed*6 / grav || !CheckLeap(dir, radius*2.5))
 					{
-						prevTarget = target;
-						target = tracer.results.hitActor;
+						realTarget = target;
+						target = mo;
 					}
 				}
 			}
 			
-			if (!bDontAttack && melee && FindState(melee) && CheckMelee())
+			if (!bDontAttack && FindState(melee) && CheckMelee())
 			{
 				SetStateLabel(melee);
 				bJustAttacked = true;
 				return;
 			}
 			
-			if (prevTarget)
+			if (realTarget)
 			{
-				target = prevTarget;
-				prevTarget = null;
+				target = realTarget;
+				realTarget = null;
 			}
 			
 			if (OnGround())
@@ -569,7 +564,7 @@ class RPGMonster : Actor
 					vel.xy = (0,0);
 				
 				bInLeap = false;
-				if (!bStuck && !bFloat && !bNoGravity && bJumper && AbsAngle(idealAngle, ang) <= 45)
+				if (grav != 0 && !bStuck && !bFloat && !bNoGravity && bJumper && AbsAngle(idealAngle, ang) <= 45)
 				{
 					let tracer = new("JumpCheckTracer");
 					if (tracer)
@@ -578,14 +573,14 @@ class RPGMonster : Actor
 						Vector3 dir = (AngleToVector(ang), 0);
 						tracer.Trace(pos+(0,0,MaxStepHeight/2), CurSector, dir, radius*2.5, 0);
 						
-						if (tracer.results.hitLine && (tracer.results.hitLine.flags & Line.ML_TWOSIDED))
+						if (tracer.results.hitType == TRACE_HitWall && (tracer.results.hitLine.flags & Line.ML_TWOSIDED))
 						{
 							double secCeilZ = tracer.results.hitLine.sidedef[!tracer.results.side].sector.ceilingplane.ZAtPoint(tracer.results.hitPos.xy);
 							double secFloorZ = tracer.results.hitLine.sidedef[!tracer.results.side].sector.floorplane.ZAtPoint(tracer.results.hitPos.xy);
 							double secHeight = secCeilZ - secFloorZ;
 							double delta = secFloorZ - pos.z;
 								
-							if (secHeight >= height*1.25 && delta > MaxStepHeight && delta <= (jumpSpeed*6 / GetGravity()) && CheckLeap((AngleToVector(ang), 0), radius*2.5))
+							if (secHeight >= height*1.25 && delta > MaxStepHeight && delta <= jumpSpeed*6 / grav && CheckLeap(dir, radius*2.5))
 							{
 								vel.z += jumpSpeed;
 								idealAngle = ang;
@@ -593,11 +588,11 @@ class RPGMonster : Actor
 							}
 						}
 						
-						if (!bInLeap && tracer.results.hitActor && tracer.results.hitActor != target)
+						if (!bInLeap && tracer.results.hitType == TRACE_HitActor && tracer.results.hitActor != target)
 						{
 							double hitZ = tracer.results.hitActor.pos.z + tracer.results.hitActor.height - pos.z;
 							double secHeight = tracer.results.hitActor.ceilingZ - tracer.results.hitActor.pos.z + hitZ;
-							if (secHeight >= height*1.25 && hitZ <= (jumpSpeed*6 / GetGravity()) && CheckLeap((AngleToVector(ang), 0), radius*2.5))
+							if (secHeight >= height*1.25 && hitZ <= jumpSpeed*6 / grav && CheckLeap(dir, radius*2.5))
 							{
 								vel.z += jumpSpeed;
 								idealAngle = ang;
@@ -609,9 +604,13 @@ class RPGMonster : Actor
 				
 				if (!bInLeap)
 				{
+					chaseState = CurState;
+					wanderState = null;
+					
 					flags |= CHF_NODIRECTIONTURN;
 					A_Chase(null, null, flags);
 					idealAngle = movedir * 45;
+					bJustCalled = true;
 					
 					if (bStuck)
 					{
@@ -624,7 +623,7 @@ class RPGMonster : Actor
 			if (bInLeap)
 				VelFromAngle(speed, idealAngle);
 			
-			if (!bDontAttack && missile && FindState(missile) && CheckMissile())
+			if (!bDontAttack && FindState(missile) && CheckMissile())
 			{
 				SetStateLabel(missile);
 				if (target.bShadow && !bSawTarget)
@@ -645,7 +644,7 @@ class RPGMonster : Actor
 				Actor mo;
 				while (mo = Actor(it.Next()))
 				{
-					if (!mo || mo == self || !mo.bIsMonster || mo.bFriendly || mo.player || mo.health <= 0 ||
+					if (!mo || mo == self || !mo.bIsMonster || IsFriend(mo) || mo.player || mo.health <= 0 ||
 						mo.bShadow || mo.bInvulnerable)
 					{
 						continue;
@@ -841,7 +840,11 @@ class RPGMonster : Actor
 	
 	bool CheckMelee3D()
 	{
-		if (!target || Distance3DSquared(target) > (radius + meleeRange + target.radius)**2)
+		if (!target)
+			return false;
+		
+		double dist = radius + MeleeRange + target.radius;
+		if (Distance3DSquared(target) > dist*dist)
 			return false;
 		
 		return true;
@@ -849,7 +852,7 @@ class RPGMonster : Actor
 	
 	virtual bool CheckMissile()
 	{
-		if (target && missileCoolDown <= 0 && Distance3DSquared(target) <= random(0, MaxTargetRange**2))
+		if (target && missileCoolDown <= 0 && Distance3DSquared(target) <= random(0, MaxTargetRange*MaxTargetRange))
 		{
 			if (target.bShadow)
 				return true;
@@ -974,36 +977,69 @@ class RPGMonster : Actor
 					bJustAttacked = false;
 			}
 			
-			if (CurState && tics != CurState.tics && OnGround())
-			{
-				if (chaseState)
-				{
-					if (CurState == chaseState)
-					{
-						A_Chase(null, null, CHF_NODIRECTIONTURN|CHF_NORANDOMTURN|CHF_NOPLAYACTIVE);
-						idealAngle = movedir * 45;
-					}
-					else
-						chaseState = null;
-				}
-				else if (wanderState)
-				{
-					if (CurState == wanderState)
-					{
-						A_Wander(CHF_NODIRECTIONTURN|CHF_NORANDOMTURN);
-						idealAngle = movedir * 45;
-					}
-					else
-						wanderState = null;
-				}
-			}
+			SmoothWalk();
 		}
 		else
 		{
 			bInLeap = false;
 			bJustAttacked = false;
+			bJustCalled = false;
+			chaseState = null;
+			wanderState = null;
 			rageTimer = 0;
 			searchCoolDown = 0;
+		}
+	}
+	
+	void SmoothWalk()
+	{
+		if (bJustCalled)
+		{
+			bJustCalled = false;
+			return;
+		}
+		
+		if (!OnGround())
+			return;
+		
+		if (chaseState)
+		{
+			if (CurState == chaseState)
+			{
+				int prevMove = moveCount;
+				int prevReact = reactionTime;
+				int prevFast = fastChaseStrafeCount;
+				int prevStrafe = strafeCount;
+				
+				A_Chase(null, null, CHF_NODIRECTIONTURN|CHF_NORANDOMTURN|CHF_NOPLAYACTIVE);
+				idealAngle = movedir * 45;
+				
+				moveCount = prevMove;
+				reactionTime = prevReact;
+				fastChaseStrafeCount = prevFast;
+				strafeCount = prevStrafe;
+			}
+			else
+				chaseState = null;
+			
+			return;
+		}
+		
+		if (wanderState)
+		{
+			if (CurState == wanderState)
+			{
+				int prevMove = moveCount;
+				int prevReact = reactionTime;
+						
+				A_Wander(CHF_NODIRECTIONTURN|CHF_NORANDOMTURN);
+				idealAngle = movedir * 45;
+						
+				moveCount = prevMove;
+				reactionTime = prevReact;
+			}
+			else
+				wanderState = null;
 		}
 	}
 	
@@ -1029,6 +1065,7 @@ class RPGMonster : Actor
 	
 	override int DamageMobj(Actor inflictor, Actor source, int damage, Name mod, int flags, double angle)
 	{
+		// Special blast handling
 		if (source)
 		{
 			if (source.bBlasted && inflictor == source && mod == source.damageType)
@@ -1053,6 +1090,7 @@ class RPGMonster : Actor
 			
 		Vector3 prevVel = vel;
 		
+		// No infighting from blasting
 		Actor oldTarg = target;
 		int newdam = super.DamageMobj(inflictor, source, damage, mod, flags, angle);
 		if (target is GetClass() && !bDoHarmSpecies && !target.bDoHarmSpecies)
@@ -1072,21 +1110,21 @@ class RPGMonster : Actor
 						searchCoolDown = 0;
 					}
 					
-					if (source.target == self && source is 'RPGMonster')
+					let mo = RPGMonster(source);
+					if (source.target == self && mo)
 					{
-						let mo = RPGMonster(source);
 						mo.rageTimer = 90;
 						mo.searchCoolDown = 0;
 					}	
 				}
 				
 				// Always wake up when taking damage
-				if (SeeState && target && InStateSequence(CurState, SpawnState))
+				if (target && InStateSequence(CurState, SpawnState))
 				{
-					A_PlaySound(SeeSound, CHAN_VOICE, 1, false, bBoss ? ATTN_NONE : ATTN_NORM);   
+					A_StartSound(SeeSound, CHAN_VOICE, attenuation: bBoss ? ATTN_NONE : ATTN_NORM);   
 					SetState(SeeState);
 				}
-				else if (!(flags & (DMG_NOBLOCK|DMG_EXPLOSION)) && source && !source.IsFriend(self))
+				else if (!(flags & (DMG_NOBLOCK|DMG_EXPLOSION)) && source && IsHostile(source))
 					Block(inflictor, 180, true);
 			}
 			
@@ -1125,7 +1163,7 @@ class RPGMonster : Actor
 		idealAngle = angle;
 		
 		// Stuck in a wall or something
-		if (!TryMove(pos.xy, bDropOff))
+		if (!TestMobjLocation())
 			bStuck = true;
 	}
 }

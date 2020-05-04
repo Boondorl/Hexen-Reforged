@@ -78,6 +78,7 @@ class Marker : Actor
 		Scale 0.2;
 		
 		+NOINTERACTION
+		+NOBLOCKMAP
 		+FORCEXYBILLBOARD
 	}
 	
@@ -131,12 +132,11 @@ class BlockBox : Actor
 		+NORADIUSDMG
 		+NODAMAGETHRUST
 		+NEVERTARGET
+		+NOINTERACTION
 	}
 	
 	override void Tick()
 	{
-		super.Tick();
-		
 		if (bPlayerParry)
 		{
 			let rpgm = RPGMonster(master);
@@ -384,13 +384,12 @@ class HurtBox : Actor
 	Default
 	{
 		+NOINTERACTION
+		+NOBLOCKMAP
 		+NODAMAGETHRUST
 	}
 	
 	override void Tick()
 	{
-		super.Tick();
-		
 		if (!target || target.health <= 0 || durationTimer++ >= duration)
 		{
 			Destroy();

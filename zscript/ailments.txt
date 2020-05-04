@@ -42,12 +42,13 @@ class Ailment : Inventory abstract
 		Ailment.MaxStacks 5;
 		
 		+INVENTORY.UNDROPPABLE
+		+NOBLOCKMAP
 	}
+	
+	override void Tick() {}
 	
 	override void DoEffect()
 	{
-		super.DoEffect();
-		
 		if (!owner)
 			return;
 		

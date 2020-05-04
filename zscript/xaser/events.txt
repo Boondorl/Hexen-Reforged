@@ -12,7 +12,7 @@ class DamNumEventHandler : StaticEventHandler
 	 */
 	override void WorldThingDamaged(WorldEvent e)
 	{
-		if (dam_enabled && self.ShouldSpawn(e.Thing) && dam_spray && e.DamageType != 'Massacre')
+		if (hr_dam_enabled && self.ShouldSpawn(e.Thing) && hr_dam_spray && e.DamageType != 'Massacre')
 		{
 			Vector3 spawnPos = e.Thing.pos + (0, 0, e.Thing.height-16);
 			Name damageType = e.DamageType;
@@ -43,10 +43,10 @@ class DamNumEventHandler : StaticEventHandler
 
 	/*
 	 * Determine if we should spawn/track a particular thing. Basically
-	 * an easy abstraction for the dam_shootable parameter.
+	 * an easy abstraction for the hr_dam_shootable parameter.
 	 */
 	bool ShouldSpawn(Actor thing) {
-		return thing && (thing.bIsMonster || (dam_shootable && thing.bShootable));
+		return thing && (thing.bIsMonster || (hr_dam_shootable && thing.bShootable));
 	}
 }
 
@@ -57,6 +57,12 @@ class DamNumEventHandler : StaticEventHandler
 class DamNumTracker : Inventory
 {
 	int currentHealth;
+	
+	Default
+	{
+		+INVENTORY.UNDROPPABLE
+		+NOBLOCKMAP
+	}
 
 	/*
 	 * Create & set up Tracker for the specified actor.
@@ -94,7 +100,7 @@ class DamNumTracker : Inventory
 	override void Tick()
 	{
 		if (self.owner) {
-			if (dam_enabled && !dam_spray && self.owner.health != self.currentHealth) {
+			if (hr_dam_enabled && !hr_dam_spray && self.owner.health != self.currentHealth) {
 				self.SpawnNumbers();
 				self.currentHealth = self.owner.health;
 			}
@@ -103,7 +109,6 @@ class DamNumTracker : Inventory
 			// Thing_Remove'd or similar.
 			self.Destroy();
 		}
-		Super.Tick();
 	}
 
 	/*
@@ -122,7 +127,7 @@ class DamNumTracker : Inventory
 	 */
 	void SpawnNumbers()
 	{
-		if (dam_enabled && !dam_spray && self.owner && self.owner.DamageTypeReceived != 'Massacre')
+		if (hr_dam_enabled && !hr_dam_spray && self.owner && self.owner.DamageTypeReceived != 'Massacre')
 		{
 			Vector3 position = self.owner.pos + (0, 0, self.owner.height - 16);
 			int totalDamage = self.currentHealth - self.owner.health;

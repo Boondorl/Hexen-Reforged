@@ -11,6 +11,7 @@ class ArmorPieceManager : Inventory
 		ArmorPieceManager.PercentAC 3;
 		
 		+INVENTORY.UNDROPPABLE
+		+NOBLOCKMAP
 	}
 	
 	ui int GetCurrentAC()
@@ -54,10 +55,10 @@ class ArmorPieceManager : Inventory
 		return sp;
 	}
 	
+	override void Tick() {}
+	
 	override void DoEffect()
 	{
-		super.DoEffect();
-		
 		pieces.Clear();
 		
 		if (!owner)

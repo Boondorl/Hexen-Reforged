@@ -51,12 +51,13 @@ class Skill : Inventory abstract
 	Default
 	{
 		+INVENTORY.UNDROPPABLE
+		+NOBLOCKMAP
 	}
+	
+	override void Tick() {}
 	
 	override void DoEffect()
 	{
-		super.DoEffect();
-		
 		if (owner.health <= 0)
 		{
 			if (bCurToggle)
@@ -355,12 +356,13 @@ class BuffManager : Inventory
 	Default
 	{
 		+INVENTORY.UNDROPPABLE
+		+NOBLOCKMAP
 	}
+	
+	override void Tick() {}
 	
 	override void DoEffect()
 	{
-		super.DoEffect();
-		
 		buffs.Clear();
 		
 		if (!owner)
