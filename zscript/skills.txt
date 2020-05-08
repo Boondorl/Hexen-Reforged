@@ -47,6 +47,7 @@ class Skill : Inventory abstract
 	flagdef Toggle: skillFlags, 1;
 	flagdef AreaBuff: skillFlags, 2;
 	flagdef GlobalBuff: skillFlags, 3;
+	flagdef SpecialDrain: skillFlags, 4;
 	
 	Default
 	{
@@ -80,7 +81,7 @@ class Skill : Inventory abstract
 					coolDownTimer = coolDown;
 					let rpg = RPGPlayer(owner);
 					if (rpg)
-						coolDownTimer *= rpg.skillCoolDown;
+						coolDownTimer *= rpg.coolDownModifier;
 					
 					bInCoolDown = true;
 				}
@@ -100,20 +101,25 @@ class Skill : Inventory abstract
 			Effect();
 		}
 		
-		if (drain && drainType && bCurToggle)
+		if (drain && drainType)
 		{
-			if (drainTimer++ >= drainInterval)
+			if (bCurToggle)
 			{
-				if (!CheckAmmo(drain, drainType, reserveDrainType))
+				if (drainTimer++ >= drainInterval)
 				{
-					bCurToggle = false;
-					EndSkill();
+					if (!CheckAmmo(drain, drainType, reserveDrainType))
+					{
+						bCurToggle = false;
+						EndSkill();
+					}
+					else if (!bSpecialDrain)
+						TakeAmmo(drain, drainType, reserveDrainType);
+					
+					drainTimer = 0;
 				}
-				else
-					TakeAmmo(drain, drainType, reserveDrainType);
-				
-				drainTimer = 0;
 			}
+			else
+				drainTimer = 0;
 		}
 	}
 	
@@ -122,73 +128,64 @@ class Skill : Inventory abstract
 		if (pickup || owner.health <= 0)
 			return false;
 		
-		bool useSkill = true;
-		
 		if (bInCast)
 		{
 			Console.Printf("Currently casting this spell");
-			
-			useSkill = false;
+			return false;
 		}
 		else if (bInCoolDown)
 		{
 			Console.Printf("Spell on cool down");
-			
-			useSkill = false;
+			return false;
 		}
 		
-		if (useSkill && cast && owner.player.ReadyWeapon is "CastWeapon")
+		if (cast && owner.player.ReadyWeapon is "CastWeapon")
 		{
 			Console.Printf("Currently casting a spell");
-			
-			useSkill = false;
+			return false;
 		}
 		
-		if (useSkill && activeWeapon && (!owner.player.ReadyWeapon || owner.player.ReadyWeapon.GetClass() != activeWeapon))
+		if (activeWeapon && (!owner.player.ReadyWeapon || owner.player.ReadyWeapon.GetClass() != activeWeapon))
 		{
 			Console.Printf("You must have "..weaponName.." out to use this");
-			
-			useSkill = false;
+			return false;
 		}
 		
-		if (useSkill && !bCurToggle && !CheckAmmo(cost, type, reserveType))
+		if ((!bCurToggle && !CheckAmmo(cost, type, reserveType)) ||
+			(bToggle && bSpecialDrain && !CheckAmmo(drain, drainType, reserveDrainType)))
 		{
 			Console.Printf("You do not have enough resources to cast this");
-			
-			useSkill = false;
+			return false;
 		}
 		
-		if (useSkill)
+		if (!bCurToggle)
+			TakeAmmo(cost, type, reserveType);
+			
+		if (castTime > 0)
 		{
-			if (!bCurToggle)
-				TakeAmmo(cost, type, reserveType);
-			
-			if (castTime > 0)
-			{
-				castTimer = castTime;
-				bInCast = true;
-			}
-			else if (coolDown > 0)
-			{
-				coolDownTimer = coolDown;
-				let rpg = RPGPlayer(owner);
-				if (rpg)
-					coolDownTimer *= rpg.skillCoolDown;
-				
-				bInCoolDown = true;
-			}
-			
-			if (bToggle)
-				bCurToggle = !bCurToggle;
-			
-			if (cast)
-				SetWeapon(cast);
-			
-			if (!bToggle || bCurToggle)
-				UseSkill();
-			else
-				EndSkill();
+			castTimer = castTime;
+			bInCast = true;
 		}
+		else if (coolDown > 0)
+		{
+			coolDownTimer = coolDown;
+			let rpg = RPGPlayer(owner);
+			if (rpg)
+				coolDownTimer *= rpg.coolDownModifier;
+				
+			bInCoolDown = true;
+		}
+			
+		if (bToggle)
+			bCurToggle = !bCurToggle;
+			
+		if (cast)
+			SetWeapon(cast);
+			
+		if (!bToggle || bCurToggle)
+			UseSkill();
+		else
+			EndSkill();
 		
 		return false;
 	}
@@ -225,7 +222,7 @@ class Skill : Inventory abstract
 	
 	void TakeAmmo(int amt, class<Inventory> type1, class<Inventory> type2 = null)
 	{
-		if (sv_infiniteammo || owner.FindInventory("PowerInfiniteAmmo"))
+		if (amt <= 0 || sv_infiniteammo || owner.FindInventory("PowerInfiniteAmmo"))
 			return;
 		
 		bool useNormal, useReserve;
@@ -313,21 +310,6 @@ class Skill : Inventory abstract
 		}
 	}
 	
-	void FireMissile(class<Actor> missile, StateLabel sl = null, int flags = 0)
-	{
-		if (!missile)
-			return;
-			
-		let proj = Spawn(missile, owner.pos + (0,0,32), ALLOW_REPLACE);
-		if (proj)
-		{
-			owner.A_AlertMonsters();
-			proj.A_PlaySound(proj.SeeSound, CHAN_WEAPON);
-			proj.target = owner;
-			proj.vel = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch)) * proj.speed;
-		}
-	}
-	
 	void SetWeapon(class<CastWeapon> weap)
 	{
 		if (!weap)
@@ -407,19 +389,25 @@ class BuffManager : Inventory
 
 class Buff : Inventory abstract
 {
-	double range;
 	int duration;
 	int actionInterval;
 	int maxStacks;
 	int stacks;
+	double range;
+	int cost;
+	class<Inventory> type;
+	class<Inventory> reserveType;
 	
 	int durationTimer;
 	private int actionTimer;
 	
-	property Range : range;
 	property Duration : duration;
 	property ActionInterval : actionInterval;
 	property MaxStacks : maxStacks;
+	property Range : range;
+	property Cost : cost;
+	property Type : type;
+	property ReserveType : reserveType;
 	
 	deprecated("3.7") private int buffFlags;
 	flagdef NoEffect: buffFlags, 0;
@@ -431,20 +419,22 @@ class Buff : Inventory abstract
 	
 	Default
 	{
+		+NODAMAGETHRUST
 		+INVENTORY.UNDROPPABLE
+		+NOBLOCKMAP
 	}
+	
+	override void Tick() {}
 	
 	override void DoEffect()
 	{
-		super.DoEffect();
-		
 		if (owner.health <= 0)
 		{
 			Destroy();
 			return;
 		}
 		
-		if (!bNoEffect && actionTimer++ >= actionInterval)
+		if (!bNoEffect && ++actionTimer >= actionInterval)
 		{
 			actionTimer = 0;
 			Effect();
@@ -476,9 +466,43 @@ class Buff : Inventory abstract
 			++stacks;
 	}
 	
-	override void BeginPlay()
+	void TakeAmmo(int amt, class<Inventory> type1, class<Inventory> type2 = null)
 	{
-		super.BeginPlay();
+		if (amt <= 0 || sv_infiniteammo || owner.FindInventory("PowerInfiniteAmmo"))
+			return;
+		
+		bool useNormal, useReserve;
+		let ammo1 = owner.FindInventory(type1);
+		if (ammo1)
+		{
+			if (ammo1.amount < amt)
+				useReserve = true;
+			
+			if (ammo1.amount > 0)
+				useNormal = true;
+		}
+		
+		let ammo2 = owner.FindInventory(type2);
+		
+		if (useNormal || useReserve)
+		{
+			int realCost = amt;
+									
+			if (ammo1 && useNormal)
+			{
+				int take = min(ammo1.amount, amt);
+				realCost -= take;
+				ammo1.amount -= take;
+			}
+									
+			if (ammo2 && useReserve)
+				ammo2.amount -= realCost;
+		}
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
 		
 		stacks = 1;
 		if (maxStacks <= 0)

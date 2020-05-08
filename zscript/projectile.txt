@@ -257,16 +257,16 @@ class FasterProjectile : Actor
 			switch (special)
 			{
 				case 40: case 41: case 42: // Wind_East
-					Thrust(0., windTab[special-40]);
+					Thrust(windTab[special-40], 0);
 					break;
 				case 43: case 44: case 45: // Wind_North
-					Thrust(90., windTab[special-43]);
+					Thrust(windTab[special-43], 90);
 					break;
 				case 46: case 47: case 48: // Wind_South
-					Thrust(270., windTab[special-46]);
+					Thrust(windTab[special-46], 270);
 					break;
 				case 49: case 50: case 51: // Wind_West
-					Thrust(180., windTab[special-49]);
+					Thrust(windTab[special-49], 180);
 					break;
 			}
 		}
@@ -280,7 +280,7 @@ class FasterProjectile : Actor
 			if (tics > 0)
 				--tics;
 			
-			if (!tics)
+			if (!tics && CurState)
 				SetState(CurState.NextState);
 		}
 	}
@@ -500,7 +500,7 @@ class FasterProjectile : Actor
 	
 	private int PointOnLineSide(double x, double y, in Line ld)
 	{
-        return (y - ld.v1.p.y)*ld.delta.x + (ld.v1.p.x - x)*ld.delta.y > double.epsilon;
+        return (y - ld.v1.p.y)*ld.delta.x + (ld.v1.p.x - x)*ld.delta.y > (1/65536.);
     }
 }
 

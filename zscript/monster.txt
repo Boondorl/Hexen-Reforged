@@ -47,8 +47,9 @@ class CollisionBox : Actor
 		
 		bDead = false;
 		
-		if (master.pos == oldPos)
-			return;
+		// Uncomment this when no longer debugging with markers
+		//if (master.pos == oldPos)
+			//return;
 				
 		Vector3 masterForward = (AngleToVector(master.angle), 0);
 		Vector3 masterRight = (AngleToVector(master.angle-90), 0);
@@ -915,6 +916,15 @@ class RPGMonster : Actor
 			{
 				let melee = HurtBox(inflictor);
 				if (!melee.bFreezer)
+				{
+					DamageType = 'None';
+					mod = 'None';
+				}
+			}
+			else if (inflictor is "AreaOfEffect")
+			{
+				let aoe = AreaOfEffect(inflictor);
+				if (!aoe.bFreezer)
 				{
 					DamageType = 'None';
 					mod = 'None';

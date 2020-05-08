@@ -213,27 +213,25 @@ class Burn : Ailment
 	
 	override void Effect()
 	{
-		if (owner.InStateSequence(owner.CurState, owner.SeeState))
+		if (!owner.InStateSequence(owner.CurState, owner.SeeState))
+			return;
+		
+		let rpgm = RPGMonster(owner);
+			
+		if (owner.tics == 1)
 		{
-			let rpgm = RPGMonster(owner);
+			owner.speed = 0;
+			if (!rpgm)
+				owner.bJustAttacked = true;
+		}
+		else if (owner.tics == owner.CurState.tics)
+		{
+			owner.speed = owner.default.speed * 1.25;
+				
 			if (rpgm)
-			{
-				if (owner.tics == owner.CurState.tics)
-				{
-					owner.speed = owner.default.speed * 1.25;
-					rpgm.A_MonsterWander();
-				}
-			}
+				rpgm.A_MonsterWander();
 			else
-			{
-				if (owner.tics == 1)
-				{
-					owner.speed = owner.default.speed * 1.25;
-					owner.A_Wander();
-					owner.speed = 0;
-					owner.bJustAttacked = true;
-				}
-			}
+				owner.A_Wander();
 		}
 	}
 	
@@ -280,7 +278,9 @@ class Burn : Ailment
 	
 	override void DOTTick()
 	{
-		owner.DamageMobj(self, target, damage, damageType, DMG_NOBLOCK);
+		int newdam = owner.DamageMobj(self, target, damage, damageType, DMG_NOBLOCK);
+		if (newdam > 0 && owner.health > 0)
+			owner.A_StartSound(owner.HowlSound ? owner.HowlSound : owner.PainSound, CHAN_BODY);
 	}
 }
 

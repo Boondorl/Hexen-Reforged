@@ -49,6 +49,14 @@ class RPGWeapon : Weapon
 	
 	property BashCost : bashCost;
 	
+	Default
+	{
+		Weapon.BobStyle "InverseSmooth";
+		Weapon.BobSpeed 2;
+		Weapon.BobRangeX 0.33;
+		Weapon.BobRangeY 0.2;
+	}
+	
 	action void A_BashWeaponReady(int flags = 0)
 	{
 		flags |= WRF_ALLOWUSER1;
@@ -398,12 +406,14 @@ class AreaOfEffect : Actor
 	flagdef Grounded: areaOfEffectFlags, 2;
 	flagdef Spherical: areaOfEffectFlags, 3;
 	flagdef DamageOwner: areaOfEffectFlags, 4;
+	flagdef Freezer: areaOfEffectFlags, 5;
 	
 	Default
 	{
 		+NODAMAGETHRUST
 		+NOBLOCKMAP
 		+DROPOFF
+		+NOINTERACTION
 	}
 	
 	virtual void Effect() {}
@@ -414,7 +424,7 @@ class AreaOfEffect : Actor
 		
 		if (threshold > 0)
 		{
-			if (--threshold <= 0)
+			if (threshold-- <= 0)
 			{
 				State death = FindState("Death");
 				if (death)
@@ -476,13 +486,12 @@ class CoolDownToken : Inventory
 {
 	Default
 	{
+		+NOBLOCKMAP
 		+INVENTORY.UNDROPPABLE
 	}
 	
 	override void Tick()
 	{
-		super.Tick();
-		
 		if (threshold-- <= 0)
 			Destroy();
 	}

@@ -104,26 +104,35 @@ class ReforgedMage : RPGPlayer
 	
 	override void InitializeSkills()
 	{
-		SetSkill(0, "Desecrate", true);
-		SetSkill(1, "RaiseDead", true);
-		SetSkill(2, "KineticBlast", true);
+		AddSkill("Desecrate");
+		AddSkill("KineticBlast");
+		
+		AddSkill("LightningBulwark");
+		AddSkill("Elementalist");
+		AddSkill("Resurrect");
+		AddSkill("Haste");
+		AddSkill("IceNova");
+		AddSkill("Shadow");
+		AddSkill("Thunder");
 		
 		SetActiveSkill(0, "Desecrate");
-		SetActiveSkill(1, "RaiseDead");
-		SetActiveSkill(2, "KineticBlast");
+		SetActiveSkill(1, "KineticBlast");
+		SetActiveSkill(2, "LightningBulwark");
 	}
 	
 	override void InitializeStats()
 	{
 		super.InitializeStats();
 		
-		let wis = Stat(FindInventory("Wisdom"));
-		if (wis)
-			wis.LevelUp(2, true);
-		
-		let intel = Stat(FindInventory("Intelligence"));
-		if (intel)
-			intel.LevelUp(2, true);
+		for (uint i = 0; i < stats.Size(); ++i)
+		{
+			if (!stats[i])
+				continue;
+			
+			let cls = stats[i].GetClass();
+			if (cls == "Wisdom" || cls == "Intelligence")
+				stats[i].LevelUp(2, true);
+		}
 	}
 }
 
@@ -151,18 +160,55 @@ class UndeadTracer : LineTracer
 				break;
 			
 			case TRACE_HitActor:
-				if (results.hitActor != master && !results.hitActor.bFriendly &&
+				if (results.hitActor != master && !master.IsFriend(results.hitActor) &&
 					results.hitActor.bIsMonster && results.hitActor.health <= 0 &&
 					results.hitActor.tics == -1)
 				{
 					return TRACE_Stop;
 				}
 				results.hitType = TRACE_HitNone;
-				results.hitActor = null;
 				break;
 		}
 		
 		return TRACE_Skip;
+	}
+}
+
+class Desecrate : Skill
+{
+	Default
+	{
+		Skill.Type "GreenMana";
+		Skill.ReserveType "RedMana";
+		Inventory.Icon "PTN1A0";
+	}
+	
+	override void UseSkill()
+	{
+		if (!CheckAmmo(5, type, reserveType))
+		{
+			Console.Printf("You do not have enough resources to cast this");
+			return;
+		}
+				
+		let tracer = new("UndeadTracer");
+		if (tracer)
+		{
+			Vector3 start = (owner.pos.xy, owner.player.viewz);
+			Vector3 dir = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch));
+			tracer.master = owner;
+			tracer.Trace(start, CurSector, dir, 256, 0);
+			
+			if (tracer.results.hitType == TRACE_HitActor)
+			{
+				TakeAmmo(5, type, reserveType);
+				let mo = Spawn("ReforgedCrystalVial", tracer.results.hitActor.pos, ALLOW_REPLACE);
+				if (mo && !mo.bNoGravity)
+					mo.vel.z += 7;
+				
+				tracer.results.hitActor.Destroy();
+			}
+		}
 	}
 }
 
@@ -230,24 +276,25 @@ class BlastProjectile : RPGMissile
 			TNT1 A 1
 			{
 				Vector3 dir = (AngleToVector(angle, cos(pitch)), -sin(pitch));
-				double ang = -5;
+				double ang = 0;
 				
-				for (int i = 0; i < 5; ++i)
+				for (int i = 0; i < 12; ++i)
 				{
 					let blast = Spawn("SmallBlastProjectile", pos, ALLOW_REPLACE);
 					if (blast)
 					{
 						Vector3 newDir = RPGWeapon.GetNewDirection(self, dir, ang, absolute: true);
 						
+						blast.master = target;
 						blast.target = target;
-						blast.angle = VectorAngle(newDir.xy.x, newDir.xy.y);
-						blast.vel = newDir*blast.speed;
+						blast.angle = VectorAngle(newDir.x, newDir.y);
+						blast.vel = newDir*speed;
 						let rpg = RPGMissile(blast);
 						if (rpg)
 							rpg.alreadyHit.Copy(alreadyHit);
 					}
 					
-					ang += 2.5;
+					ang += 30;
 				}
 			}
 			Stop;
@@ -259,7 +306,7 @@ class SmallBlastProjectile : BlastProjectile
 	Default
 	{
 		Damage 20;
-		BounceCount 4;
+		BounceCount 2;
 		
 		+DONTBOUNCEONSHOOTABLES
 		-RPGMISSILE.SHIELDBUSTER
@@ -308,45 +355,117 @@ class KineticHands : CastWeapon
 	}
 }
 
-class Desecrate : Skill
+class LightningBulwark : Skill
 {
 	Default
 	{
-		Skill.Type "GreenMana";
-		Skill.ReserveType "RedMana";
-		Inventory.Icon "PTN1A0";
+		Skill.BuffType "LightningBulwarkBuff";
+		Inventory.Icon "SHEXB0";
+		Skill.Drain 4;
+		Skill.DrainType "GreenMana";
+		Skill.ReserveDrainType "RedMana";
+		
+		+SKILL.TOGGLE
+		+SKILL.SPECIALDRAIN
 	}
 	
 	override void UseSkill()
 	{
-		if (!CheckAmmo(5, type, reserveType))
-		{
-			Console.Printf("You do not have enough resources to cast this");
+		GiveBuff(owner);
+	}
+	
+	override void EndSkill()
+	{
+		TakeBuff();
+	}
+}
+
+class LightningBulwarkBuff : Buff
+{
+	Array<Actor> hitSources;
+	
+	Default
+	{
+		Inventory.Icon "SHEXB0";
+		Buff.Cost 4;
+		Buff.Type "GreenMana";
+		Buff.ReserveType "RedMana";
+		
+		+BUFF.INFINITE
+	}
+	
+	override void DoEffect()
+	{
+		hitSources.Clear();
+		
+		super.DoEffect();
+	}
+	
+	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
+	{
+		if (!passive || !source || hitSources.Find(source) != hitSources.Size())
 			return;
-		}
-				
-		let tracer = new("UndeadTracer");
-		if (tracer)
+		
+		if (inflictor == source || inflictor is "HurtBox")
 		{
-			Vector3 start = owner.pos + (0,0, owner.player.mo.viewheight - owner.floorclip);
-			Vector3 dir = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch));
-			tracer.master = owner;
-			tracer.Trace(start, CurSector, dir, 256, 0);
+			BlockThingsIterator it = BlockThingsIterator.Create(owner, 128);
+			Actor mo;
 			
-			if (tracer.results.hitActor)
+			while (it.Next())
 			{
-				TakeAmmo(5, type, reserveType);
-				let mo = Spawn("ReforgedCrystalVial", tracer.results.hitActor.pos, ALLOW_REPLACE);
-				if (mo && !mo.bNoGravity)
-					mo.vel.z += 7;
+				mo = it.thing;
+				if (!mo || mo == owner || mo.health <= 0 || !(mo.bIsMonster || mo.player) ||
+					owner.IsFriend(mo) || owner.Distance3DSquared(mo) > 16384)
+				{
+					continue;
+				}
 				
-				tracer.results.hitActor.Destroy();
+				let shk = Shock(mo.FindInventory("Shock"));
+				if (shk)
+					shk.AddAilment(owner, 100);
+				
+				mo.DamageMobj(self, owner, 30, "Electric", DMG_NOBLOCK);
 			}
+			
+			hitSources.Push(source);
+			
+			TakeAmmo(cost, type, reserveType);
 		}
 	}
 }
 
-class RaiseDead : Skill
+class Elementalist : Skill
+{
+	Default
+	{
+		Skill.BuffType "ElementalistBuff";
+		Inventory.Icon "DMFXA1";
+		
+		+SKILL.TOGGLE
+	}
+	
+	override void UseSkill()
+	{
+		GiveBuff(owner);
+	}
+	
+	override void EndSkill()
+	{
+		TakeBuff();
+	}
+}
+
+class ElementalistBuff : Buff
+{
+	Default
+	{
+		Inventory.Icon "DMFXA1";
+		
+		+BUFF.INFINITE
+	}
+}
+
+class Resurrect : Skill
 {
 	const MAX_MINIONS = 5;
 	
@@ -526,46 +645,145 @@ class RaiseDead : Skill
 	}
 }
 
-class IceExplosion : RPGMissile
+class Haste : Skill
+{
+	Default
+	{
+		Skill.BuffType "HasteBuff";
+		Skill.Drain 1;
+		Skill.DrainType "BlueMana";
+		Skill.ReserveDrainType "RedMana";
+		Inventory.Icon "MWNDC0";
+		
+		+SKILL.TOGGLE
+		+SKILL.SPECIALDRAIN
+	}
+	
+	override void UseSkill()
+	{
+		GiveBuff(owner);
+	}
+	
+	override void EndSkill()
+	{
+		TakeBuff();
+	}
+}
+
+class HasteBuff : Buff
+{
+	Default
+	{
+		Inventory.Icon "MWNDC0";
+		Buff.Cost 1;
+		Buff.Type "BlueMana";
+		Buff.ReserveType "RedMana";
+		
+		+BUFF.INFINITE
+	}
+	
+	override void MissileFired(Actor missile)
+	{
+		if (!missile || missile.target != owner || missile.master)
+			return;
+		
+		missile.speed *= 1.5;
+		missile.vel *= 1.5;
+		TakeAmmo(cost, type, reserveType);
+	}
+}
+
+class IceExplosion : AreaOfEffect
 {
 	Default
 	{
 		Radius 256;
+		Height 256;
 		Damage 200;
 		DamageType "Ice";
-		RPGMissile.AilmentPower 100;
-		RPGMissile.AilmentType "Chill";
+		AreaOfEffect.AilmentPower 100;
+		AreaOfEffect.AilmentType "Chill";
+		Threshold 1;
 		
-		+RPGMISSILE.FREEZER
-		+ICESHATTER
-	}
-	
-	States
-	{
-		Spawn:
-		Death:
-			TNT1 A 1 A_Explode(damage, radius, 0, false, radius, damagetype: damageType);
-			Stop;
+		+AREAOFEFFECT.SHATTERER
+		+AREAOFEFFECT.FREEZER
 	}
 }
 
-class IceBomb : Skill
+class IceNova : Skill
 {
 	Default
 	{
 		Skill.Cost 50;
 		Skill.Type "BlueMana";
+		Skill.ReserveType "RedMana";
 		Skill.CoolDown 1050;
 		Inventory.Icon "SHEXB0";
 	}
 	
 	override void UseSkill()
 	{
-		let missile = Spawn("IceExplosion", owner.pos, ALLOW_REPLACE);
-		if (missile)
+		let mo = Spawn("IceExplosion", owner.pos, ALLOW_REPLACE);
+		if (mo)
 		{
-			missile.target = owner;
-			missile.ExplodeMissile();
+			mo.target = owner;
+			mo.angle = owner.angle;
 		}
+	}
+}
+
+class Shadow : Skill
+{
+	Default
+	{
+		Skill.BuffType "ShadowBuff";
+		Skill.Cost 10;
+		Skill.Type "GreenMana";
+		Skill.ReserveType "GreenMana";
+		Skill.Drain 1;
+		Skill.DrainType "GreenMana";
+		Skill.ReserveDrainType "RedMana";
+		Skill.DrainInterval 9;
+		Inventory.Icon "SPIRA1";
+		
+		+SKILL.TOGGLE
+	}
+	
+	override void UseSkill()
+	{
+		GiveBuff(owner);
+	}
+	
+	override void EndSkill()
+	{
+		TakeBuff();
+		owner.A_SetRenderStyle(1, STYLE_Normal);
+		owner.bShadow = false;
+	}
+}
+
+class ShadowBuff : Buff
+{
+	Default
+	{
+		Inventory.Icon "SPIRA1";
+		
+		+BUFF.INFINITE
+	}
+	
+	override void Effect()
+	{
+		owner.bShadow = true;
+		owner.A_SetRenderStyle(0.2, STYLE_Translucent);
+	}
+}
+
+class Thunder : Skill
+{
+	Default
+	{
+		Skill.Cost 15;
+		Skill.Type "RedMana";
+		Inventory.Icon "MLFXI0";
 	}
 }

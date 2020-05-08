@@ -162,7 +162,8 @@ class LightningMissile : Actor
 		ActiveSound "MageLightningContinuous";
 		Obituary "$OB_MPMWEAPLIGHTNING";
 		
-		+NOINTERACTION
+		+NOBLOCKMAP
+		+MISSILE
 	}
 	
 	override void PostBeginPlay()
@@ -213,7 +214,8 @@ class LightningMissile : Actor
 	
 	override void Tick()
 	{
-		super.Tick();
+		if (isFrozen())
+			return;
 		
 		if (master)
 		{
@@ -295,8 +297,11 @@ class LightningHit : Inventory
 {
 	Default
 	{
+		+NOBLOCKMAP
 		+INVENTORY.UNDROPPABLE
 	}
+	
+	override void Tick() {}
 }
 
 class RLightningCeiling : Actor
@@ -487,7 +492,7 @@ class ShockNova : AreaOfEffect
 		DamageType "Electric";
 		AreaOfEffect.AilmentPower 50;
 		AreaOfEffect.AilmentType "Shock";
-		Threshold 2;
+		Threshold 1;
 		
 		+AREAOFEFFECT.SHATTERER
 	}

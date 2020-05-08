@@ -132,7 +132,6 @@ class BlockBox : Actor
 		+NORADIUSDMG
 		+NODAMAGETHRUST
 		+NEVERTARGET
-		+NOINTERACTION
 	}
 	
 	override void Tick()
@@ -188,7 +187,8 @@ class BlockBox : Actor
 			if (master.player)
 				modUp.z *= master.player.crouchFactor;
 			
-			Vector3 origin = master.pos + masterRight*sideOffset + modUp - (0,0,master.floorclip);
+			Vector3 origin = masterRight*sideOffset + modUp - (0,0,master.floorclip);
+			origin = master.Vec3Offset(origin.x, origin.y, origin.z);
 			let tracer = new("ShieldTracer");
 			if (tracer)
 			{
@@ -383,7 +383,6 @@ class HurtBox : Actor
 	
 	Default
 	{
-		+NOINTERACTION
 		+NOBLOCKMAP
 		+NODAMAGETHRUST
 	}

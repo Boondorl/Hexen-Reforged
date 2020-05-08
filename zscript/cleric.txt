@@ -104,7 +104,7 @@ class ReforgedCleric : RPGPlayer
 	
 	override void InitializeSkills()
 	{
-		SetSkill(0, "Heal", true);
+		AddSkill("Heal");
 		
 		SetActiveskill(0, "Heal");
 	}
@@ -113,21 +113,15 @@ class ReforgedCleric : RPGPlayer
 	{
 		super.InitializeStats();
 		
-		let agl = Stat(FindInventory("Agility"));
-		if (agl)
-			agl.LevelUp(1, true);
-		
-		let wis = Stat(FindInventory("Wisdom"));
-		if (wis)
-			wis.LevelUp(1, true);
-		
-		let dex = Stat(FindInventory("Dexterity"));
-		if (dex)
-			dex.LevelUp(1, true);
-		
-		let vit = Stat(FindInventory("Vitality"));
-		if (vit)
-			vit.LevelUp(1, true);
+		for (uint i = 0; i < stats.Size(); ++i)
+		{
+			if (!stats[i])
+				continue;
+			
+			let cls = stats[i].GetClass();
+			if (cls == "Agility" || cls == "Wisdom" || cls == "Dexterity" || cls == "Vitality")
+				stats[i].LevelUp(1, true);
+		}
 	}
 }
 
@@ -137,7 +131,7 @@ class Heal : Skill
 	{
 		Skill.Cost 7;
 		Skill.Type "GreenMana";
-		Skill.CastTime 89;
+		Skill.CastTime 70;
 		Skill.CoolDown 175;
 		Skill.BuffType "HealBuff";
 		Inventory.Icon "PTN1A0";
@@ -153,8 +147,8 @@ class HealBuff : Buff
 {
 	Default
 	{
-		Buff.Duration 89;
-		Buff.ActionInterval 8;
+		Buff.Duration 70;
+		Buff.ActionInterval 7;
 		Inventory.Icon "PTN1A0";
 	}
 	

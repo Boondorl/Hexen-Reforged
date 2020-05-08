@@ -153,7 +153,7 @@ class DamNum : Actor
 		}
 
 		// spawn in the damage number digits.
-		int dam = min(damage, DAMAGE_CAP);
+		int dam = abs(min(damage, DAMAGE_CAP));
 		int place = 1;
 		int length = log10(dam) + 1;
 		while(dam > 0) {

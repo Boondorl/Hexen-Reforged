@@ -117,10 +117,7 @@ class ReforgedFighter : RPGPlayer
 			for (uint i = 0; i < alreadyHit.Size(); ++i)
 			{
 				if (!CheckIntersection(alreadyHit[i]))
-				{
-					alreadyHit.Delete(i);
-					--i;
-				}
+					alreadyHit.Delete(i--);
 			}
 		}
 	}
@@ -151,9 +148,9 @@ class ReforgedFighter : RPGPlayer
 	
 	override void InitializeSkills()
 	{
-		SetSkill(0, "BloodLust", true);
-		SetSkill(1, "LightningAxe", true);
-		SetSkill(2, "Charge", true);
+		AddSkill("BloodLust");
+		AddSkill("LightningAxe");
+		AddSkill("Charge");
 		
 		SetActiveSkill(0, "BloodLust");
 		SetActiveSkill(1, "LightningAxe");
@@ -164,13 +161,15 @@ class ReforgedFighter : RPGPlayer
 	{
 		super.InitializeStats();
 		
-		let str = Stat(FindInventory("Strength"));
-		if (str)
-			str.LevelUp(2, true);
-		
-		let vit = Stat(FindInventory("Vitality"));
-		if (vit)
-			vit.LevelUp(2, true);
+		for (uint i = 0; i < stats.Size(); ++i)
+		{
+			if (!stats[i])
+				continue;
+			
+			let cls = stats[i].GetClass();
+			if (cls == "Strength" || cls == "Vitality")
+				stats[i].LevelUp(2, true);
+		}
 	}
 	
 	override bool Slam(Actor victim)
@@ -199,7 +198,7 @@ class BloodLust : Skill
 {
 	Default
 	{
-		Skill.BuffType "BLBuff";
+		Skill.BuffType "BloodlustBuff";
 		Inventory.Icon "PTN1A0";
 	}
 	
@@ -214,7 +213,7 @@ class BloodLust : Skill
 	}
 }
 
-class BLBuff : Buff
+class BloodlustBuff : Buff
 {
 	Default
 	{
@@ -231,7 +230,7 @@ class BLBuff : Buff
 		
 		if ((thing.bIsMonster || thing.player) &&
 			!owner.IsFriend(thing) &&
-			owner.Distance3DSquared(thing) <= range**2)
+			owner.Distance3DSquared(thing) <= range*range)
 		{
 			owner.GiveBody(owner.player.mo.maxHealth*0.04);
 		}

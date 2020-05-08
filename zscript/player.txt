@@ -1,8 +1,8 @@
 class RPGPlayer : PlayerPawn abstract
 {
-	Array<class<Stat> > stats;
-	Array<class<Skill> > skills;
-	Array<class<Skill> > activeSkills;
+	Array<Stat> stats;
+	Array<Skill> skills;
+	Array<Skill> activeSkills;
 	
 	int carryCapacity;
 	int maxLevel;
@@ -11,7 +11,7 @@ class RPGPlayer : PlayerPawn abstract
 	double currentXP;
 	double nextLevelXP;
 	int points;
-	double skillCoolDown;
+	double coolDownModifier;
 	double attackModifier;
 	
 	int currentCapacity;
@@ -28,7 +28,7 @@ class RPGPlayer : PlayerPawn abstract
 	property StartRequiredXP : nextLevelXP;
 	property StartPoints : points;
 	property StartXP : currentXP;
-	property SkillCoolDown : skillCoolDown;
+	property CoolDownModifier : coolDownModifier;
 	property AttackModifier : attackModifier;
 	
 	Default
@@ -38,7 +38,7 @@ class RPGPlayer : PlayerPawn abstract
 		Speed 0.85;
 		PainChance 256;
 		ReactionTime 0;
-		RPGPlayer.SkillCoolDown 1;
+		RPGPlayer.CoolDownModifier 1;
 		RPGPlayer.AttackModifier 1;
 		RPGPlayer.CarryCapacity 100;
 		RPGPlayer.MaxLevel 11;
@@ -65,7 +65,7 @@ class RPGPlayer : PlayerPawn abstract
 			LevelUp();
 		
 		currentCapacity = 0;
-		for (let probe = FirstInv(); probe != null; probe = probe.NextInv())
+		for (let probe = first; probe; probe = probe.NextInv())
 		{
 			let rpgi = RPGItem(probe);
 			if (rpgi)
@@ -75,183 +75,99 @@ class RPGPlayer : PlayerPawn abstract
 	
 	override void GiveDefaultInventory()
 	{
-		if (!player)
-			return;
-
-		// Now add the items from the DECORATE definition
-		let di = GetDropItems();
-
-		while (di)
-		{
-			Class<Actor> ti = di.Name;
-			if (ti)
-			{
-				let tinv = (class<Inventory>)(ti);
-				if (!tinv)
-				{
-					Console.Printf(TEXTCOLOR_ORANGE .. "%s is not an inventory item and cannot be given to a player as start item.\n", di.Name);
-				}
-				else
-				{
-					let item = FindInventory(tinv);
-					if (item)
-					{
-						item.Amount = clamp(
-							item.Amount + (di.Amount ? di.Amount : item.default.Amount), 0, item.MaxAmount);
-					}
-					else
-					{
-						item = Inventory(Spawn(ti));
-						item.bIgnoreSkill = true;	// no skill multipliers here
-						item.Amount = di.Amount;
-						let weap = Weapon(item);
-						if (weap)
-						{
-							// To allow better control any weapon is emptied of
-							// ammo before being given to the player.
-							weap.AmmoGive1 = weap.AmmoGive2 = 0;
-						}
-						bool res;
-						Actor check;
-						[res, check] = item.CallTryPickup(self);
-						if (!res)
-						{
-							item.Destroy();
-							item = NULL;
-						}
-						else if (check != self)
-						{
-							// Player was morphed. This is illegal at game start.
-							// This problem is only detectable when it's too late to do something about it...
-							ThrowAbortException("Cannot give morph item '%s' when starting a game!", di.Name);
-						}
-					}
-					let weap = Weapon(item);
-					if (weap && weap.CheckAmmo(Weapon.EitherFire, false))
-					{
-						player.ReadyWeapon = player.PendingWeapon = weap;
-					}
-				}
-			}
-			di = di.Next;
-		}
+		super.GiveDefaultInventory();
 		
 		for (uint i = 0; i < stats.Size(); ++i)
 		{
-			let st = Stat(FindInventory(stats[i]));
-			if (st)
-				st.GiveDefault();
+			if (stats[i])
+				stats[i].GiveDefault();
 		}
 	}
 	
-	void UseSkill(uint index)
+	void UseSkill(uint slot)
 	{
-		if (index >= skillSlots)
+		if (slot >= skillSlots)
 			return;
 		
-		if (!activeSkills[index])
-			Console.Printf("No skill");
+		if (!activeSkills[slot])
+			Console.Printf("No skill available");
 		else
-		{
-			let skill = FindInventory(activeSkills[index]);
-			if (skill)
-				skill.Use(false);
-		}
+			activeSkills[slot].Use(false);
 	}
 	
 	virtual void LevelUp()
 	{
-		if (currentXP >= nextLevelXP)
-			currentXP -= nextLevelXP;
+		currentXP -= nextLevelXP;
+		if (currentXP < 0)
+			currentXP = 0;
+		
+		nextLevelXP += default.nextLevelXP;
 		
 		++currentLevel;
-		nextLevelXP += default.nextLevelXP;
 		++points;
-			
-		switch (currentLevel)
-		{
-			case 2:
-				if (1 < skills.Size())
-					GiveInventoryType(skills[1]);
-				break;
-				
-			case 3:
-				if (2 < skills.Size())
-					GiveInventoryType(skills[2]);
-				break;
-				
-			case 5:
-				if (3 < skills.Size())
-					GiveInventoryType(skills[3]);
-				if (4 < skills.Size())
-					GiveInventoryType(skills[4]);
-				break;
-				
-			case 8:
-				if (5 < skills.Size())
-					GiveInventoryType(skills[5]);
-				if (6 < skills.Size())
-					GiveInventoryType(skills[6]);
-				break;
-				
-			case 11:
-				if (7 < skills.Size())
-					GiveInventoryType(skills[7]);
-				break;
-		}
 	}
 	
 	virtual void InitializeStats()
 	{
-		SetStat(0, 'Agility');
-		SetStat(1, 'Vitality');
-		SetStat(2, 'Wisdom');
-		SetStat(3, 'Intelligence');
-		SetStat(4, 'Strength');
-		SetStat(5, 'Dexterity');
+		AddStat('Agility');
+		AddStat('Vitality');
+		AddStat('Wisdom');
+		AddStat('Intelligence');
+		AddStat('Strength');
+		AddStat('Dexterity');
 	}
 	
 	virtual void InitializeSkills() {}
 	
-	protected void SetStat(uint index, class<Stat> stat)
+	protected void AddStat(class<Stat> stat)
 	{
-		stats.Insert(index, stat);
-		GiveInventoryType(stat);
-	}
-	
-	protected void SetSkill(uint index, class<Skill> skill, bool give = false)
-	{
-		skills.Insert(index, skill);
-		if (give)
-			GiveInventoryType(skill);
-	}
-	
-	protected void SetActiveSkill(uint index, class<Skill> skill = null)
-	{
-		if (index >= skillSlots)
+		if (!stat)
 			return;
 		
-		if (activeSkills[index])
+		let st = Stat(Spawn(stat));
+		if (st)
 		{
-			let curSkill = Skill(FindInventory(activeSkills[index]));
-			if (curSkill)
-			{
-				curSkill.OnUnequip();
-				curSkill.bCurToggle = false;
-				curSkill.EndSkill();
-				curSkill.bActive = false;
-			}
+			if (st.CallTryPickup(self))
+				stats.Push(st);
+			else
+				st.Destroy();
+		}
+	}
+	
+	protected void AddSkill(class<Skill> skill)
+	{
+		if (!skill)
+			return;
+		
+		let sk = Skill(Spawn(skill));
+		if (sk)
+		{
+			if (sk.CallTryPickup(self))
+				skills.Push(sk);
+			else
+				sk.Destroy();
+		}
+	}
+	
+	protected void SetActiveSkill(uint slot, class<Skill> skill = null)
+	{
+		if (slot >= skillSlots)
+			return;
+		
+		if (activeSkills[slot])
+		{
+			activeSkills[slot].bCurToggle = false;
+			activeSkills[slot].bActive = false;
+			activeSkills[slot].EndSkill();
+			activeSkills[slot].OnUnequip();
 		}
 		
-		activeSkills.Insert(index, skill);
-		if (skill)
+		let newSkill = Skill(FindInventory(skill));
+		activeSkills[slot] = newSkill;
+		if (newSkill)
 		{
-			let newSkill = Skill(FindInventory(skill));
-			if (newSkill)
-			{
-				newSkill.OnEquip();
-				newSkill.bActive = true;
-			}
+			newSkill.bActive = true;
+			newSkill.OnEquip();
 		}
 	}
 	
@@ -261,6 +177,7 @@ class RPGPlayer : PlayerPawn abstract
 		
 		GiveInventoryType("ArmorPieceManager");
 		GiveInventoryType("BuffManager");
+		
 		activeSkills.Resize(skillSlots);
 		InitializeStats();
 		InitializeSkills();
@@ -295,9 +212,7 @@ class RPGPlayer : PlayerPawn abstract
 		else if (name ~== "level")
 		{
 			for (int i = 0; i < amount; ++i)
-			{
 				LevelUp();
-			}
 			
 			return;
 		}
@@ -315,18 +230,15 @@ class RPGPlayer : PlayerPawn abstract
 		if (giveall)
 		{
 			for (int i = currentLevel; i < maxLevel; ++i)
-			{
 				LevelUp();
-			}
 			
 			points = 0;
 			currentXP = nextLevelXP;
 			
-			for (let probe = inv; probe != null; probe = probe.inv)
+			for (uint i = 0; i < stats.Size(); ++i)
 			{
-				let stat = Stat(probe);
-				if (stat)
-					stat.LevelUp(stat.maxLevel - stat.level);
+				if (stats[i])
+					stats[i].LevelUp(stats[i].maxLevel - stats[i].level);
 			}
 			
 			GiveBody(-100);

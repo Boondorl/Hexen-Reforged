@@ -12,7 +12,7 @@ class DamNumEventHandler : StaticEventHandler
 	 */
 	override void WorldThingDamaged(WorldEvent e)
 	{
-		if (hr_dam_enabled && self.ShouldSpawn(e.Thing) && hr_dam_spray && e.DamageType != 'Massacre')
+		if (hr_dam_enabled && (self.ShouldSpawn(e.Thing) || (e.thing && e.thing.player)) && hr_dam_spray && e.DamageType != 'Massacre' && e.DamageType != 'Telefrag')
 		{
 			Vector3 spawnPos = e.Thing.pos + (0, 0, e.Thing.height-16);
 			Name damageType = e.DamageType;
@@ -31,6 +31,12 @@ class DamNumEventHandler : StaticEventHandler
 		if (self.ShouldSpawn(e.Thing))
 		{
 			DamNumTracker.Create(e.thing);
+		}
+		else if (e.thing && e.thing.player)
+		{
+			let dam = e.thing.FindInventory("DamNumTracker");
+			if (!dam)
+				DamNumTracker.Create(e.thing);
 		}
 	}
 	override void WorldThingRevived(WorldEvent e)
@@ -100,7 +106,7 @@ class DamNumTracker : Inventory
 	override void Tick()
 	{
 		if (self.owner) {
-			if (hr_dam_enabled && !hr_dam_spray && self.owner.health != self.currentHealth) {
+			if (hr_dam_enabled && self.owner.health != self.currentHealth) {
 				self.SpawnNumbers();
 				self.currentHealth = self.owner.health;
 			}
@@ -127,15 +133,17 @@ class DamNumTracker : Inventory
 	 */
 	void SpawnNumbers()
 	{
-		if (hr_dam_enabled && !hr_dam_spray && self.owner && self.owner.DamageTypeReceived != 'Massacre')
+		if (hr_dam_enabled && self.owner && self.owner.DamageTypeReceived != 'Massacre' && self.owner.DamageTypeReceived != 'Telefrag')
 		{
 			Vector3 position = self.owner.pos + (0, 0, self.owner.height - 16);
 			int totalDamage = self.currentHealth - self.owner.health;
 
 			// don't show negative damge (healing) for now. May change later as a feature addition.
-			if(totalDamage > 0) {
+			if(totalDamage > 0 && !hr_dam_spray) {
 				DamNum.spawnDamageNumbers(position, totalDamage, self.owner.DamageTypeReceived);
 			}
+			else if (totalDamage < 0)
+				DamNum.spawnDamageNumbers(position, totalDamage, "Heal");
 		}
 	}
 }

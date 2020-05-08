@@ -142,9 +142,10 @@ class FrostShatter : RPGMissile
 			{
 				Vector3 newDir = RPGWeapon.GetNewDirection(self, dir, 4.5, 4.5);
 				
+				frost.master = target;
 				frost.target = target;
 				frost.angle = VectorAngle(newDir.xy.x, newDir.xy.y);
-				frost.vel = newDir*frost.speed;
+				frost.vel = newDir*(speed*3);
 				if (copyHit)
 				{
 					let rpg = RPGMissile(frost);
@@ -162,7 +163,7 @@ class FrostShard : RPGMissile
 	{
 		RPGMissile.AilmentPower 7;
 		RPGMissile.AilmentType "Chill";
-		Speed 128;
+		Speed 126;
 		Radius 2;
 		Height 4;
 		Scale 0.5;
@@ -198,13 +199,11 @@ class FrostCreeper : Actor
 		Damage 70;
 		DamageType "Ice";
 		
-		+NOINTERACTION
+		+NOBLOCKMAP
 	}
 	
 	override void Tick()
 	{
-		super.Tick();
-		
 		if (threshold++ >= 10)
 		{
 			Destroy();
@@ -284,9 +283,9 @@ class FrostPillar : Actor
 			Loop;
 	}
 	
-	override void BeginPlay()
+	override void PostBeginPlay()
 	{
-		super.BeginPlay();
+		super.PostBeginPlay();
 		
 		floorclip = 128;
 		A_SetTranslation('Ice');

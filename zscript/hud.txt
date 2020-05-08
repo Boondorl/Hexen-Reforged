@@ -126,8 +126,6 @@ class ReforgedStatusBar : BaseStatusBar
 			Chain = "CHAIN";
 		}
 		
-		// TODO: Keep centered for multi-monitor
-		
 		Vector2 orbSize = TexMan.GetScaledSize(orb);
 		orbSize.y *= 1.2;
 		orbSize *= 0.7;
@@ -351,7 +349,7 @@ class ReforgedStatusBar : BaseStatusBar
 			key = GetKeyForSpell("Spell3");
 			DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
 			
-			let skill3 = Skill(rpg.FindInventory(rpg.activeSkills[2]));
+			let skill3 = rpg.activeSkills[2];
 			if (skill3)
 				DrawSkill(skill3, xOfs, yOfs);
 			xOfs -= boxsize.x;
@@ -361,7 +359,7 @@ class ReforgedStatusBar : BaseStatusBar
 			key = GetKeyForSpell("Spell2");
 			DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
 			
-			let skill2 = Skill(rpg.FindInventory(rpg.activeSkills[1]));
+			let skill2 = rpg.activeSkills[1];
 			if (skill2)
 				DrawSkill(skill2, xOfs, yOfs);
 			xOfs -= boxsize.x;
@@ -371,7 +369,7 @@ class ReforgedStatusBar : BaseStatusBar
 			key = GetKeyForSpell("Spell1");
 			DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
 			
-			let skill1 = Skill(rpg.FindInventory(rpg.activeSkills[0]));
+			let skill1 = rpg.activeSkills[0];
 			if (skill1)
 				DrawSkill(skill1, xOfs, yOfs);
 		}
@@ -415,7 +413,7 @@ class ReforgedStatusBar : BaseStatusBar
 			return;
 		
 		double alpha = 1;
-		if (spell.bInCast || spell.bInCoolDown)
+		if (spell.bInCast || spell.bInCoolDown || spell.bCurToggle)
 			alpha = 0.5;
 				
 		DrawTexture(spell.icon, (xOfs, yOfs), DI_ITEM_CENTER, alpha, scale: (0.5, 0.6));

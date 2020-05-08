@@ -62,7 +62,7 @@ class Agility : Stat
 		if (rpg)
 		{
 			rpg.carryCapacity += 20*levels;
-			rpg.skillCoolDown -= 0.1*levels;
+			rpg.coolDownModifier -= 0.1*levels;
 		}
 	}
 	
