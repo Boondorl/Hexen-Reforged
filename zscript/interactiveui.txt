@@ -28,6 +28,7 @@ class MenuElement : Object ui
 	bool bRightClicked;
 	bool bSelected;
 	bool bHeld;
+	bool bHovering;
 	
 	protected int holdTimer;
 	protected uint deltatime;
@@ -151,6 +152,16 @@ class MenuElement : Object ui
 		return (temp dot temp);
 	}
 	
+	void Shift(Vector2 diff)
+	{
+		center += diff;
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			if (children[i])
+				children[i].Shift(diff);
+		}
+	}
+	
 	virtual void Initialize()
 	{
 		bCenter = true;
@@ -174,29 +185,17 @@ class MenuElement : Object ui
 	
 	virtual void OnSelected() {}
 	
-	virtual void OnLeftClick()
-	{
-		bLeftClicked = true;
-	}
+	virtual void OnLeftClick() {}
 	
-	virtual void OnRightClick()
-	{
-		bRightClicked = true;
-	}
+	virtual void OnRightClick() {}
 	
 	virtual void OnLeftHold() {}
 	
 	virtual void OnRightHold() {}
 	
-	virtual void OnLeftRelease()
-	{
-		bLeftClicked = false;
-	}
+	virtual void OnLeftRelease() {}
 	
-	virtual void OnRightRelease()
-	{
-		bRightClicked = false;
-	}
+	virtual void OnRightRelease() {}
 	
 	virtual void Tick()
 	{
@@ -210,8 +209,6 @@ class MenuElement : Object ui
 	
 	virtual void Execute(double fracTic)
 	{
-		touching = null;
-		
 		uint currentTime = MSTime();
 		if (!prevTime)
 			prevTime = currentTime;
@@ -221,6 +218,9 @@ class MenuElement : Object ui
 			deltaTime = 200;
 		
 		prevTime = currentTime;
+		
+		touching = null;
+		bHovering = false;
 		
 		int wOfs, hOfs, w, h;
 		[wOfs, hOfs, w, h] = Screen.GetViewWindow();
@@ -270,6 +270,7 @@ class MenuElement : Object ui
 			switch (handler.mouseAction)
 			{
 				case MI_LEFTPRESS:
+					bLeftClicked = true;
 					OnLeftClick();
 					break;
 						
@@ -279,9 +280,11 @@ class MenuElement : Object ui
 						
 				case MI_LEFTRELEASE:
 					OnLeftRelease();
+					bLeftClicked = false;
 					break;
 						
 				case MI_RIGHTPRESS:
+					bRightClicked = true;
 					OnRightClick();
 					break;
 						
@@ -291,13 +294,17 @@ class MenuElement : Object ui
 						
 				case MI_RIGHTRELEASE:
 					OnRightRelease();
+					bRightClicked = false;
 					break;
 			}
 				
 			if (bHeld)
 				OnHeld();
 			else
+			{
+				bHovering = true;
 				OnHover();
+			}
 		}
 		else
 		{
@@ -323,6 +330,76 @@ class MenuElement : Object ui
 			if (children[i])
 				children[i].Destroy();
 		}
+		
+		super.OnDestroy();
+	}
+}
+
+class TextBox : MenuElement
+{
+	String text;
+	double textScale;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
+		textScale = 1;
+		bNoCollision = true;
+		
+		if (center.x + size.x/2 > 1920)
+			center.x = 1920 - size.x/2;
+		else if (center.x - size.x/2 < 0)
+			center.x = size.x/2;
+		
+		handler.textBoxes.Push(self);
+	}
+	
+	override void Execute(double fracTic)
+	{
+		center.y -= size.y / 2;
+		
+		size.y = 0;
+		int fHeight = bigfont.GetHeight();
+		
+		int scaledFH = fHeight * textScale;
+		let lines = bigfont.BreakLines(text, size.x/textScale);
+		for (int i = 0; i < lines.Count(); ++i)
+			size.y += scaledFH;
+		
+		center.y += size.y / 2;
+		
+		if (center.y + size.y/2 > 1080)
+			center.y = 1080 - size.y/2;
+		else if (center.y - size.y/2 < 0)
+			center.y = size.y/2;
+		
+		super.Execute(fracTic);
+		
+		PreDraw();
+		
+		int hOfs;
+		for (uint i = 0; i < lines.Count(); ++i)
+		{
+			let line = lines.StringAt(i);
+			DrawText(bigfont, Font.CR_BLACK, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), line, (0,hOfs), textScale);
+			hOfs += fHeight;
+		}
+		
+		PostDraw();
+	}
+	
+	virtual void PreDraw() {}
+	
+	virtual void PostDraw()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void OnDestroy()
+	{
+		handler.textBoxes.Delete(handler.textBoxes.Find(self));
 		
 		super.OnDestroy();
 	}
@@ -390,6 +467,7 @@ class ItemCanvas : MenuElement
 				}
 			}
 			
+			child.Destroy();
 			children.Delete(i--);
 			if (--curItem >= 0)
 				pos.x -= offset.x;
@@ -436,6 +514,206 @@ class ItemCanvas : MenuElement
 		}
 		
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+}
+
+class ItemBox : MenuElement
+{
+	Inventory item;
+	TextBox text;
+	
+	bool bHighlighted;
+	
+	int leftClickTimer;
+	int rightClickTimer;
+	
+	void Swap(ItemBox other)
+	{
+		if (!other || self == other)
+			return;
+		
+		uint index = parent.children.Find(self);
+		uint otherIndex = parent.children.Find(other);
+		parent.children[otherIndex] = self;
+		parent.children[index] = other;
+		
+		Vector2 temp = other.center;
+		other.center = center;
+		center = temp;
+		
+		if (!item || !other.item)
+			return;
+		
+		string command = String.Format("swapitem:%s:%s", item.GetClassName(), other.item.GetClassName());
+		EventHandler.SendNetworkEvent(command);
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		bHighlighted = false;
+		if (item == players[consoleplayer].mo.InvSel)
+			bHighlighted = true;
+	}
+	
+	override void Clear()
+	{
+		super.Clear();
+		
+		leftClickTimer = 0;
+		rightClickTimer = 0;
+	}
+	
+	override void OnHeld()
+	{
+		scaledCenter = handler.mouse;
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	virtual void OnHighlighted()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void OnHover()
+	{
+		if (!bSelected && !bHighlighted)
+			Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		
+		if (item)
+		{
+			string title = item.GetTag();
+			int titleLength = bigfont.StringWidth(title);
+			int fHeight = bigfont.GetHeight();
+			
+			DrawText(bigfont, Font.CR_BLACK, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight));
+			
+			if (!text)
+				text = TextBox(MenuElement.Create("TextBox", handler, (center.x, center.y+size.y/2), (300,0)));
+			
+			let rpgi = RPGItem(item);
+			if (rpgi && text)
+				text.text = String.Format("Weight: %.1f\nTotal: %.1f\n\n%s", rpgi.weight/10., rpgi.weight*rpgi.amount/10., rpgi.description);
+		}
+		
+		if (!bLeftClicked && !bRightClicked)
+		{
+			if (handler.buttonAction == BI_USE)
+			{
+				string use = "use:"..item.GetClassName();
+				EventHandler.SendNetworkEvent(use);
+			}
+		}
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		if (!bHeld && !bSelected && bHighlighted)
+			OnHighlighted();
+		
+		if (item)
+		{
+			DrawTexture(item.icon, scaledCenter, (2,2));
+		
+			if (!bHeld)
+			{
+				int fHeight = bigfont.GetHeight();
+				string amount = String.Format("%d", item.amount);
+				int amtLength = bigfont.StringWidth(amount);
+				
+				DrawText(bigfont, Font.CR_BLACK, scaledCenter+(scaledSize.x/2, scaledSize.y/2), amount, (-amtLength, -fHeight));
+			}
+		}
+		
+		if (text && !bHovering)
+			text.Destroy();
+		
+		if (leftClickTimer > 0)
+			leftClickTimer -= deltatime;
+	}
+	
+	override void OnLeftClick()
+	{
+		if (leftClickTimer > 0)
+		{
+			string use = "use:"..item.GetClassName();
+			EventHandler.SendNetworkEvent(use);
+			leftClickTimer = 0;
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		if (item)
+		{
+			if (bHeld)
+			{
+				scaledCenter = handler.mouse;
+				handler.UpdateCollision(self);
+				let t = ItemBox(touching);
+				if (t && t.parent == parent)
+					Swap(t);
+				
+				bHeld = false;
+			}
+			else if (bLeftClicked)
+			{
+				players[consoleplayer].mo.InvSel = item;
+				if (leftClickTimer <= 0)
+					leftClickTimer = 250;
+			}
+		}
+		
+		holdTimer = 0;
+	}
+	
+	override void OnLeftHold()
+	{
+		if (bLeftClicked)
+		{
+			if (holdTimer < 250)
+				holdTimer += deltatime;
+			else
+				bHeld = true;
+		}
+	}
+	
+	override void OnRightHold()
+	{
+		if (bRightClicked)
+		{
+			if (rightClickTimer < 250)
+				rightClickTimer += deltatime;
+		}
+	}
+	
+	override void OnRightRelease()
+	{
+		if (item)
+		{
+			string drop = "drop:"..item.GetClassName();
+			
+			if (rightClickTimer >= 250)
+			{
+				for (int i = 0; i < item.amount; ++i)
+					EventHandler.SendNetworkEvent(drop);
+			}
+			else				
+				EventHandler.SendNetworkEvent(drop);
+		}
+		
+		rightClickTimer = 0;
+	}
+	
+	override void OnDestroy()
+	{
+		if (text)
+			text.Destroy();
+		
+		super.OnDestroy();
 	}
 }
 
@@ -501,6 +779,7 @@ class KeyItemCanvas : MenuElement
 				}
 			}
 			
+			child.Destroy();
 			children.Delete(i--);
 			if (--curItem >= 0)
 				pos.x -= offset.x;
@@ -541,219 +820,6 @@ class KeyItemCanvas : MenuElement
 		super.Execute(ticFrac);
 		
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
-	}
-}
-
-class ItemBox : MenuElement
-{
-	Inventory item;
-	TextBox text;
-	
-	bool bHovering;
-	bool bHighlighted;
-	
-	int leftClickTimer;
-	int rightClickTimer;
-	
-	void Swap(ItemBox other)
-	{
-		if (!other || self == other)
-			return;
-		
-		uint index = parent.children.Find(self);
-		uint otherIndex = parent.children.Find(other);
-		parent.children[otherIndex] = self;
-		parent.children[index] = other;
-		
-		Vector2 temp = other.center;
-		other.center = center;
-		center = temp;
-		
-		if (!item || !other.item)
-			return;
-		
-		string command = String.Format("swapitem:%s:%s", item.GetClassName(), other.item.GetClassName());
-		EventHandler.SendNetworkEvent(command);
-	}
-	
-	override void Tick()
-	{
-		super.Tick();
-		
-		bHighlighted = false;
-		if (item == players[consoleplayer].mo.InvSel)
-			bHighlighted = true;
-	}
-	
-	override void Clear()
-	{
-		super.Clear();
-		
-		leftClickTimer = 0;
-		rightClickTimer = 0;
-	}
-	
-	override void OnHeld()
-	{
-		scaledCenter = handler.mouse;
-		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
-	}
-	
-	virtual void OnHighlighted()
-	{
-		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
-	}
-	
-	override void OnHover()
-	{
-		bHovering = true;
-		
-		if (!bSelected && !bHighlighted)
-			Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
-		
-		if (item)
-		{
-			string title = item.GetTag();
-			int titleLength = bigfont.StringWidth(title);
-			int fHeight = bigfont.GetHeight();
-			
-			DrawText(bigfont, Font.CR_BLACK, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight));
-			
-			if (!text)
-			{
-				text = TextBox(MenuElement.Create("TextBox", handler, (center.x, center.y+size.y/2), (300,0)));
-				if (text)
-					handler.textBoxes.Push(text);
-			}
-			
-			let rpgi = RPGItem(item);
-			if (rpgi && text)
-				text.text = String.Format("Weight: %.1f\nTotal: %.1f\n\n%s", rpgi.weight/10., rpgi.weight*rpgi.amount/10., rpgi.description);
-		}
-		
-		if (!bLeftClicked && !bRightClicked)
-		{
-			if (handler.buttonAction == BI_USE)
-			{
-				string use = "use:"..item.GetClassName();
-				EventHandler.SendNetworkEvent(use);
-			}
-		}
-	}
-	
-	override void Execute(double fracTic)
-	{
-		bHovering = false;
-		
-		super.Execute(fracTic);
-		
-		if (!bHeld && !bSelected && bHighlighted)
-			OnHighlighted();
-		
-		if (item)
-		{
-			DrawTexture(item.icon, scaledCenter, (2,2));
-		
-			if (!bHeld)
-			{
-				int fHeight = bigfont.GetHeight();
-				string amount = String.Format("%d", item.amount);
-				int amtLength = bigfont.StringWidth(amount);
-				
-				DrawText(bigfont, Font.CR_BLACK, scaledCenter+(scaledSize.x/2, scaledSize.y/2), amount, (-amtLength, -fHeight));
-			}
-		}
-		
-		if (text && !bHovering)
-			text.Destroy();
-		
-		if (leftClickTimer > 0)
-			leftClickTimer -= deltatime;
-	}
-	
-	override void OnLeftClick()
-	{
-		super.OnLeftClick();
-		
-		if (leftClickTimer > 0)
-		{
-			string use = "use:"..item.GetClassName();
-			EventHandler.SendNetworkEvent(use);
-			leftClickTimer = 0;
-		}
-	}
-	
-	override void OnLeftRelease()
-	{
-		if (item)
-		{
-			if (bHeld)
-			{
-				scaledCenter = handler.mouse;
-				handler.UpdateCollision(self);
-				let t = ItemBox(touching);
-				if (t && t.parent == parent)
-					Swap(t);
-				
-				bHeld = false;
-			}
-			else if (bLeftClicked)
-			{
-				players[consoleplayer].mo.InvSel = item;
-				if (leftClickTimer <= 0)
-					leftClickTimer = 250;
-			}
-		}
-		
-		holdTimer = 0;
-		super.OnLeftRelease();
-	}
-	
-	override void OnLeftHold()
-	{
-		if (bLeftClicked)
-		{
-			if (holdTimer < 250)
-				holdTimer += deltatime;
-			else
-				bHeld = true;
-		}
-	}
-	
-	override void OnRightHold()
-	{
-		if (bRightClicked)
-		{
-			if (rightClickTimer < 250)
-				rightClickTimer += deltatime;
-		}
-	}
-	
-	override void OnRightRelease()
-	{
-		if (item)
-		{
-			string drop = "drop:"..item.GetClassName();
-			
-			if (rightClickTimer >= 250)
-			{
-				for (int i = 0; i < item.amount; ++i)
-					EventHandler.SendNetworkEvent(drop);
-			}
-			else				
-				EventHandler.SendNetworkEvent(drop);
-		}
-		
-		rightClickTimer = 0;
-		super.OnRightRelease();
-	}
-	
-	override void OnDestroy()
-	{
-		if (text)
-			text.Destroy();
-		
-		super.OnDestroy();
 	}
 }
 
@@ -835,7 +901,6 @@ class KeyItemBox : MenuElement
 		}
 		
 		holdTimer = 0;
-		super.OnLeftRelease();
 	}
 	
 	override void OnLeftHold()
@@ -864,7 +929,6 @@ class ArmorBox : MenuElement
 	TextBox text;
 	Inventory armor;
 	int type;
-	bool bHovering;
 	
 	override void Initialize()
 	{
@@ -913,8 +977,6 @@ class ArmorBox : MenuElement
 	
 	override void Execute(double fracTic)
 	{
-		bHovering = false;
-		
 		super.Execute(fracTic);
 		
 		if (armor)
@@ -932,17 +994,11 @@ class ArmorBox : MenuElement
 	
 	override void OnHover()
 	{
-		bHovering = true;
-		
 		if (!armor)
 			return;
 		
 		if (!text)
-		{
 			text = TextBox(MenuElement.Create("TextBox", handler, (center.x, center.y+size.y/2), (500,0)));
-			if (text)
-				handler.textBoxes.Push(text);
-		}
 		
 		if (text)
 		{
@@ -981,58 +1037,324 @@ class ArmorBox : MenuElement
 	}
 }
 
-class TextBox : MenuElement
+class StatCanvas : MenuElement
 {
-	String text;
+	MenuElement button;
+	double hOffset;
+	Vector2 pos;
 	
 	override void Initialize()
 	{
 		super.Initialize();
 		
-		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
+		hOffset = 125;
+		pos = (center.x, center.y - size.y/2 + hOffset/2);
 		bNoCollision = true;
+		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
+		backgroundAlpha = 0.6;
+	}
+	
+	uint Find(Stat st)
+	{
+		uint i;
+		for (; i < children.Size(); ++i)
+		{
+			let child = StatBox(children[i]);
+			if (!child)
+				continue;
+			
+			if (child.st == st)
+				return i;
+		}
 		
-		if (center.x + size.x/2 > 1920)
-			center.x = 1920 - size.x/2;
-		else if (center.x - size.x/2 < 0)
-			center.x = size.x/2;
+		return i;
+	}
+	
+	override void Tick()
+	{
+		// Remove stats no longer present
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			let child = StatBox(children[i]);
+			if (!child || handler.stats.Find(child.st) != handler.stats.Size())
+				continue;
+			
+			for (uint j = children.Size() - 1; j > i; --j)
+			{
+				let sb = StatBox(children[j]);
+				if (!sb)
+					continue;
+					
+				for (; j > i; --j)
+				{
+					let prevsb = StatBox(children[j-1]);
+					if (prevsb)
+					{
+						sb.Shift(sb.center - prevsb.center);
+						break;
+					}
+				}
+			}
+			
+			child.Destroy();
+			children.Delete(i--);
+			if (children.Size())
+				pos.y -= hOffset;
+		}
+		
+		// Add new stats
+		for (uint i = 0; i < handler.stats.Size(); ++i)
+		{
+			if (Find(handler.stats[i]) != children.Size())
+				continue;
+			
+			let sb = StatBox(MenuElement.Create("StatBox", handler, pos, (size.x,hOffset), self));
+			if (sb)
+			{
+				sb.st = handler.stats[i];
+				sb.st.currentLevel = sb.st.level;
+				sb.st.currentCost = 0;
+				if (sb.description)
+					sb.description.text = sb.st.description;
+				
+				pos.y += hOffset;
+			}
+		}
+		
+		super.Tick();
 	}
 	
 	override void Execute(double fracTic)
 	{
-		center.y -= size.y / 2;
-		
-		size.y = 0;
-		
-		int fHeight = bigfont.GetHeight();
-		let lines = bigfont.BreakLines(text, size.x);
-		for (int i = 0; i < lines.Count(); ++i)
-			size.y += fHeight;
-		
-		center.y += size.y / 2;
-		
-		if (center.y + size.y/2 > 1080)
-			center.y = 1080 - size.y/2;
-		else if (center.y - size.y/2 < 0)
-			center.y = size.y/2;
-		
 		super.Execute(fracTic);
 		
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
 		
-		int hOfs;
-		for (uint i = 0; i < lines.Count(); ++i)
+		if (handler.totalCost > 0)
 		{
-			let line = lines.StringAt(i);
-			DrawText(bigfont, Font.CR_BLACK, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), line, (0,hOfs));
-			hOfs += fHeight;
+			int fHeight = bigfont.GetHeight();
+			String text = String.Format("XP Required: %d", handler.totalCost);
+			int length = bigfont.StringWidth(text);
+			DrawText(bigfont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y-scaledSize.y/2), text, (-length/2, -fHeight), 2);
+		}
+		
+		if (handler.player &&
+			(handler.player.currentPoints != handler.player.points || handler.totalCost > 0))
+		{
+			if (!button)
+				button = MenuElement.Create("ConfirmButton", handler, (center.x, center.y+size.y/2+100), (200,100), self);
+		}
+		else if (button)
+			button.Destroy();
+	}
+	
+	override void OnDestroy()
+	{
+		if (button)
+			button.Destroy();
+		
+		super.OnDestroy();
+	}
+}
+
+class StatBox : MenuElement
+{
+	Stat st;
+	StatTextBox description;
+	StatTextBox bonus;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+		MenuElement.Create("StatIncrementer", handler, (center.x-size.x/2 + 50, center.y), (100,100), self);
+		MenuElement.Create("LevelDisplay", handler, (center.x-size.x/2 + 150, center.y), (100,100), self);
+		MenuElement.Create("StatDecrementer", handler, (center.x-size.x/2 + 250, center.y), (100,100), self);
+		description = StatTextBox(MenuElement.Create("StatTextBox", handler, (center.x-size.x/2 + 650, center.y), (600, 100)));
+		bonus = StatTextBox(MenuElement.Create("StatTextBox", handler, (center.x-size.x/2 + 1100, center.y), (300, 100)));
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		if (st && bonus)
+		{
+			
 		}
 	}
 	
 	override void OnDestroy()
 	{
-		handler.textBoxes.Delete(handler.textBoxes.Find(self));
+		if (description)
+			description.Destroy();
+		
+		if (bonus)
+			bonus.Destroy();
 		
 		super.OnDestroy();
+	}
+}
+
+class StatIncrementer : MenuElement
+{
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+	}
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		let st = StatBox(parent).st;
+		if (!st)
+			return;
+		
+		DrawText(bigfont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y), "Y", scale: 3);
+	}
+	
+	override void OnLeftRelease()
+	{
+		let st = StatBox(parent).st;
+		if (!st || !handler.player)
+			return;
+		
+		if (st.currentLevel < st.maxLevel && handler.player.currentPoints > 0)
+		{
+			++st.currentLevel;
+			--handler.player.currentPoints;
+			if (st.currentLevel <= st.level)
+				st.currentCost -= st.cost;
+		}
+	}
+}
+
+class StatDecrementer : MenuElement
+{
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+	}
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		let st = StatBox(parent).st;
+		if (!st)
+			return;
+		
+		DrawText(bigfont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y), "-", scale: 3);
+	}
+	
+	override void OnLeftRelease()
+	{
+		let st = StatBox(parent).st;
+		if (!st || !handler.player)
+			return;
+		
+		if (st.currentLevel > st.minLevel)
+		{
+			--st.currentLevel;
+			++handler.player.currentPoints;
+			if (st.currentLevel < st.level)
+				st.currentCost += st.cost;
+		}
+	}
+}
+
+class LevelDisplay : MenuElement
+{
+	ui int oldLevel;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+	}
+	
+	override void Tick()
+	{
+		let st = StatBox(parent).st;
+		if (st)
+		{
+			if (oldLevel != st.level)
+				st.currentLevel = st.level;
+			
+			oldLevel = st.level;
+		}
+		
+		super.Tick();
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		let st = StatBox(parent).st;
+		if (!st)
+			return;
+		
+		int col = Font.CR_BLACK;
+		if (st.currentLevel < st.level)
+			col = Font.CR_RED;
+		else if (st.currentLevel > st.level)
+			col = Font.CR_GREEN;
+		
+		DrawText(bigfont, col, (scaledCenter.x, scaledCenter.y), String.Format("%d", st.currentLevel), scale: 3);
+	}
+}
+
+class StatTextBox : TextBox
+{
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		background.SetInvalid();
+		textScale = 1.5;
+	}
+	
+	override void PostDraw() {}
+}
+
+class ConfirmButton : MenuElement
+{
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		int fHeight = bigfont.GetHeight();
+		String con = "Confirm";
+		int length = bigfont.StringWidth(con);
+		
+		DrawText(bigfont, Font.CR_BLACK, scaledCenter, con, (-length/2, -fHeight/2), 2);
+	}
+	
+	override void OnLeftRelease()
+	{
+		handler.LevelPlayer();
 	}
 }

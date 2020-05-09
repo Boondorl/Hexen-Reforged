@@ -1,5 +1,8 @@
 class Stat : Inventory abstract
 {
+	ui int currentLevel;
+	ui int currentCost;
+	
 	int level;
 	int maxLevel;
 	string description;
@@ -12,11 +15,6 @@ class Stat : Inventory abstract
 	property Description : description;
 	property Cost : cost;
 	
-	ui int tempLevel;
-	ui int tempCost;
-	int displayLevel;
-	string currentBonus;
-	
 	Default
 	{
 		Stat.MinLevel 1;
@@ -25,24 +23,19 @@ class Stat : Inventory abstract
 		Stat.Cost 1000;
 		
 		+INVENTORY.UNDROPPABLE
+		+NOBLOCKMAP
 	}
+	
+	override void Tick() {}
 	
 	virtual void LevelUp(int levels, bool start = false)
 	{
 		level += levels;
-		displayLevel = level;
 		if (start)
 			minLevel += levels;
 	}
 	
 	virtual void GiveDefault() {}
-	
-	override void BeginPlay()
-	{
-		super.BeginPlay();
-		
-		displayLevel = level;
-	}
 }
 
 class Agility : Stat
@@ -50,7 +43,7 @@ class Agility : Stat
 	Default
 	{
 		Tag "Agility";
-		Stat.Description "Increases movement speed, carrying capacity,\nand reduces skill cool downs";
+		Stat.Description "Increases movement speed, carrying capacity, and reduces skill cool downs";
 	}
 	
 	override void LevelUp(int levels, bool start)
@@ -64,16 +57,6 @@ class Agility : Stat
 			rpg.carryCapacity += 20*levels;
 			rpg.coolDownModifier -= 0.1*levels;
 		}
-	}
-	
-	override void DoEffect()
-	{
-		super.DoEffect();
-		
-		if (displayLevel > 1)
-			currentBonus = String.Format("+%d%% move speed, +%d carry capacity, -%d%% skill cool down", 5*(displayLevel-1), 2*(displayLevel-1), 10*(displayLevel-1));
-		else
-			currentBonus = "";
 	}
 }
 
@@ -101,16 +84,6 @@ class Vitality : Stat
 				owner.player.health = owner.player.mo.health;
 			}
 		}
-	}
-	
-	override void DoEffect()
-	{
-		super.DoEffect();
-		
-		if (displayLevel > 1)
-			currentBonus = String.Format("+%d max health", 30*(displayLevel-1));
-		else
-			currentBonus = "";
 	}
 }
 
@@ -195,16 +168,6 @@ class Wisdom : Stat
 			rmana.BackpackMaxAmount += 30*(level-1);
 		}
 	}
-	
-	override void DoEffect()
-	{
-		super.DoEffect();
-		
-		if (displayLevel > 1)
-			currentBonus = String.Format("+%d maximum mana", 30*(displayLevel-1));
-		else
-			currentBonus = "";
-	}
 }
 
 class Intelligence : Stat
@@ -214,17 +177,7 @@ class Intelligence : Stat
 	Default
 	{
 		Tag "Intelligence";
-		Stat.Description "Shows mastery in the arcane by increasing\nmagic damage";
-	}
-	
-	override void DoEffect()
-	{
-		super.DoEffect();
-		
-		if (displayLevel > 1)
-			currentBonus = String.Format("+%d%% magic damage (fire, ice, lightning, poison)", 10*(displayLevel-1));
-		else
-			currentBonus = "";
+		Stat.Description "Shows mastery in the arcane by increasing magic damage";
 	}
 	
 	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
@@ -257,17 +210,7 @@ class Strength : Stat
 	Default
 	{
 		Tag "Strength";
-		Stat.Description "Shows mastery in heavy weaponry by increasing\nphysical damage";
-	}
-	
-	override void DoEffect()
-	{
-		super.DoEffect();
-		
-		if (displayLevel > 1)
-			currentBonus = String.Format("+%d%% physical damage (cleave, blunt, pierce)", 10*(displayLevel-1));
-		else
-			currentBonus = "";
+		Stat.Description "Shows mastery in heavy weaponry by increasing physical damage";
 	}
 	
 	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
@@ -306,7 +249,7 @@ class Dexterity : Stat
 	Default
 	{
 		Tag "Dexterity";
-		Stat.Description "Shows mastery of all weapons by reducing the\n time needed to swap weapons, attack, and cast spells";
+		Stat.Description "Shows mastery of all weapons by reducing the  time needed to swap weapons, attack, and cast spells";
 	}
 	
 	override void PostBeginPlay()
@@ -330,15 +273,9 @@ class Dexterity : Stat
 			rpg.attackModifier -= 0.05*levels;
 	}
 	
+	// Move this to the player
 	override void DoEffect()
 	{
-		super.DoEffect();
-		
-		if (displayLevel > 1)
-			currentBonus = String.Format("-%d%% swap, attack, and cast time", 5*(displayLevel-1));
-		else
-			currentBonus = "";
-		
 		if (level > 1)
 		{
 			modifier = (level-1) / (100 / 5.);

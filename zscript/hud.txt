@@ -295,14 +295,13 @@ class ReforgedStatusBar : BaseStatusBar
 		if (rpg)
 		{
 			// Points
-			if (rpg.points > 0)
+			if (rpg.currentPoints > 0)
 			{
-				int points = rpg.points;
 				string pointMessage;
-				if (points == 1)
-					pointMessage = String.Format("%d point available", points);
+				if (rpg.currentPoints == 1)
+					pointMessage = String.Format("%d point available", rpg.currentPoints);
 				else
-					pointMessage = String.Format("%d points available", points);
+					pointMessage = String.Format("%d points available", rpg.currentPoints);
 				
 				int length = (vWidth - mBigFont.mFont.StringWidth(pointMessage)*0.6)/2;
 				int height = -chainsize.y - mBigFont.mFont.GetHeight()*0.6;

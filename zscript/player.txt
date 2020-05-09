@@ -4,6 +4,8 @@ class RPGPlayer : PlayerPawn abstract
 	Array<Skill> skills;
 	Array<Skill> activeSkills;
 	
+	ui int currentPoints;
+	
 	int carryCapacity;
 	int maxLevel;
 	int skillSlots;
@@ -15,11 +17,6 @@ class RPGPlayer : PlayerPawn abstract
 	double attackModifier;
 	
 	int currentCapacity;
-	ui int tempPoints;
-	
-	bool bMenuOpen;
-	bool bInInv;
-	bool bInStats;
 	
 	property CarryCapacity : carryCapacity;
 	property MaxLevel : maxLevel;

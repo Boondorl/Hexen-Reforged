@@ -47,17 +47,18 @@ class MenuHandler : EventHandler
 	transient ui int oldButtonAction;
 	
 	transient ui bool bInitialized;
-	transient ui bool menuState;
-	transient ui bool oldMenuState;
+	transient ui int menuState;
+	transient ui int oldMenuState;
 	
 	transient ui int totalCost;
+	transient ui int oldPoints;
 	
 	ui void LevelPlayer()
 	{
 		if (!player)
 			return;
 		
-		if (player.tempPoints == player.points && totalCost <= 0)
+		if (player.currentPoints == player.points && totalCost <= 0)
 			return;
 		
 		if (player.currentXP < totalCost)
@@ -67,14 +68,15 @@ class MenuHandler : EventHandler
 		
 		for (uint i = 0; i < stats.Size(); ++i)
 		{
-			if (stats[i].tempLevel == stats[i].level)
+			if (stats[i].currentLevel == stats[i].level)
 				continue;
 			
-			stats[i].tempCost = 0;
-			command.AppendFormat("%s:%d", stats[i].GetClassName(), stats[i].tempLevel);
+			stats[i].currentCost = 0;
+			command.AppendFormat(":%s:%d", stats[i].GetClassName(), stats[i].currentLevel);
 		}
 		
-		EventHandler.SendNetworkEvent(command, totalCost, player.tempPoints);
+		oldPoints = player.currentPoints;
+		EventHandler.SendNetworkEvent(command, totalCost, player.currentPoints);
 	}
 	
 	// Sets the menu element nearest to the origin element
@@ -144,6 +146,14 @@ class MenuHandler : EventHandler
 				if (player.stats[i] && stats.Find(player.stats[i]) == stats.Size())
 					stats.Push(player.stats[i]);
 			}
+			
+			if (oldPoints < 0)
+				oldPoints = 0;
+			
+			if (menuState != MS_STAT || player.points != oldPoints)
+				player.currentPoints += player.points - oldPoints;
+			
+			oldPoints = player.points;
 		}
 		
 		// Tick elements
@@ -158,6 +168,19 @@ class MenuHandler : EventHandler
 			if (textBoxes[i])
 				textBoxes[i].Tick();
 		}
+	}
+	
+	ui void ClearUI()
+	{
+		for (uint i = 0; i < elements.Size(); ++i)
+		{
+			if (elements[i])
+				elements[i].Destroy();
+		}
+		elements.Clear();
+		
+		mouseAction = oldMouseAction = 0;
+		buttonAction = oldButtonAction = 0;
 	}
 	
 	override void RenderOverlay(RenderEvent e)
@@ -179,16 +202,7 @@ class MenuHandler : EventHandler
 		mouse.y = clamp(mouse.y, hOfs, hOfs+h);
 		
 		if (!menuState && oldMenuState)
-		{
-			for (uint i = 0; i < elements.Size(); ++i)
-			{
-				if (elements[i])
-					elements[i].Destroy();
-			}
-			elements.Clear();
-			mouseAction = oldMouseAction = 0;
-			buttonAction = oldButtonAction = 0;
-		}
+			ClearUI();
 		
 		if (menuState)
 		{
@@ -220,8 +234,8 @@ class MenuHandler : EventHandler
 			
 			if (menuState == MS_INV)
 				DrawInventory();
-			//else if (menuState == MS_STAT)
-				//DrawStats();
+			else if (menuState == MS_STAT)
+				DrawStats();
 			
 			for (uint i = 0; i < elements.Size(); ++i)
 			{
@@ -247,18 +261,17 @@ class MenuHandler : EventHandler
 	ui void DrawInventory()
 	{
 		if (oldMenuState != MS_INV)
-			elements.Clear();
+		{
+			ClearUI();
 		
-		DrawArmor();
-		DrawItems();
-		DrawKeyItems();
+			DrawArmor();
+			DrawItems();
+			DrawKeyItems();
+		}
 	}
 	
 	ui void DrawArmor()
 	{
-		if (oldMenuState == MS_INV)
-			return;
-		
 		let head = ArmorBox(MenuElement.Create("ArmorBox", self, (1150, 150), (100, 100)));
 		if (head)
 		{
@@ -297,109 +310,36 @@ class MenuHandler : EventHandler
 	
 	ui void DrawItems()
 	{
-		if (oldMenuState != MS_INV)
-		{
-			let can = MenuElement.Create("ItemCanvas", self, (600,300), (800,400));
-			if (can)
-				elements.Push(can);
-		}
+		let can = MenuElement.Create("ItemCanvas", self, (600,300), (800,400));
+		if (can)
+			elements.Push(can);
 	}
 	
 	ui void DrawKeyItems()
 	{
-		if (oldMenuState != MS_INV)
+		let can = MenuElement.Create("KeyItemCanvas", self, (750,775), (1100,500));
+		if (can)
+			elements.Push(can);
+	}
+	
+	ui void DrawStats()
+	{
+		if (oldMenuState != MS_STAT)
 		{
-			let can = MenuElement.Create("KeyItemCanvas", self, (750,775), (1100,500));
+			ClearUI();
+			
+			let can = MenuElement.Create("StatCanvas", self, (960,440), (1320,780));
 			if (can)
 				elements.Push(can);
 		}
-	}
-	
-	/*ui void DrawStats()
-	{
-		let rpg = RPGPlayer(players[consoleplayer].mo);
-		if (!rpg)
-			return;
 		
-		Font font = "BigUpper";
-		int fHeight = font.GetHeight();
-		
-		Screen.DrawText(font, Font.CR_RED, 0, 0, String.Format("Level %d", rpg.currentLevel));
-		Screen.DrawText(font, Font.CR_RED, 0, fHeight, String.Format("XP %d / %d", rpg.currentXP, rpg.nextLevelXP));
-		
-		int hOffset = 200;
 		totalCost = 0;
-		for (int i = 0; i < rpg.stats.Size(); ++i)
+		for (uint i = 0; i < stats.Size(); ++i)
 		{
-			let stat = rpg.stats[i];
-			if (!stat)
-				continue;
-			
-			if (currentStats.Find(stat) == currentStats.Size())
-			{
-				if (!stats.Size())
-				{
-					CreateStat("PassiveBox", 100, 100, (100, hOffset), stat);
-					CreateStat("PassiveBox", 100, 100, (300, hOffset), stat, false);
-				}
-				else
-				{
-					uint last = stats.Size()-1;
-					Vector2 offset = (100, stats[last].absoluteCenter.y + 100);
-					hOffset += 100;
-					CreateStat("PassiveBox", 100, 100, offset, stat);
-					CreateStat("PassiveBox", 100, 100, (offset.x+200, offset.y), stat, false);
-				}
-			}
-			
-			if (!bStatsInitialized)
-			{
-				stat.tempLevel = stat.level;
-				stat.tempCost = 0;
-			}
-			totalCost += stat.tempCost;
-			
-			hOffset += 100;
+			if (stats[i])
+				totalCost += stats[i].currentCost;
 		}
-		
-		
-		for (int i = 0; i < stats.Size(); ++i)
-		{
-			if (stats[i].item)
-				stats[i].Execute();
-			else
-			{
-				for (int j = stats.Size()-1; j > i; --j)
-				{
-					stats[j].absoluteCenter = stats[j-1].absoluteCenter;
-				}
-				
-				stats[i].Destroy();
-				stats.Delete(i);
-				currentStats.Delete(i);
-			}
-		}
-		
-		if (!bStatsInitialized)
-			rpg.tempPoints = rpg.points;
-		else if (prevPoints != rpg.points && rpg.points != rpg.tempPoints)
-			rpg.tempPoints += rpg.points - prevPoints;
-		
-		int wOfs, hOfs, w, h;
-		[wOfs, hOfs, w, h] = Screen.GetViewWindow();
-		
-		if (totalCost > 0)
-			Screen.DrawText(font, Font.CR_WHITE, wOfs + w/2, hOfs, String.Format("Requires %d XP", totalCost));
-		
-		if (!levelUp)
-			CreateLevelUp("ConfirmStatsButton", 300, 100, (1920/2-150, 1080-200));
-		
-		if (levelUp && (rpg.points > 0 || rpg.tempPoints > 0) && (totalCost > 0 || rpg.points != rpg.tempPoints))
-			levelUp.Execute();
-		
-		bStatsInitialized = true;
-		prevPoints = rpg.points;
-	}*/
+	}
 	
 	ui bool CheckKeyBind(int keyScan, String alias)
 	{
@@ -510,17 +450,6 @@ class MenuHandler : EventHandler
 				let inv = players[e.Player].mo.FindInventory(command[1]);
 				if (inv)
 					players[e.Player].mo.UseInventory(inv);
-			}
-			else if (command[0] ~== "updatestat")
-			{
-				// Change this to a more sane method
-				let rpg = RPGPlayer(players[e.Player].mo);
-				if (!rpg)
-					return;
-					
-				let stat = Stat(rpg.FindInventory(command[1]));
-				if (stat)
-					stat.displayLevel = e.args[0];
 			}
 		}
 		else
