@@ -1,562 +1,321 @@
-class RPGMenuHandler : EventHandler
+enum EMouseInput
 {
-	enum EMenuInput
+	MI_LEFTPRESS = 1,
+	MI_RIGHTPRESS,
+	MI_LEFTRELEASE,
+	MI_RIGHTRELEASE,
+	MI_LEFTHOLD,
+	MI_RIGHTHOLD
+}
+
+enum EButtonInput
+{
+	BI_USE = 1,
+	BI_UP,
+	BI_DOWN,
+	BI_LEFT,
+	BI_RIGHT,
+	BI_SELECT,
+	BI_CLOSE
+}
+
+enum EMenuState
+{
+	MS_CLOSED,
+	MS_INV,
+	MS_STAT
+}
+
+class MenuHandler : EventHandler
+{
+	transient ui RPGPlayer player;
+	transient ui Array<Inventory> items;
+	transient ui Array<Inventory> keyItems;
+	transient ui Array<Inventory> armor;
+	transient ui Array<Skill> skills;
+	transient ui Array<Stat> stats;
+	
+	transient ui TextureID cursor;
+	transient ui Array<MenuElement> elements;
+	transient ui Array<MenuElement> navigable;
+	transient ui Array<TextBox> textBoxes; // These get special handling since they should always be draw on top of everything
+	
+	transient ui Vector2 mouse;
+	transient ui int mouseAction;
+	transient ui int oldMouseAction;
+	transient ui int buttonAction;
+	transient ui int oldButtonAction;
+	
+	transient ui bool bInitialized;
+	transient ui bool menuState;
+	transient ui bool oldMenuState;
+	
+	transient ui int totalCost;
+	
+	ui void LevelPlayer()
 	{
-		MI_LEFTPRESS = 1,
-		MI_RIGHTPRESS = 2,
-		MI_LEFTRELEASE = 3,
-		MI_RIGHTRELEASE = 4,
-		MI_LEFTHOLD = 5,
-		MI_RIGHTHOLD = 6,
-		BI_USEDITEM = 7
-	};
-	
-	private ui bool bLeftHold;
-	private ui bool bRightHold;
-	
-	ui Array<Inventory> currentItems;
-	ui Array<Inventory> currentKeyItems;
-	ui Array<Skill> currentSkills;
-	ui Array<Stat> currentStats;
-	
-	ui Array<ItemBox> items;
-	ui Array<KeyItemBox> keyItems;
-	ui Array<PassiveBox> stats;
-	ui Array<InteractiveBox> skills;
-	ui InteractiveBox skillBox;
-	
-	ui ConfirmStatsButton levelUp;
-	ui int currentAction;
-	ui int prevAction;
-	ui int buttonAction;
-	
-	ui bool bInitialized;
-	ui bool bCleared;
-	ui int mouseX;
-	ui int mouseY;
-	bool bMenuOpen;
-	bool bInStats;
-	bool bInInv;
-	ui bool bStatsInitialized;
-	ui int totalCost;
-	ui int prevPoints;
-	
-	ui static bool GetMenuState()
-	{
-		let menu = RPGMenuHandler(EventHandler.Find("RPGMenuHandler"));
-		if (menu)
-			return menu.bMenuOpen;
-		
-		return false;
-	}
-	
-	ui static Vector3 GetMouse()
-	{
-		let menu = RPGMenuHandler(EventHandler.Find("RPGMenuHandler"));
-		if (menu)
-			return (menu.mouseX, menu.mouseY, menu.currentAction);
-		else
-			return (-1, -1, 0);
-	}
-	
-	ui static void LevelPlayer()
-	{
-		let menu = RPGMenuHandler(EventHandler.Find("RPGMenuHandler"));
-		if (!menu)
+		if (!player)
 			return;
 		
-		let rpg = RPGPlayer(players[consoleplayer].mo);
-		if (!rpg)
+		if (player.tempPoints == player.points && totalCost <= 0)
 			return;
 		
-		if (rpg.tempPoints == rpg.points && menu.totalCost <= 0)
-			return;
-		
-		if (rpg.currentXP < menu.totalCost)
+		if (player.currentXP < totalCost)
 			return;
 		
 		string command = "levelup";
 		
-		for (uint i = 0; i < menu.currentStats.Size(); ++i)
+		for (uint i = 0; i < stats.Size(); ++i)
 		{
-			if (menu.currentStats[i].tempLevel == menu.currentStats[i].level)
+			if (stats[i].tempLevel == stats[i].level)
 				continue;
 			
-			menu.currentStats[i].tempCost = 0;
-			command = String.Format("%s:%s:%d", command, menu.currentStats[i].GetClassName(), menu.currentStats[i].tempLevel);
+			stats[i].tempCost = 0;
+			command.AppendFormat("%s:%d", stats[i].GetClassName(), stats[i].tempLevel);
 		}
 		
-		EventHandler.SendNetworkEvent(command, menu.totalCost, rpg.tempPoints);
+		EventHandler.SendNetworkEvent(command, totalCost, player.tempPoints);
 	}
 	
-	ui static ItemBox CheckItemCollision(ItemBox box)
+	// Sets the menu element nearest to the origin element
+	ui void UpdateCollision(MenuElement origin)
 	{
-		let menu = RPGMenuHandler(EventHandler.Find("RPGMenuHandler"));
-		if (!menu)
-			return null;
+		if (!origin)
+			return;
 		
-		ItemBox collider;
-		double distance = 101;
-		for (int i = 0; i < menu.items.Size(); ++i)
+		for (uint i = 0; i < elements.Size(); ++i)
 		{
-			let probe = menu.items[i];
-			if (!probe || probe == box)
+			let probe = elements[i];
+			if (probe && probe != origin)
+				probe.CheckCollision(origin);
+		}
+	}
+	
+	override void UITick()
+	{
+		let mo = players[consoleplayer].mo;
+		
+		// Remove items from UI that should no longer show up
+		for (uint i = 0; i < items.Size(); ++i)
+		{
+			if (!items[i] || items[i].owner != mo)
+				items.Delete(i--);
+		}
+		
+		for (uint i = 0; i < keyItems.Size(); ++i)
+		{
+			if (!keyItems[i] || keyItems[i].owner != mo)
+				keyItems.Delete(i--);
+		}
+		
+		for (uint i = 0; i < armor.Size(); ++i)
+		{
+			if (!armor[i] || armor[i].owner != mo)
+				armor.Delete(i--);
+		}
+		
+		// Update items
+		for (let probe = mo.inv; probe; probe = probe.inv)
+		{
+			if (!probe || probe.amount <= 0)
 				continue;
 			
-			double temp = (probe.center - (menu.mouseX, menu.mouseY)).Length();
-			if (temp > 100)
-				continue;
-			
-			if (temp < distance)
+			if (probe is "PuzzleItem" && keyItems.Find(probe) == keyItems.Size())
+				keyItems.Push(probe);
+			else if (probe is "ArmorPiece" && armor.Find(probe) == armor.Size())
+				armor.Push(probe);
+			else if (probe.bInvBar && items.Find(probe) == items.Size())
+				items.Push(probe);
+		}
+		
+		player = RPGPlayer(players[consoleplayer].mo);
+		
+		// Update stats and skills
+		if (player)
+		{
+			for (uint i = 0; i < player.skills.Size(); ++i)
 			{
-				collider = probe;
-				distance = temp;
+				if (player.skills[i] && skills.Find(player.skills[i]) == skills.Size())
+					skills.Push(player.skills[i]);
+			}
+			
+			for (uint i = 0; i < player.stats.Size(); ++i)
+			{
+				if (player.stats[i] && stats.Find(player.stats[i]) == stats.Size())
+					stats.Push(player.stats[i]);
 			}
 		}
 		
-		return collider;
-	}
-	
-	ui static void SwapItems(ItemBox held, ItemBox swap)
-	{
-		let menu = RPGMenuHandler(EventHandler.Find("RPGMenuHandler"));
-		if (!menu)
-			return;
-		
-		int heldIndex = menu.items.Find(held);
-		int swapIndex = menu.items.Find(swap);
-		
-		menu.items[swapIndex] = held;
-		menu.items[heldIndex] = swap;
-		
-		Vector2 temp = swap.absoluteCenter;
-		swap.absoluteCenter = held.absoluteCenter;
-		held.absoluteCenter = temp;
-		
-		string command = "swapitem:"..held.item.GetClassName()..":"..swap.item.GetClassName();
-		EventHandler.SendNetworkEvent(command);
-	}
-	
-	ui void CreateItem(class<ItemBox> type, int width, int height, Vector2 pos, Inventory item = null, int tolerance = 0)
-	{
-		let box = ItemBox(new(type));
-		if (box)
+		// Tick elements
+		for (uint i = 0; i < elements.Size(); ++i)
 		{
-			box.width = width;
-			box.height = height;
-			box.absoluteCenter = pos;
-			box.item = item;
-			box.tolerance = tolerance;
-			box.Initialize();
-			currentItems.Push(item);
-			items.Push(box);
-		}
-	}
-	
-	ui static KeyItemBox CheckKeyItemCollision(KeyItemBox box)
-	{
-		let menu = RPGMenuHandler(EventHandler.Find("RPGMenuHandler"));
-		if (!menu)
-			return null;
-		
-		KeyItemBox collider;
-		double distance = 101;
-		for (int i = 0; i < menu.keyItems.Size(); ++i)
-		{
-			let probe = menu.keyItems[i];
-			if (!probe || probe == box)
-				continue;
-			
-			double temp = (probe.center - (menu.mouseX, menu.mouseY)).Length();
-			if (temp > 100)
-				continue;
-			
-			if (temp < distance)
-			{
-				collider = probe;
-				distance = temp;
-			}
+			if (elements[i])
+				elements[i].Tick();
 		}
 		
-		return collider;
-	}
-	
-	ui static void SwapKeyItems(KeyItemBox held, KeyItemBox swap)
-	{
-		let menu = RPGMenuHandler(EventHandler.Find("RPGMenuHandler"));
-		if (!menu)
-			return;
-		
-		int heldIndex = menu.keyItems.Find(held);
-		int swapIndex = menu.keyItems.Find(swap);
-		
-		menu.keyItems[swapIndex] = held;
-		menu.keyItems[heldIndex] = swap;
-		
-		Vector2 temp = swap.absoluteCenter;
-		swap.absoluteCenter = held.absoluteCenter;
-		held.absoluteCenter = temp;
-		
-		string command = "swapitem:"..held.item.GetClassName()..":"..swap.item.GetClassName();
-		EventHandler.SendNetworkEvent(command);
-	}
-	
-	ui void CreateKeyItem(class<KeyItemBox> type, int width, int height, Vector2 pos, Inventory item = null, int tolerance = 0)
-	{
-		let box = KeyItemBox(new(type));
-		if (box)
+		for (uint i = 0; i < textBoxes.Size(); ++i)
 		{
-			box.width = width;
-			box.height = height;
-			box.absoluteCenter = pos;
-			box.item = item;
-			box.tolerance = tolerance;
-			box.Initialize();
-			currentKeyItems.Push(item);
-			keyItems.Push(box);
-		}
-	}
-	
-	ui void CreateStat(class<PassiveBox> type, int width, int height, Vector2 pos, Stat item = null, bool addStat = true, int tolerance = 0)
-	{
-		let box = PassiveBox(new(type));
-		if (box)
-		{
-			box.width = width;
-			box.height = height;
-			box.absoluteCenter = pos;
-			box.item = item;
-			box.tolerance = tolerance;
-			box.Initialize();
-			stats.Push(box);
-			
-			if (addStat)
-				currentStats.Push(item);
-			else
-				box.increment = 1;
-		}
-	}
-	
-	ui void CreateLevelUp(class<ConfirmStatsButton> type, int width, int height, Vector2 pos)
-	{
-		let box = ConfirmStatsButton(new(type));
-		if (box)
-		{
-			box.width = width;
-			box.height = height;
-			box.absoluteCenter = pos;
-			box.Initialize();
-			levelUp = box;
+			if (textBoxes[i])
+				textBoxes[i].Tick();
 		}
 	}
 	
 	override void RenderOverlay(RenderEvent e)
 	{
+		int wOfs, hOfs, w, h;
+		[wOfs, hOfs, w, h] = Screen.GetViewWindow();
+		
 		if (!bInitialized)
 		{
-			int wOfs, hOfs, w, h;
-			[wOfs, hOfs, w, h] = Screen.GetViewWindow();
+			mouse.x = wOfs + w/2;
+			mouse.y = hOfs + h/2;
 			
-			mouseX = wOfs + w/2;
-			mouseY = hOfs + h/2;
+			cursor = TexMan.CheckForTexture("CURSOR", TexMan.Type_Any);
 			
 			bInitialized = true;
 		}
 		
-		if (!bMenuOpen)
+		mouse.x = clamp(mouse.x, wOfs, wOfs+w);
+		mouse.y = clamp(mouse.y, hOfs, hOfs+h);
+		
+		if (!menuState && oldMenuState)
 		{
-			if (!bCleared)
+			for (uint i = 0; i < elements.Size(); ++i)
 			{
-				if (bStatsInitialized)
+				if (elements[i])
+					elements[i].Destroy();
+			}
+			elements.Clear();
+			mouseAction = oldMouseAction = 0;
+			buttonAction = oldButtonAction = 0;
+		}
+		
+		if (menuState)
+		{
+			if (mouseAction == oldMouseAction)
+			{
+				switch (mouseAction)
 				{
-					for (uint i = 0; i < currentStats.Size(); ++i)
-					{
-						let stat = currentStats[i];
-						if (!stat)
-							continue;
-						
-						EventHandler.SendNetworkEvent("updatestat:"..stat.GetClassName(), stat.level);
-					}
+					case MI_LEFTPRESS:
+						mouseAction = MI_LEFTHOLD;
+						break;
+									
+					case MI_RIGHTPRESS:
+						mouseAction = MI_RIGHTHOLD;
+						break;
+									
+					case MI_LEFTHOLD:
+					case MI_RIGHTHOLD:
+						break;
+							
+					case MI_LEFTRELEASE:
+					case MI_RIGHTRELEASE:
+						mouseAction = 0;
+						break;
 				}
-				
-				currentItems.Clear();
-				currentKeyItems.Clear();
-				currentSkills.Clear();
-				currentStats.Clear();
-				
-				for (uint i = 0; i < items.Size(); ++i)
-				{
-					if (items[i])
-						items[i].Destroy();
-				}
-				items.Clear();
-				
-				for (uint i = 0; i < keyItems.Size(); ++i)
-				{
-					if (keyItems[i])
-						keyItems[i].Destroy();
-				}
-				keyItems.Clear();
-				
-				for (uint i = 0; i < stats.Size(); ++i)
-				{
-					if (stats[i])
-						stats[i].Destroy();
-				}
-				stats.Clear();
-				
-				for (uint i = 0; i < skills.Size(); ++i)
-				{
-					if (skills[i])
-						skills[i].Destroy();
-				}
-				skills.Clear();
-				
-				bCleared = true;
-				bStatsInitialized = false;
-				prevPoints = 0;
 			}
 			
-			return;
-		}
-		
-		bCleared = false;
-		
-		switch (currentAction)
-		{
-			case MI_LEFTPRESS:
-				if (currentAction == prevAction)
-				{
-					bRightHold = false;
-					bLeftHold = true;
-					currentAction = MI_LEFTHOLD;
-				}
-				break;
-						
-			case MI_RIGHTPRESS:
-				if (currentAction == prevAction)
-				{
-					bLeftHold = false;
-					bRightHold = true;
-					currentAction = MI_RIGHTHOLD;
-				}
-				break;
-						
-			case MI_LEFTHOLD:
-			case MI_RIGHTHOLD:
-				break;
+			if (buttonAction == oldButtonAction)
+				buttonAction = 0;
+			
+			if (menuState == MS_INV)
+				DrawInventory();
+			//else if (menuState == MS_STAT)
+				//DrawStats();
+			
+			for (uint i = 0; i < elements.Size(); ++i)
+			{
+				if (elements[i])
+					elements[i].Execute(e.fracTic);
+			}
+			
+			for (uint i = 0; i < textBoxes.Size(); ++i)
+			{
+				if (textBoxes[i])
+					textBoxes[i].Execute(e.fracTic);
+			}
 				
-			case MI_LEFTRELEASE:
-			case MI_RIGHTRELEASE:
-				if (currentAction == prevAction)
-					currentAction = 0;
-				else
-					bLeftHold = bRightHold = false;
-				break;
+			Screen.DrawTexture(cursor, false, mouse.x, mouse.y, DTA_TopOffset, 0, DTA_LeftOffset, 0);
 			
-			case BI_USEDITEM:
-				if (currentAction == prevAction)
-				{
-					if (bLeftHold)
-						currentAction = MI_LEFTHOLD;
-					else if (bRightHold)
-						currentAction = MI_RIGHTHOLD;
-					else
-						currentAction = 0;
-				}
-				break;
+			oldMouseAction = mouseAction;
+			oldButtonAction = buttonAction;
 		}
 		
-		prevAction = currentAction;
-		
-		if (bInInv)
-			DrawInventory();
-		else
-			DrawStats();
-			
-		Screen.DrawFrame(mouseX-1, mouseY-1, 3, 3);
+		oldMenuState = menuState;
 	}
 	
 	ui void DrawInventory()
 	{
-		Font font = "BIGUPPER";
-		int fHeight = font.GetHeight();
+		if (oldMenuState != MS_INV)
+			elements.Clear();
 		
-		DrawArmor(font, fHeight);
-		DrawItems(font, fHeight);
-		DrawKeyItems(font, fHeight);
+		DrawArmor();
+		DrawItems();
+		DrawKeyItems();
 	}
 	
-	ui void DrawArmor(Font font, int fHeight)
+	ui void DrawArmor()
 	{
-		let am = ArmorPieceManager(players[consoleplayer].mo.FindInventory("ArmorPieceManager"));
-		if (am)
+		if (oldMenuState == MS_INV)
+			return;
+		
+		let head = ArmorBox(MenuElement.Create("ArmorBox", self, (1150, 150), (100, 100)));
+		if (head)
 		{
-			int wOfs, hOfs, w, h;
-			[wOfs, hOfs, w, h] = Screen.GetViewWindow();
+			head.type = ArmorBox.AT_HEAD;
+			elements.Push(head);
+		}
 			
-			int hOffset = hOfs;
-			int wOffset = wOfs + w;
-			double ratio = min(w/1920., h/1080.);
-				
-			for (uint i = 0; i < am.pieces.Size(); ++i)
-			{
-				let piece = am.pieces[i];
-				if (!piece)
-					continue;
-				
-				Vector2 size = TexMan.GetScaledSize(piece.Icon);
-				size.y *= 1.2;
-				size *= 2 * ratio;
-				
-				int arw = size.x;
-				int arh = size.y;
-				
-				Vector2 pos = (wOffset - size.x/2, hOffset + size.y);
-				Screen.DrawTexture(piece.Icon, false, pos.x, pos.y,
-									DTA_CenterBottomOffset, true, DTA_DestWidth, arw, DTA_DestHeight, arh);
-				
-				string health = String.Format("%d / %d", piece.health, piece.default.health);
-				int length = Font.StringWidth(health);
-				Screen.DrawText(font, Font.CR_WHITE, wOffset-length, hOffset + size.y, health);
-				
-				hOffset += size.y + fHeight;
-			}
+		let amul = ArmorBox(MenuElement.Create("ArmorBox", self, (1250, 150), (100, 100)));
+		if (amul)
+		{
+			amul.type = ArmorBox.AT_AMUL;
+			elements.Push(amul);
+		}
+		
+		let chest = ArmorBox(MenuElement.Create("ArmorBox", self, (1150, 250), (100, 100)));
+		if (chest)
+		{
+			chest.type = ArmorBox.AT_CHEST;
+			elements.Push(chest);
+		}
+		
+		let brace = ArmorBox(MenuElement.Create("ArmorBox", self, (1250, 250), (100, 100)));
+		if (brace)
+		{
+			brace.type = ArmorBox.AT_BRACE;
+			elements.Push(brace);
+		}
+		
+		let shield = ArmorBox(MenuElement.Create("ArmorBox", self, (1050, 250), (100, 100)));
+		if (shield)
+		{
+			shield.type = ArmorBox.AT_SHIELD;
+			elements.Push(shield);
 		}
 	}
 	
-	ui void DrawItems(Font font, int fHeight)
+	ui void DrawItems()
 	{
-		let rpg = RPGPlayer(players[consoleplayer].mo);
-		if (rpg)
-			Screen.DrawText(font, Font.CR_RED, 0, 0, String.Format("Weight: %.1f / %.1f", rpg.currentCapacity/10., rpg.carryCapacity/10.));
-		
-		int hOffset = 150;
-		int wOffset = 150;
-		for (let probe = players[consoleplayer].mo.inv; probe != null; probe = probe.inv)
+		if (oldMenuState != MS_INV)
 		{
-			if (!probe || !probe.bInvBar)
-				continue;
-			
-			if (currentItems.Find(probe) == currentItems.Size())
-			{
-				if (!items.Size())
-					CreateItem("ItemBox", 100, 100, (wOffset, hOffset), probe);
-				else
-				{
-					uint last = items.Size()-1;
-					
-					Vector2 offset = items[last].absoluteCenter + (150, 0);
-					if (offset.x+150 > 1920)
-					{
-						wOffset = 150;
-						while (hOffset <= items[last].absoluteCenter.y)
-						{
-							hOffset += 150;
-						}
-						
-						offset.x = wOffset;
-						offset.y = hOffset;
-					}
-					
-					CreateItem("ItemBox", 100, 100, offset, probe);
-				}
-			}
-
-			wOffset += 150;
-			if (wOffset+150 > 1920)
-			{
-				wOffset = 150;
-				hOffset += 150;
-			}
-		}
-		
-		for (int i = 0; i < items.Size(); ++i)
-		{
-			if (items[i].item && items[i].item.owner && items[i].item.amount > 0)
-			{
-				if (items[i].item.owner.player && items[i].item == items[i].item.owner.player.mo.invSel)
-					items[i].bSelected = true;
-				else
-					items[i].bSelected = false;
-				
-				items[i].Execute();
-			}
-			else
-			{
-				for (int j = items.Size()-1; j > i; --j)
-				{
-					items[j].absoluteCenter = items[j-1].absoluteCenter;
-				}
-				
-				items[i].Destroy();
-				items.Delete(i);
-				currentItems.Delete(i);
-			}
+			let can = MenuElement.Create("ItemCanvas", self, (600,300), (800,400));
+			if (can)
+				elements.Push(can);
 		}
 	}
 	
-	ui void DrawKeyItems(Font font, int fHeight)
+	ui void DrawKeyItems()
 	{
-		int hOffset = 550;
-		int wOffset = 150;
-		for (let probe = players[consoleplayer].mo.inv; probe != null; probe = probe.inv)
+		if (oldMenuState != MS_INV)
 		{
-			if (!probe || (!(probe is "PuzzleItem") && !(probe is "Key")))
-				continue;
-			
-			if (currentKeyItems.Find(probe) == currentKeyItems.Size())
-			{
-				if (!keyItems.Size())
-					CreateKeyItem("KeyItemBox", 100, 100, (wOffset, hOffset), probe);
-				else
-				{
-					uint last = keyItems.Size()-1;
-					
-					Vector2 offset = keyItems[last].absoluteCenter + (150, 0);
-					if (offset.x+150 > 1920)
-					{
-						wOffset = 150;
-						while (hOffset <= keyItems[last].absoluteCenter.y)
-						{
-							hOffset += 150;
-						}
-						
-						offset.x = wOffset;
-						offset.y = hOffset;
-					}
-					
-					CreateKeyItem("KeyItemBox", 100, 100, offset, probe);
-				}
-			}
-
-			wOffset += 150;
-			if (wOffset+150 > 1920)
-			{
-				wOffset = 150;
-				hOffset += 150;
-			}
-		}
-		
-		for (int i = 0; i < keyItems.Size(); ++i)
-		{
-			if (keyItems[i].item && keyItems[i].item.owner && keyItems[i].item.amount > 0)
-				keyItems[i].Execute();
-			else
-			{
-				for (int j = keyItems.Size()-1; j > i; --j)
-				{
-					keyItems[j].absoluteCenter = keyItems[j-1].absoluteCenter;
-				}
-				
-				keyItems[i].Destroy();
-				keyItems.Delete(i);
-				currentkeyItems.Delete(i);
-			}
+			let can = MenuElement.Create("KeyItemCanvas", self, (750,775), (1100,500));
+			if (can)
+				elements.Push(can);
 		}
 	}
 	
-	ui void DrawStats()
+	/*ui void DrawStats()
 	{
 		let rpg = RPGPlayer(players[consoleplayer].mo);
 		if (!rpg)
@@ -640,195 +399,181 @@ class RPGMenuHandler : EventHandler
 		
 		bStatsInitialized = true;
 		prevPoints = rpg.points;
+	}*/
+	
+	ui bool CheckKeyBind(int keyScan, String alias)
+	{
+		if (!keyScan)
+			return false;
+		
+		int key1, key2;
+		[key1, key2] = Bindings.GetKeysForCommand(alias);
+		
+		return (key1 == keyScan || key2 == keyScan);
 	}
 
 	override bool InputProcess(InputEvent e)
 	{
-		if (bMenuOpen)
+		if (!menuState)
+			return false;
+		
+		mouse.x += e.mouseX*0.25;
+		mouse.y += e.mouseY*-1.5;
+			
+		int mAct, bAct;
+		if (e.Type == InputEvent.Type_KeyDown)
 		{
-			int wOfs, hOfs, w, h;
-			[wOfs, hOfs, w, h] = Screen.GetViewWindow();
-			
-			mouseX += e.mouseX*0.25;
-			mouseY += e.mouseY*-1.5;
-			
-			mouseX = clamp(mouseX, wOfs, wOfs+w);
-			mouseY = clamp(mouseY, hOfs, hOfs+h);
-			
-			int input = 0;
-			if (e.Type == InputEvent.Type_KeyDown)
+			switch (e.keyScan)
 			{
-				switch (e.keyScan)
-				{
-					case InputEvent.Key_Mouse1:
-						input = MI_LEFTPRESS;
-						break;
+				case InputEvent.Key_Mouse1:
+					mAct = MI_LEFTPRESS;
+					break;
 						
-					case InputEvent.Key_Mouse2:
-						input = MI_RIGHTPRESS;
-						break;
-				}
+				case InputEvent.Key_Mouse2:
+					mAct = MI_RIGHTPRESS;
+					break;
+			}
 				
-				if (!input)
-				{
-					int key1, key2;
-					[key1, key2] = Bindings.GetKeysForCommand("+use");
+			if (CheckKeyBind(e.keyScan, "+use"))
+			{
+				if (menuState == MS_STAT)
+					LevelPlayer();
 					
-					if ((key1 && key1 == e.keyScan) || (key2 && key2 == e.keyScan))
-					{
-						if (bInStats)
-						{
-							RPGMenuHandler.LevelPlayer();
-							EventHandler.SendNetworkEvent("ToggleStats");
-						}
-						else if (bInInv)
-							EventHandler.SendNetworkEvent("ToggleInventory");
-						
-						input = -1;
-					}
-					else if (bInInv)
-					{
-						int key1, key2;
-						[key1, key2] = Bindings.GetKeysForCommand("invuse");
-						
-						if ((key1 && key1 == e.keyScan) || (key2 && key2 == e.keyScan))
-							input = BI_USEDITEM;
-					}
-				}
+				menuState = MS_CLOSED;
+				bAct = BI_CLOSE;
 			}
-			else if (e.Type == InputEvent.Type_KeyUp)
-			{
-				switch (e.keyScan)
-				{
-					case InputEvent.Key_Mouse1:
-						input = MI_LEFTRELEASE;
-						break;
-						
-					case InputEvent.Key_Mouse2:
-						input = MI_RIGHTRELEASE;
-						break;
-				}
-			}
-			
-			if (input)
-			{
-				if (input > 0)
-					currentAction = input;
-				
-				return true;
-			}
-			
-			if (e.Type == InputEvent.Type_Mouse)
-				return true;
+			else if (menuState == MS_INV && CheckKeyBind(e.keyScan, "invuse"))
+				bAct = BI_USE;
 		}
+		else if (e.Type == InputEvent.Type_KeyUp)
+		{
+			switch (e.keyScan)
+			{
+				case InputEvent.Key_Mouse1:
+					mAct = MI_LEFTRELEASE;
+					break;
+						
+				case InputEvent.Key_Mouse2:
+					mAct = MI_RIGHTRELEASE;
+					break;
+			}
+		}
+		
+		if (mAct)
+			mouseAction = mAct;
+		if (bAct)
+			buttonAction = bAct;
+		
+		if (mAct || bAct || e.Type == InputEvent.Type_Mouse)
+			return true;
 		
 		return false;
 	}
 	
+	override void ConsoleProcess(ConsoleEvent e)
+	{
+		if (e.Name ~== "ToggleInventory")
+		{
+			if (menuState == MS_INV)
+				menuState = MS_CLOSED;
+			else
+				menuState = MS_INV;
+		}
+		else if (e.Name ~== "ToggleStats")
+		{
+			if (menuState == MS_STAT)
+				menuState = MS_CLOSED;
+			else
+				menuState = MS_STAT;
+		}
+	}
+	
 	override void NetworkProcess(ConsoleEvent e)
 	{
-		if (e.Name == "ToggleStats" || e.Name == "ToggleInventory")
+		if (e.IsManual)
+			return;
+		
+		Array<string> command;
+		e.Name.Split(command, ":");
+				
+		int size = command.Size();
+		if (size == 2)
 		{
-			if (e.Name == "ToggleStats")
+			if (command[0] ~== "drop")
 			{
-				bInStats = !bInStats;
-				if (bInInv)
-					bInInv = false;
-				else
-					bMenuOpen = !bMenuOpen;
+				let inv = players[e.Player].mo.FindInventory(command[1]);
+				if (inv)
+					players[e.Player].mo.DropInventory(inv);
 			}
-			else
+			else if (command[0] ~== "use")
 			{
-				bInInv = !bInInv;
-				if (bInStats)
-					bInStats = false;
-				else
-					bMenuOpen = !bMenuOpen;
+				let inv = players[e.Player].mo.FindInventory(command[1]);
+				if (inv)
+					players[e.Player].mo.UseInventory(inv);
+			}
+			else if (command[0] ~== "updatestat")
+			{
+				// Change this to a more sane method
+				let rpg = RPGPlayer(players[e.Player].mo);
+				if (!rpg)
+					return;
+					
+				let stat = Stat(rpg.FindInventory(command[1]));
+				if (stat)
+					stat.displayLevel = e.args[0];
 			}
 		}
-		else if (!e.IsManual)
+		else
 		{
-			Array<string> command;
-			e.Name.Split(command, ":");
-				
-			int size = command.Size();
-			if (size == 2)
+			if (command[0] ~== "levelup")
 			{
-				if (command[0] ~== "drop")
-				{
-					let inv = players[consoleplayer].mo.FindInventory(command[1]);
-					if (inv)
-						players[consoleplayer].mo.DropInventory(inv);
-				}
-				else if (command[0] ~== "use")
-				{
-					let inv = players[consoleplayer].mo.FindInventory(command[1]);
-					if (inv)
-						players[consoleplayer].mo.UseInventory(inv);
-				}
-				else if (command[0] ~== "updatestat")
-				{
-					let rpg = RPGPlayer(players[consoleplayer].mo);
-					if (!rpg)
-						return;
+				let rpg = RPGPlayer(players[e.Player].mo);
+				if (!rpg)
+					return;
 					
-					let stat = Stat(rpg.FindInventory(command[1]));
+				for (int i = 1; i < command.Size(); i += 2)
+				{
+					let stat = Stat(rpg.FindInventory(command[i]));
 					if (stat)
-						stat.displayLevel = e.args[0];
+						stat.LevelUp(command[i+1].ToInt(10) - stat.level);
 				}
+					
+				rpg.currentXP -= e.args[0];
+				rpg.points = e.args[1];
 			}
-			else
+			else if (command[0] ~== "swapitem")
 			{
-				if (command[0] ~== "levelup")
+				let swapper = players[e.Player].mo.FindInventory(command[1]);
+				let swappee = players[e.Player].mo.FindInventory(command[2]);
+					
+				if (!swapper || !swappee)
+					return;
+					
+				Inventory swapperPrev, swappeePrev;
+				for (let probe = players[e.Player].mo.inv; probe; probe = probe.inv)
 				{
-					let rpg = RPGPlayer(players[consoleplayer].mo);
-					if (!rpg)
-						return;
-					
-					for (int i = 1; i < command.Size(); i += 2)
-					{
-						let stat = Stat(rpg.FindInventory(command[i]));
-						if (stat)
-							stat.LevelUp(command[i+1].ToInt(10) - stat.level);
-					}
-					
-					rpg.currentXP -= e.args[0];
-					rpg.points = e.args[1];
-				}
-				else if (command[0] ~== "swapitem")
-				{
-					Inventory held = players[consoleplayer].mo.FindInventory(command[1]);
-					Inventory swap = players[consoleplayer].mo.FindInventory(command[2]);
-					
-					if (!held || !swap)
-						return;
-					
-					Inventory heldPrev, swapPrev;
-					for (let probe = players[consoleplayer].mo.inv; probe != null; probe = probe.inv)
-					{
-						if (probe.inv == held)
-							heldPrev = probe;
-						else if (probe.inv == swap)
-							swapPrev = probe;
+					if (probe.inv == swapper)
+						swapperPrev = probe;
+					else if (probe.inv == swappee)
+						swappeePrev = probe;
 						
-						if (heldPrev && swapPrev)
-							break;
-					}
-					
-					if (heldPrev)
-						heldPrev.inv = swap;
-					else
-						players[consoleplayer].mo.inv = swap;
-					
-					if (swapPrev)
-						swapPrev.inv = held;
-					else
-						players[consoleplayer].mo.inv = held;
-					
-					Inventory temp = swap.inv;
-					swap.inv = held.inv;
-					held.inv = temp;
+					if (swapperPrev && swappeePrev)
+						break;
 				}
+					
+				if (swapperPrev)
+					swapperPrev.inv = swappee;
+				else
+					players[e.Player].mo.inv = swappee;
+					
+				if (swappeePrev)
+					swappeePrev.inv = swapper;
+				else
+					players[e.Player].mo.inv = swapper;
+					
+				let temp = swappee.inv;
+				swappee.inv = swapper.inv;
+				swapper.inv = temp;
 			}
 		}
 	}

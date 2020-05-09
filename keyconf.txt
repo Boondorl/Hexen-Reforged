@@ -1,11 +1,11 @@
 AddKeySection "Hexen Reforged" HRKeys
 
 AddMenuKey "Stats" ToggleStats
-Alias ToggleStats "netevent ToggleStats"
+Alias ToggleStats "event ToggleStats"
 DefaultBind P ToggleStats
 
 AddMenuKey "Inventory" ToggleInventory
-Alias ToggleInventory "netevent ToggleInventory"
+Alias ToggleInventory "event ToggleInventory"
 DefaultBind I ToggleInventory
 
 AddMenuKey "Spell 1" Spell1

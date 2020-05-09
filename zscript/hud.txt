@@ -297,7 +297,7 @@ class ReforgedStatusBar : BaseStatusBar
 			// Points
 			if (rpg.points > 0)
 			{
-				int points = RPGMenuHandler.GetMenuState() ? rpg.tempPoints : rpg.points;
+				int points = rpg.points;
 				string pointMessage;
 				if (points == 1)
 					pointMessage = String.Format("%d point available", points);

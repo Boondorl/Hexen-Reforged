@@ -13,6 +13,7 @@
 [enu default]
 
 DAMNUM_TYPECOLOR_CRIT         = "DamGold";
+DAMNUM_TYPECOLOR_HEAL		  = "DamGreen";
 DAMNUM_TYPECOLOR_BLUNT        = "DamDarkGray";
 DAMNUM_TYPECOLOR_STEEL        = "DamWhite";
 DAMNUM_TYPECOLOR_CLEAVE       = "DamDarkRed";

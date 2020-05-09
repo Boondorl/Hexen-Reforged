@@ -422,15 +422,20 @@ class AreaOfEffect : Actor
 	{
 		super.Tick();
 		
-		if (threshold > 0)
+		if (!threshold)
+		{
+			State death = FindState("Death");
+			if (death)
+				SetState(death);
+			else
+				Destroy();
+		}
+		
+		if (threshold >= 0)
 		{
 			if (threshold-- <= 0)
 			{
-				State death = FindState("Death");
-				if (death)
-					SetState(death);
-				else
-					Destroy();
+				
 			}
 			else
 			{
