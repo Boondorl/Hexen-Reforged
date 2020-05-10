@@ -1181,7 +1181,21 @@ class StatBox : MenuElement
 		
 		if (st && bonus)
 		{
+			String text = "";
 			
+			if (st.currentLevel > 1)
+			{
+				for (uint i = 0; i < st.bonusValue.Size(); ++i)
+				{
+					int val = st.bonusValue[i] * (st.currentLevel - 1);
+					if (val > 0)
+						text.AppendFormat("+");
+					
+					text.AppendFormat("%d%s", val, st.bonusText[i]);
+				}
+			}
+			
+			bonus.text = text;
 		}
 	}
 	
@@ -1219,7 +1233,7 @@ class StatIncrementer : MenuElement
 		if (!st)
 			return;
 		
-		DrawText(bigfont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y), "Y", scale: 3);
+		DrawText(bigfont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y), "+", scale: 3);
 	}
 	
 	override void OnLeftRelease()

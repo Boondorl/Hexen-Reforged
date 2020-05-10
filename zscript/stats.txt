@@ -3,6 +3,9 @@ class Stat : Inventory abstract
 	ui int currentLevel;
 	ui int currentCost;
 	
+	Array<int> bonusValue;
+	Array<String> bonusText;
+	
 	int level;
 	int maxLevel;
 	string description;
@@ -58,6 +61,18 @@ class Agility : Stat
 			rpg.coolDownModifier -= 0.1*levels;
 		}
 	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		bonusValue.Push(5);
+		bonusText.Push("% movement speed, ");
+		bonusValue.Push(2);
+		bonusText.Push(" carry capacity, ");
+		bonusValue.Push(-5);
+		bonusText.Push("% skill cool down duration");
+	}
 }
 
 class Vitality : Stat
@@ -84,6 +99,14 @@ class Vitality : Stat
 				owner.player.health = owner.player.mo.health;
 			}
 		}
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		bonusValue.Push(30);
+		bonusText.Push(" health");
 	}
 }
 
@@ -168,6 +191,14 @@ class Wisdom : Stat
 			rmana.BackpackMaxAmount += 30*(level-1);
 		}
 	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		bonusValue.Push(30);
+		bonusText.Push(" mana");
+	}
 }
 
 class Intelligence : Stat
@@ -200,6 +231,14 @@ class Intelligence : Stat
 			if (bonusDmg)
 				newdamage = round(newdamage * (1 + 0.1*(level-1)));
 		}
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		bonusValue.Push(10);
+		bonusText.Push("% magic damage (fire, ice, lightning, poison)");
 	}
 }
 
@@ -234,6 +273,14 @@ class Strength : Stat
 				newdamage = round(newdamage * (1 + 0.1*(level-1)));
 		}
 	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		bonusValue.Push(10);
+		bonusText.Push("% physical damage (cleave, blunt, pierce)");
+	}
 }
 
 class Dexterity : Stat
@@ -262,6 +309,11 @@ class Dexterity : Stat
 			if (psp)
 				prevOffset = psp.y;
 		}
+		
+		super.PostBeginPlay();
+		
+		bonusValue.Push(-5);
+		bonusText.Push("% reduced swap, cast, and attack time");
 	}
 	
 	override void LevelUp(int levels, bool start)
