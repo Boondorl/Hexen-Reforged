@@ -9,6 +9,8 @@ class MenuElement : Object ui
 	TextureID background;
 	double backgroundAlpha;
 	double backgroundScale;
+	double backgroundDesaturation;
+	int backgroundColor;
 	
 	int age;
 	Vector2 size;
@@ -20,7 +22,6 @@ class MenuElement : Object ui
 	Vector2 scaledTolerance;
 	Vector2 scalar;
 	
-	int clip[4]; // Not currently used
 	bool bKeepAspectRatio;
 	bool bCenter;
 	bool bInvisible;
@@ -169,6 +170,8 @@ class MenuElement : Object ui
 		if (!background.IsValid())
 			return;
 		
+		int desat = 255 * backgroundDesaturation;
+		
 		if (bTile)
 		{
 			int cx, cy, cw, ch;
@@ -181,11 +184,13 @@ class MenuElement : Object ui
 			
 			s *= min(scalar.x, scalar.y) * backgroundScale;
 			
+			
 			Vector2 pos = (scaledCenter.x - scaledSize.x/2 + s.x/2, scaledCenter.y - scaledSize.y/2 + s.y/2);
 			while (pos.y - s.y/2 < scaledCenter.y + scaledSize.y/2)
 			{
 				Screen.DrawTexture(background, true, pos.x, pos.y,
-									DTA_CenterOffset, true, DTA_DestWidthF, s.x, DTA_DestHeightF, s.y, DTA_Alpha, backgroundAlpha);
+									DTA_CenterOffset, true, DTA_DestWidthF, s.x, DTA_DestHeightF, s.y,
+									DTA_Alpha, backgroundAlpha, DTA_Desaturate, desat, DTA_ColorOverlay, backgroundColor);
 				
 				pos.x += s.x;
 				if (pos.x - s.x/2 >= scaledCenter.x+scaledSize.x/2)
@@ -200,7 +205,8 @@ class MenuElement : Object ui
 		else
 		{
 			Screen.DrawTexture(background, true, scaledCenter.x, scaledCenter.y,
-								DTA_CenterOffset, true, DTA_DestWidthF, scaledSize.x, DTA_DestHeightF, scaledSize.y, DTA_Alpha, backgroundAlpha);
+								DTA_CenterOffset, true, DTA_DestWidthF, scaledSize.x, DTA_DestHeightF, scaledSize.y,
+								DTA_Alpha, backgroundAlpha, DTA_Desaturate, desat, DTA_ColorOverlay, backgroundColor);
 		}
 
 	}
@@ -394,6 +400,9 @@ class TextBox : MenuElement
 	{
 		super.Initialize();
 		
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
 		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
 		textScale = 2;
 		bNoCollision = true;
@@ -486,7 +495,10 @@ class ItemCanvas : MenuElement
 		bNoCollision = true;
 		offset = (150,150);
 		defaultPos = pos = (center.x - size.x/2 + 100, center.y - size.y/2 + 100);
-		maxItemsRow = 5;
+		maxItemsRow = 7;
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
 		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
 		backgroundAlpha = 0.6;
 	}
@@ -800,6 +812,9 @@ class KeyItemCanvas : MenuElement
 		offset = (150,150);
 		defaultPos = pos = (center.x - size.x/2 + 100, center.y - size.y/2 + 100);
 		maxItemsRow = 7;
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
 		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
 		backgroundAlpha = 0.6;
 	}
@@ -1082,6 +1097,9 @@ class StatCanvas : MenuElement
 		hOffset = 125;
 		pos = (center.x, center.y - size.y/2 + hOffset/2);
 		bNoCollision = true;
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
 		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
 		backgroundAlpha = 0.6;
 	}
@@ -1530,6 +1548,9 @@ class SkillPage : MenuElement
 	{
 		super.Initialize();
 		
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
 		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
 		backgroundAlpha = 0.6;
 		bNoCollision = true;

@@ -292,35 +292,35 @@ class MenuHandler : EventHandler
 	
 	ui void DrawArmor()
 	{
-		let head = ArmorBox(MenuElement.Create("ArmorBox", self, (1150, 150), (100, 100)));
+		let head = ArmorBox(MenuElement.Create("ArmorBox", self, (1425, 150), (100, 100)));
 		if (head)
 		{
 			head.type = ArmorBox.AT_HEAD;
 			elements.Push(head);
 		}
 			
-		let amul = ArmorBox(MenuElement.Create("ArmorBox", self, (1250, 150), (100, 100)));
+		let amul = ArmorBox(MenuElement.Create("ArmorBox", self, (1525, 150), (100, 100)));
 		if (amul)
 		{
 			amul.type = ArmorBox.AT_AMUL;
 			elements.Push(amul);
 		}
 		
-		let chest = ArmorBox(MenuElement.Create("ArmorBox", self, (1150, 250), (100, 100)));
+		let chest = ArmorBox(MenuElement.Create("ArmorBox", self, (1425, 250), (100, 100)));
 		if (chest)
 		{
 			chest.type = ArmorBox.AT_CHEST;
 			elements.Push(chest);
 		}
 		
-		let brace = ArmorBox(MenuElement.Create("ArmorBox", self, (1250, 250), (100, 100)));
+		let brace = ArmorBox(MenuElement.Create("ArmorBox", self, (1525, 250), (100, 100)));
 		if (brace)
 		{
 			brace.type = ArmorBox.AT_BRACE;
 			elements.Push(brace);
 		}
 		
-		let shield = ArmorBox(MenuElement.Create("ArmorBox", self, (1050, 250), (100, 100)));
+		let shield = ArmorBox(MenuElement.Create("ArmorBox", self, (1325, 250), (100, 100)));
 		if (shield)
 		{
 			shield.type = ArmorBox.AT_SHIELD;
@@ -330,14 +330,14 @@ class MenuHandler : EventHandler
 	
 	ui void DrawItems()
 	{
-		let can = MenuElement.Create("ItemCanvas", self, (600,300), (800,400));
+		let can = MenuElement.Create("ItemCanvas", self, (650,300), (1100,400));
 		if (can)
 			elements.Push(can);
 	}
 	
 	ui void DrawKeyItems()
 	{
-		let can = MenuElement.Create("KeyItemCanvas", self, (750,775), (1100,500));
+		let can = MenuElement.Create("KeyItemCanvas", self, (650,775), (1100,500));
 		if (can)
 			elements.Push(can);
 	}
@@ -347,23 +347,23 @@ class MenuHandler : EventHandler
 		if (!player)
 			return;
 		
-		int hOfs = 1350;
+		int wOfs = 1375;
 		for (uint i = 0; i < player.skillSlots; ++i)
 		{
-			let sk = SkillBox(MenuElement.Create("SkillBox", self, (hOfs,975), (100,100)));
+			let sk = SkillBox(MenuElement.Create("SkillBox", self, (wOfs,975), (100,100)));
 			if (sk)
 			{
 				sk.slot = i;
 				elements.Push(sk);
 			}
 			
-			hOfs += 100;
+			wOfs += 100;
 		}
 	}
 	
 	ui void DrawKeys()
 	{
-		let can = MenuElement.Create("KeyCanvas", self, (1300,775), (545,87));
+		let can = MenuElement.Create("KeyCanvas", self, (1547,456), (545,87));
 		if (can)
 			elements.Push(can);
 	}
@@ -373,7 +373,7 @@ class MenuHandler : EventHandler
 		if (!player)
 			return;
 		
-		let can = WeaponPieceCanvas(MenuElement.Create("WeaponPieceCanvas", self, (1500,400), (171,108)));
+		let can = WeaponPieceCanvas(MenuElement.Create("WeaponPieceCanvas", self, (1734,196), (171,108)));
 		if (can)
 		{
 			if (player is "ReforgedMage")
@@ -482,12 +482,18 @@ class MenuHandler : EventHandler
 			if (menuState == MS_INV)
 				menuState = MS_CLOSED;
 			else
+			{
+				player.currentPoints = player.points;
 				menuState = MS_INV;
+			}
 		}
 		else if (e.Name ~== "ToggleStats")
 		{
 			if (menuState == MS_STAT)
+			{
+				player.currentPoints = player.points;
 				menuState = MS_CLOSED;
+			}
 			else
 				menuState = MS_STAT;
 		}
