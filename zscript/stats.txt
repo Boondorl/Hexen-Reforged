@@ -310,8 +310,6 @@ class Dexterity : Stat
 				prevOffset = psp.y;
 		}
 		
-		super.PostBeginPlay();
-		
 		bonusValue.Push(-5);
 		bonusText.Push("% reduced swap, cast, and attack time");
 	}
