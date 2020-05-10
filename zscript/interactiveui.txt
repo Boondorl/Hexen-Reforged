@@ -5,8 +5,10 @@ class MenuElement : Object ui
 	Array<MenuElement> children;
 	MenuElement touching;
 	
+	bool bTile;
 	TextureID background;
 	double backgroundAlpha;
+	double backgroundScale;
 	
 	int age;
 	Vector2 size;
@@ -75,7 +77,7 @@ class MenuElement : Object ui
 		}
 			
 		Screen.DrawTexture(texture, false, pos.x, pos.y,
-							DTA_CenterOffset, true, DTA_DestWidth, int(size.x), DTA_DestHeight, int(size.y),
+							DTA_CenterOffset, true, DTA_DestWidthF, size.x, DTA_DestHeightF, size.y,
 							DTA_Alpha, alpha, DTA_ColorOverlay, color);
 	}
 	
@@ -84,8 +86,8 @@ class MenuElement : Object ui
 		if (bInvisible || !scale)
 			return;
 		
-		int vWidth = Screen.GetWidth();
-		int vHeight = Screen.GetHeight();
+		double vWidth = Screen.GetWidth();
+		double vHeight = Screen.GetHeight();
 		
 		double ratio = min(scalar.x, scalar.y) * scale;
 		vWidth /= ratio;
@@ -99,7 +101,7 @@ class MenuElement : Object ui
 		pos /= ratio;
 				
 		Screen.DrawText(fnt, color, pos.x, pos.y, text,
-						DTA_VirtualWidth, vWidth, DTA_VirtualHeight, vHeight, DTA_KeepRatio, true);
+						DTA_VirtualWidthF, vWidth, DTA_VirtualHeightF, vHeight, DTA_KeepRatio, true);
 	}
 	
 	void CheckCollision(MenuElement other)
@@ -162,12 +164,54 @@ class MenuElement : Object ui
 		}
 	}
 	
+	void DrawBackground()
+	{
+		if (!background.IsValid())
+			return;
+		
+		if (bTile)
+		{
+			int cx, cy, cw, ch;
+			[cx, cy, cw, ch] = Screen.GetClipRect();
+			
+			Screen.SetClipRect(scaledCenter.x - scaledSize.x/2, scaledCenter.y - scaledSize.y/2, scaledSize.x, scaledSize.y);
+			
+			Vector2 s = TexMan.GetScaledSize(background);
+			s.y *= 1.2;
+			
+			s *= min(scalar.x, scalar.y) * backgroundScale;
+			
+			Vector2 pos = (scaledCenter.x - scaledSize.x/2 + s.x/2, scaledCenter.y - scaledSize.y/2 + s.y/2);
+			while (pos.y - s.y/2 < scaledCenter.y + scaledSize.y/2)
+			{
+				Screen.DrawTexture(background, true, pos.x, pos.y,
+									DTA_CenterOffset, true, DTA_DestWidthF, s.x, DTA_DestHeightF, s.y, DTA_Alpha, backgroundAlpha);
+				
+				pos.x += s.x;
+				if (pos.x - s.x/2 >= scaledCenter.x+scaledSize.x/2)
+				{
+					pos.x = scaledCenter.x - scaledSize.x/2 + s.x/2;
+					pos.y += s.y;
+				}
+			} 
+			
+			Screen.SetClipRect(cx, cy, cw, ch);
+		}
+		else
+		{
+			Screen.DrawTexture(background, true, scaledCenter.x, scaledCenter.y,
+								DTA_CenterOffset, true, DTA_DestWidthF, scaledSize.x, DTA_DestHeightF, scaledSize.y, DTA_Alpha, backgroundAlpha);
+		}
+
+	}
+	
 	virtual void Initialize()
 	{
 		bCenter = true;
 		bKeepAspectRatio = true;
 		tolerance = (size.x / 2, size.y / 2);
 		backgroundAlpha = 1;
+		backgroundScale = 1;
 	}
 	
 	virtual void Clear()
@@ -196,6 +240,10 @@ class MenuElement : Object ui
 	virtual void OnLeftRelease() {}
 	
 	virtual void OnRightRelease() {}
+	
+	virtual void PreChild(double fracTic) {}
+	
+	virtual void PostChild(double fracTic) {}
 	
 	virtual void Tick()
 	{
@@ -256,9 +304,7 @@ class MenuElement : Object ui
 			scaledCenter.y = hOfs + center.y * scalar.y;
 		}
 		
-		if (background.IsValid())
-			Screen.DrawTexture(background, true, scaledCenter.x, scaledCenter.y,
-								DTA_CenterOffset, true, DTA_DestWidth, int(scaledSize.x), DTA_DestHeight, int(scaledSize.y), DTA_Alpha, backgroundAlpha);
+		DrawBackground();
 		
 		double sw = scaledSize.x / 2;
 		double sh = scaledSize.y / 2;
@@ -316,11 +362,15 @@ class MenuElement : Object ui
 		if (!bHeld && bSelected)
 			OnSelected();
 		
+		PreChild(fracTic);
+		
 		for (uint i = 0; i < children.Size(); ++i)
 		{
 			if (children[i])
 				children[i].Execute(fracTic);
 		}
+		
+		PostChild(fracTic);
 	}
 	
 	override void OnDestroy()
@@ -345,7 +395,7 @@ class TextBox : MenuElement
 		super.Initialize();
 		
 		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
-		textScale = 1;
+		textScale = 2;
 		bNoCollision = true;
 		
 		if (center.x + size.x/2 > 1920)
@@ -361,10 +411,10 @@ class TextBox : MenuElement
 		center.y -= size.y / 2;
 		
 		size.y = 0;
-		int fHeight = bigfont.GetHeight();
+		int fHeight = NewSmallFont.GetHeight();
 		
 		int scaledFH = fHeight * textScale;
-		let lines = bigfont.BreakLines(text, size.x/textScale);
+		let lines = NewSmallFont.BreakLines(text, size.x/textScale);
 		for (int i = 0; i < lines.Count(); ++i)
 			size.y += scaledFH;
 		
@@ -377,22 +427,22 @@ class TextBox : MenuElement
 		
 		super.Execute(fracTic);
 		
-		PreDraw();
+		PreDraw(fracTic);
 		
 		int hOfs;
 		for (uint i = 0; i < lines.Count(); ++i)
 		{
 			let line = lines.StringAt(i);
-			DrawText(bigfont, Font.CR_BLACK, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), line, (0,hOfs), textScale);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), line, (0,hOfs), textScale);
 			hOfs += fHeight;
 		}
 		
-		PostDraw();
+		PostDraw(fracTic);
 	}
 	
-	virtual void PreDraw() {}
+	virtual void PreDraw(double fracTic) {}
 	
-	virtual void PostDraw()
+	virtual void PostDraw(double fracTic)
 	{
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
 	}
@@ -509,8 +559,9 @@ class ItemCanvas : MenuElement
 		
 		if (handler.player)
 		{
+			int fH = NewSmallFont.GetHeight();
 			String text = String.Format("Weight: %.1f / %.1f", handler.player.currentCapacity/10., handler.player.carryCapacity/10.);
-			DrawText(bigfont, Font.CR_BLACK, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), text, (0,0), 1.5);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), text, (0,-fH), 2);
 		}
 		
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
@@ -584,10 +635,10 @@ class ItemBox : MenuElement
 		if (item)
 		{
 			string title = item.GetTag();
-			int titleLength = bigfont.StringWidth(title);
-			int fHeight = bigfont.GetHeight();
+			int titleLength = NewSmallFont.StringWidth(title);
+			int fHeight = NewSmallFont.GetHeight();
 			
-			DrawText(bigfont, Font.CR_BLACK, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight));
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
 			
 			if (!text)
 				text = TextBox(MenuElement.Create("TextBox", handler, (center.x, center.y+size.y/2), (300,0)));
@@ -620,11 +671,11 @@ class ItemBox : MenuElement
 		
 			if (!bHeld)
 			{
-				int fHeight = bigfont.GetHeight();
+				int fHeight = NewSmallFont.GetHeight();
 				string amount = String.Format("%d", item.amount);
-				int amtLength = bigfont.StringWidth(amount);
+				int amtLength = NewSmallFont.StringWidth(amount);
 				
-				DrawText(bigfont, Font.CR_BLACK, scaledCenter+(scaledSize.x/2, scaledSize.y/2), amount, (-amtLength, -fHeight));
+				DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter+(scaledSize.x/2, scaledSize.y/2), amount, (-amtLength, -fHeight), 2);
 			}
 		}
 		
@@ -861,10 +912,10 @@ class KeyItemBox : MenuElement
 		if (item)
 		{
 			string title = item.GetTag();
-			int titleLength = bigfont.StringWidth(title);
-			int fHeight = bigfont.GetHeight();
+			int titleLength = NewSmallFont.StringWidth(title);
+			int fHeight = NewSmallFont.GetHeight();
 			
-			DrawText(bigfont, Font.CR_BLACK, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight));
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
 		}
 	}
 	
@@ -878,11 +929,11 @@ class KeyItemBox : MenuElement
 		
 			if (!bHeld)
 			{
-				int fHeight = bigfont.GetHeight();
+				int fHeight = NewSmallFont.GetHeight();
 				string amount = String.Format("%d", item.amount);
-				int amtLength = bigfont.StringWidth(amount);
+				int amtLength = NewSmallFont.StringWidth(amount);
 				
-				DrawText(bigfont, Font.CR_BLACK, scaledCenter+(scaledSize.x/2, scaledSize.y/2), amount, (-amtLength, -fHeight));
+				DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter+(scaledSize.x/2, scaledSize.y/2), amount, (-amtLength, -fHeight), 2);
 			}
 		}
 	}
@@ -1003,28 +1054,9 @@ class ArmorBox : MenuElement
 		if (text)
 		{
 			text.text = String.Format("Durability: %d / %d\n\n", armor.health, armor.default.health);
-			switch (type)
-			{
-				case AT_HEAD:
-					text.text.AppendFormat("Reduces critical damage by 20%");
-					break;
-					
-				case AT_AMUL:
-					text.text.AppendFormat("Extra resistance to elemental damage but reduced effectiveness against physical damage. Can absorb poison");
-					break;
-					
-				case AT_CHEST:
-					text.text.AppendFormat("Sturdy armor that can take many hits. Extra resistance against cleaving but weak to lightning and blunt hits");
-					break;
-					
-				case AT_BRACE:
-					text.text.AppendFormat("Extra effectiveness against physical damage");
-					break;
-					
-				case AT_SHIELD:
-					text.text.AppendFormat("Can block piercing hits");
-					break;
-			}
+			let ar = ArmorPiece(armor);
+			if (ar)
+				text.text.AppendFormat("%s", ar.description);
 		}
 	}
 	
@@ -1130,22 +1162,28 @@ class StatCanvas : MenuElement
 		
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
 		
+		int fHeight = NewSmallFont.GetHeight();
+		
 		if (handler.totalCost > 0)
 		{
-			int fHeight = bigfont.GetHeight();
 			String text = String.Format("XP Required: %d", handler.totalCost);
-			int length = bigfont.StringWidth(text);
-			DrawText(bigfont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y-scaledSize.y/2), text, (-length/2, -fHeight), 2);
+			int length = NewSmallFont.StringWidth(text);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y-scaledSize.y/2), text, (-length/2, -fHeight), 2);
 		}
 		
-		if (handler.player &&
-			(handler.player.currentPoints != handler.player.points || handler.totalCost > 0))
+		if (handler.player)
 		{
-			if (!button)
-				button = MenuElement.Create("ConfirmButton", handler, (center.x, center.y+size.y/2+100), (200,100), self);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), String.Format("Level %d", handler.player.currentLevel), (0, -fHeight*2), 2);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), String.Format("%d / %d XP", handler.player.currentXP, handler.player.nextLevelXP), (0, -fHeight), 2);
+			
+			if (handler.player.currentPoints != handler.player.points || handler.totalCost > 0)
+			{
+				if (!button)
+					button = MenuElement.Create("ConfirmButton", handler, (center.x, center.y+size.y/2+50), (200,100), self);
+			}
+			else if (button)
+				button.Destroy();
 		}
-		else if (button)
-			button.Destroy();
 	}
 	
 	override void OnDestroy()
@@ -1172,7 +1210,7 @@ class StatBox : MenuElement
 		MenuElement.Create("LevelDisplay", handler, (center.x-size.x/2 + 150, center.y), (100,100), self);
 		MenuElement.Create("StatDecrementer", handler, (center.x-size.x/2 + 250, center.y), (100,100), self);
 		description = StatTextBox(MenuElement.Create("StatTextBox", handler, (center.x-size.x/2 + 650, center.y), (600, 100)));
-		bonus = StatTextBox(MenuElement.Create("StatTextBox", handler, (center.x-size.x/2 + 1100, center.y), (300, 100)));
+		bonus = StatTextBox(MenuElement.Create("StatTextBox", handler, (center.x-size.x/2 + 1125, center.y), (300, 100)));
 	}
 	
 	override void Execute(double fracTic)
@@ -1233,7 +1271,10 @@ class StatIncrementer : MenuElement
 		if (!st)
 			return;
 		
-		DrawText(bigfont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y), "+", scale: 3);
+		int fHeight = NewSmallFont.GetHeight() / 2;
+		int width = NewSmallFont.StringWidth("+") / 2;
+		
+		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter, "+", (-width, -fHeight), 3);
 	}
 	
 	override void OnLeftRelease()
@@ -1274,7 +1315,10 @@ class StatDecrementer : MenuElement
 		if (!st)
 			return;
 		
-		DrawText(bigfont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y), "-", scale: 3);
+		int fHeight = NewSmallFont.GetHeight() / 2;
+		int width = NewSmallFont.StringWidth("+") / 2;
+		
+		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter, "-", (-width, -fHeight), 3);
 	}
 	
 	override void OnLeftRelease()
@@ -1326,13 +1370,17 @@ class LevelDisplay : MenuElement
 		if (!st)
 			return;
 		
-		int col = Font.CR_BLACK;
+		int col = Font.CR_UNTRANSLATED;
 		if (st.currentLevel < st.level)
 			col = Font.CR_RED;
 		else if (st.currentLevel > st.level)
 			col = Font.CR_GREEN;
 		
-		DrawText(bigfont, col, (scaledCenter.x, scaledCenter.y), String.Format("%d", st.currentLevel), scale: 3);
+		String num = String.Format("%d", st.currentLevel);
+		int fHeight = NewSmallFont.GetHeight() / 2;
+		int width = NewSmallFont.StringWidth(num) / 2;
+		
+		DrawText(NewSmallFont, col, scaledCenter, num, (-width, -fHeight), 3);
 	}
 }
 
@@ -1346,7 +1394,7 @@ class StatTextBox : TextBox
 		textScale = 1.5;
 	}
 	
-	override void PostDraw() {}
+	override void PostDraw(double fracTic) {}
 }
 
 class ConfirmButton : MenuElement
@@ -1360,15 +1408,548 @@ class ConfirmButton : MenuElement
 	{
 		super.Execute(fracTic);
 		
-		int fHeight = bigfont.GetHeight();
+		int fHeight = NewSmallFont.GetHeight();
 		String con = "Confirm";
-		int length = bigfont.StringWidth(con);
+		int length = NewSmallFont.StringWidth(con);
 		
-		DrawText(bigfont, Font.CR_BLACK, scaledCenter, con, (-length/2, -fHeight/2), 2);
+		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter, con, (-length/2, -fHeight/2), 2);
 	}
 	
 	override void OnLeftRelease()
 	{
 		handler.LevelPlayer();
+	}
+}
+
+class SkillBox : MenuElement
+{
+	Skill sk;
+	SkillPage sp;
+	uint slot;
+	bool bCreated;
+	TextBox text;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+		background = TexMan.CheckForTexture("ARTIBOX", TexMan.Type_Any);
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		if (text && (!bHovering || !sk))
+			text.Destroy();
+		
+		if (handler.player && slot < handler.player.skillSlots)
+			sk = handler.player.activeSkills[slot];
+		
+		if (sk)
+			DrawTexture(sk.icon, scaledCenter, (3,3));
+		
+		if (!bCreated && sp && handler.mouseAction == MI_LEFTRELEASE)
+		{
+			double sw = sp.scaledSize.x/2;
+			double sh = sp.scaledSize.y/2;
+			
+			if (handler.mouse.x < (sp.scaledCenter.x-sw) || handler.mouse.x > (sp.scaledCenter.x+sw) ||
+				handler.mouse.y < (sp.scaledCenter.y-sh) || handler.mouse.y > (sp.scaledCenter.y+sh))
+			{
+				sp.Destroy();
+			}
+		}
+		
+		bCreated = false;
+	}
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		
+		if (!sk)
+			return;
+		
+		if (!text)
+		{
+			text = TextBox(MenuElement.Create("TextBox", handler, (center.x, center.y+size.y/2), (300,0)));
+			text.text = sk.GetTag().."\n\n"..sk.description;
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		if (!sp)
+		{
+			bCreated = true;
+			sp = SkillPage(MenuElement.Create("SkillPage", handler, center-(0,size.y/2+150), (300,300), self));
+			sp.slot = slot;
+			return;
+		}
+	}
+	
+	override void OnDestroy()
+	{
+		if (text)
+			text.Destroy();
+		
+		super.OnDestroy();
+	}
+}
+
+class SkillPage : MenuElement
+{
+	private int curItem;
+	int maxItemsRow;
+	Vector2 offset;
+	Vector2 defaultPos;
+	Vector2 pos;
+	uint slot;
+	
+	bool bKill;
+	
+	uint Find(Skill sk)
+	{
+		uint i;
+		for (; i < children.Size(); ++i)
+		{
+			let child = SkillSelect(children[i]);
+			if (!child)
+				continue;
+			
+			if (child.sk == sk)
+				return i;
+		}
+		
+		return i;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
+		backgroundAlpha = 0.6;
+		bNoCollision = true;
+		offset = (100,100);
+		defaultPos = pos = (center.x - size.x/2+50, center.y - size.y/2 + 50);
+		maxItemsRow = 3;
+		
+		MenuElement.Create("SkillSelect", handler, pos, (100,100), self);
+		if (++curItem < maxItemsRow)
+			pos.x += offset.x;
+		else
+		{
+			curItem = 0;
+			pos.x = defaultPos.x;
+			pos.y += offset.y;
+		}
+	}
+	
+	override void Tick()
+	{
+		// Remove skills no longer present
+		for (uint i = 1; i < children.Size(); ++i)
+		{
+			let child = SkillSelect(children[i]);
+			if (!child || handler.skills.Find(child.sk) != handler.skills.Size())
+				continue;
+			
+			for (uint j = children.Size() - 1; j > i; --j)
+			{
+				let sb = SkillSelect(children[j]);
+				if (!sb)
+					continue;
+					
+				for (; j > i; --j)
+				{
+					let prevsb = SkillSelect(children[j-1]);
+					if (prevsb)
+					{
+						sb.Shift(sb.center - prevsb.center);
+						break;
+					}
+				}
+			}
+			
+			child.Destroy();
+			children.Delete(i--);
+			if (--curItem >= 0)
+				pos.x -= offset.x;
+			else
+			{
+				curItem = maxItemsRow - 1;
+				pos.y -= offset.y;
+				pos.x = defaultPos.x + offset.x*curItem;
+			}
+		}
+		
+		// Add new skills
+		let par = SkillBox(parent);
+		for (uint i = 0; i < handler.skills.Size(); ++i)
+		{
+			if (handler.skills[i] == par.sk || Find(handler.skills[i]) != children.Size())
+				continue;
+			
+			let sb = SkillSelect(MenuElement.Create("SkillSelect", handler, pos, (100,100), self));
+			if (sb)
+			{
+				sb.sk = handler.skills[i];
+				if (++curItem < maxItemsRow)
+					pos.x += offset.x;
+				else
+				{
+					curItem = 0;
+					pos.x = defaultPos.x;
+					pos.y += offset.y;
+				}
+			}
+		}
+		
+		super.Tick();
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		if (bKill)
+		{
+			Destroy();
+			return;
+		}
+		
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+}
+
+class SkillSelect : MenuElement
+{
+	Skill sk;
+	TextBox text;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+		background = TexMan.CheckForTexture("ARTIBOX", TexMan.Type_Any);
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		if (text && !bHovering)
+			text.Destroy();
+		
+		if (sk)
+			DrawTexture(sk.icon, scaledCenter, (2.5,2.5));
+	}
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		
+		if (!text)
+		{
+			text = TextBox(MenuElement.Create("TextBox", handler, (center.x, center.y+size.y/2), (300,0)));
+			
+			if (sk)
+				text.text = sk.GetTag().."\n\n"..sk.description;
+			else
+				text.text = "Remove spell from slot";
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		let par = SkillPage(parent);
+		if (!par)
+			return;
+		
+		String command = "swapskill:";
+		if (sk)
+			command.AppendFormat("%s", sk.GetClassName());
+		else
+			command.AppendFormat("null");
+		
+		EventHandler.SendNetworkEvent(command, par.slot);
+		
+		par.bKill = true;
+	}
+	
+	override void OnDestroy()
+	{
+		if (text)
+			text.Destroy();
+		
+		super.OnDestroy();
+	}
+}
+
+class KeyCanvas : MenuElement
+{
+	Vector2 offset;
+	Vector2 pos;
+	
+	uint Find(Inventory key)
+	{
+		uint i;
+		for (; i < children.Size(); ++i)
+		{
+			let child = KeyBox(children[i]);
+			if (!child)
+				continue;
+			
+			if (child.key == key)
+				return i;
+		}
+		
+		return i;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+		offset = (49.5,87);
+		pos = (center.x - size.x/2 + 24.5, center.y - size.y/2 + 43.5);
+		background = TexMan.CheckForTexture("KEYBAR2", TexMan.Type_Any);
+		backgroundScale = 2.5;
+		bTile = true;
+	}
+	
+	override void Tick()
+	{
+		// Remove keys no longer present
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			let child = KeyBox(children[i]);
+			if (!child || handler.keys.Find(child.key) != handler.keys.Size())
+				continue;
+			
+			for (uint j = children.Size() - 1; j > i; --j)
+			{
+				let ib = KeyBox(children[j]);
+				if (!ib)
+					continue;
+					
+				for (; j > i; --j)
+				{
+					let previb = KeyBox(children[j-1]);
+					if (previb)
+					{
+						ib.center = previb.center;
+						break;
+					}
+				}
+			}
+			
+			child.Destroy();
+			children.Delete(i--);
+			pos.x -= offset.x;
+		}
+		
+		// Add new keys
+		for (uint i = 0; i < handler.keys.Size(); ++i)
+		{
+			if (Find(handler.keys[i]) != children.Size())
+				continue;
+			
+			let ib = KeyBox(MenuElement.Create("KeyBox", handler, pos, (47,87), self));
+			if (ib)
+			{
+				ib.key = handler.keys[i];
+				pos.x += offset.x;
+			}
+		}
+		
+		super.Tick();
+	}
+}
+
+class KeyBox : MenuElement
+{
+	Inventory key;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		if (key)
+			DrawTexture(key.icon, scaledCenter, (2.5,2.5));
+	}
+}
+
+enum EWeaponTypes
+{
+	WT_WRAI = 1,
+	WT_PURI,
+	WT_ZWEI
+}
+
+class WeaponPieceCanvas : MenuElement
+{
+	Array<PieceBox> pieces;
+	class<Weapon> weap;
+	TextureID weapon;
+	TextureID full;
+	
+	bool bDrawFull;
+	
+	void SetWeapon(int w)
+	{
+		for (uint i = 0; i < pieces.Size(); ++i)
+		{
+			if (pieces[i])
+				pieces[i].Destroy();
+		}
+		pieces.Clear();
+		
+		String tex = "WPIECE";
+		switch (w)
+		{
+			case WT_WRAI:
+				weapon = TexMan.CheckForTexture("WPSLOT2", TexMan.Type_Any);
+				full = TexMan.CheckForTexture("WPFULL2", TexMan.Type_Any);
+				weap = "MWeapBloodscourge";
+				tex = tex.."M";
+				break;
+					
+			case WT_PURI:
+				weapon = TexMan.CheckForTexture("WPSLOT1", TexMan.Type_Any);
+				full = TexMan.CheckForTexture("WPFULL1", TexMan.Type_Any);
+				weap = "CWeapWraithverge";
+				tex = tex.."C";
+				break;
+				
+			case WT_ZWEI:
+				weapon = TexMan.CheckForTexture("WPSLOT0", TexMan.Type_Any);
+				full = TexMan.CheckForTexture("WPFULL0", TexMan.Type_Any);
+				weap = "ReforgedQuietus";
+				tex = tex.."F";
+				break;
+		}
+		
+		double ofs;
+		for (uint i = 1; i < 4; ++i)
+		{
+			let pb = PieceBox(MenuElement.Create("PieceBox", handler, center, size, self));
+			if (pb)
+			{
+				pb.part = TexMan.CheckForTexture(tex..i, TexMan.Type_Any);
+				ofs = pb.SetPos(i, ofs);
+				pieces.Push(pb);
+			}
+		}
+	}
+	
+	int GetWeaponPieceMask()
+	{
+		for (let inv = players[consoleplayer].mo.inv; inv; inv = inv.inv)
+		{
+			let wh = WeaponHolder(inv);
+			if (wh && wh.PieceWeapon == weap)
+				return wh.PieceMask;
+		}
+		
+		return 0;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		bDrawFull = (players[consoleplayer].mo.FindInventory(weap) != null);
+		if (!bDrawfull)
+		{
+			int mask = GetWeaponPieceMask();
+			if (mask & 1)
+				pieces[0].bDraw = true;
+			if (mask & 2)
+				pieces[1].bDraw = true;
+			if (mask & 4)
+				pieces[2].bDraw = true;
+		}
+	}
+	
+	override void PreChild(double fracTic)
+	{
+		if (bDrawFull)
+			DrawTexture(full, scaledCenter, (3,3));
+		else
+			DrawTexture(weapon, scaledCenter, (3,3));
+		
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+}
+
+class PieceBox : MenuElement
+{
+	TextureID part;
+	bool bDraw;
+	
+	double SetPos(int slot, double offset)
+	{
+		Vector2 s = TexMan.GetScaledSize(part);
+		s *= 3;
+		
+		switch (slot)
+		{
+			case 1:
+				center.x = center.x - size.x/2 + s.x/2;
+				break;
+				
+			case 2:
+				center.x = center.x - size.x/2 + offset + s.x/2;
+				break;
+				
+			case 3:
+				center.x = center.x + size.x/2 - s.x/2;
+				break;
+		}
+		
+		size.x = s.x;
+		return s.x;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNoCollision = true;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		bDraw = false;
+	}
+	
+	override void Execute(double fracTic)
+	{
+		super.Execute(fracTic);
+		
+		if (bDraw)
+			DrawTexture(part, scaledCenter, (3,3));
 	}
 }

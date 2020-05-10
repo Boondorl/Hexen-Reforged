@@ -1,3 +1,9 @@
+enum EHideTypes
+{
+	EL_ITEMS = 1,
+	EL_SKILLS = 1<<1
+}
+
 class RPGPlayer : PlayerPawn abstract
 {
 	Array<Stat> stats;
@@ -5,6 +11,7 @@ class RPGPlayer : PlayerPawn abstract
 	Array<Skill> activeSkills;
 	
 	ui int currentPoints;
+	ui int hideElements;
 	
 	int carryCapacity;
 	int maxLevel;
@@ -146,7 +153,7 @@ class RPGPlayer : PlayerPawn abstract
 		}
 	}
 	
-	protected void SetActiveSkill(uint slot, class<Skill> skill = null)
+	void SetActiveSkill(uint slot, class<Skill> skill = null)
 	{
 		if (slot >= skillSlots)
 			return;

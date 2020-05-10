@@ -170,12 +170,14 @@ class ArmorPiece : Armor abstract
 	double lossPercent;
 	double criticalFactor;
 	uint priority;
+	String description;
 	
 	property SavePercent : savePercent;
 	property BreakPoints : breakPoints;
 	property LossPercent : lossPercent;
 	property CriticalFactor : criticalFactor;
 	property Priority : priority;
+	property Description : description;
 	
 	deprecated("3.7") private int armorPieceFlags;
 	flagdef BlockPiercing: armorPieceFlags, 0;
@@ -241,6 +243,7 @@ class BracerPiece : ArmorPiece replaces ArtiBoostArmor
 		Inventory.PickupMessage "$TXT_ARTIBOOSTARMOR";
 		Inventory.Icon "BRACA0";
 		DamageFactor "Cleave", 0.75;
+		ArmorPiece.Description "Extra effective against cleaving hits";
 		
 		+FLOATBOB
 	}
@@ -264,6 +267,7 @@ class ChestPiece : ArmorPiece replaces MeshArmor
 		Inventory.Icon "AR_1A0";
 		DamageFactor "Blunt", 1.25;
 		DamageFactor "Electric", 1.25;
+		ArmorPiece.Description "High durability armor. Weak to lightning and blunt hits";
 		
 		+FLOATBOB
 	}
@@ -285,6 +289,7 @@ class ShieldPiece : ArmorPiece replaces FalconShield
 		Health 600;
 		Inventory.PickupMessage "$TXT_ARMOR2";
 		Inventory.Icon "AR_2A0";
+		ArmorPiece.Description "High durability shield that can block piercing hits";
 		
 		+FLOATBOB
 		+ARMORPIECE.BLOCKPIERCING
@@ -310,6 +315,7 @@ class HelmetPiece : ArmorPiece replaces PlatinumHelm
 		Inventory.Icon "AR_3A0";
 		DamageFactor "Blunt", 1.25;
 		DamageFactor "Electric", 1.25;
+		ArmorPiece.Description "Capable of reducing critical hit damage by 20%. Weak to lightning and blunt hits";
 		
 		+FLOATBOB
 		+ARMORPIECE.CRITSTOPPER
@@ -339,6 +345,7 @@ class AmuletPiece : ArmorPiece replaces AmuletOfWarding
 		DamageFactor "Ice", 0.75;
 		DamageFactor "Electric", 0.75;
 		DamageFactor "Poison", 0.75;
+		ArmorPiece.Description "Extra effective against elemental damage but weak to physical damage. Can absorb poison";
 		
 		+FLOATBOB
 		+ARMORPIECE.BLOCKPOISON

@@ -31,9 +31,9 @@ class MenuHandler : EventHandler
 	transient ui RPGPlayer player;
 	transient ui Array<Inventory> items;
 	transient ui Array<Inventory> keyItems;
-	transient ui Array<Inventory> armor;
 	transient ui Array<Skill> skills;
 	transient ui Array<Stat> stats;
+	transient ui Array<Inventory> keys;
 	
 	transient ui TextureID cursor;
 	transient ui Array<MenuElement> elements;
@@ -110,10 +110,10 @@ class MenuHandler : EventHandler
 				keyItems.Delete(i--);
 		}
 		
-		for (uint i = 0; i < armor.Size(); ++i)
+		for (uint i = 0; i < keys.Size(); ++i)
 		{
-			if (!armor[i] || armor[i].owner != mo)
-				armor.Delete(i--);
+			if (!keys[i] || keys[i].owner != mo)
+				keys.Delete(i--);
 		}
 		
 		// Update items
@@ -124,8 +124,8 @@ class MenuHandler : EventHandler
 			
 			if (probe is "PuzzleItem" && keyItems.Find(probe) == keyItems.Size())
 				keyItems.Push(probe);
-			else if (probe is "ArmorPiece" && armor.Find(probe) == armor.Size())
-				armor.Push(probe);
+			else if (probe is "Key" && keys.Find(probe) == keys.Size())
+				keys.Push(probe);
 			else if (probe.bInvBar && items.Find(probe) == items.Size())
 				items.Push(probe);
 		}
@@ -179,6 +179,13 @@ class MenuHandler : EventHandler
 		}
 		elements.Clear();
 		
+		for (uint i = 0; i < textBoxes.Size(); ++i)
+		{
+			if (textBoxes[i])
+				textBoxes[i--].Destroy();
+		}
+		textBoxes.Clear();
+		
 		mouseAction = oldMouseAction = 0;
 		buttonAction = oldButtonAction = 0;
 	}
@@ -187,6 +194,16 @@ class MenuHandler : EventHandler
 	{
 		int wOfs, hOfs, w, h;
 		[wOfs, hOfs, w, h] = Screen.GetViewWindow();
+		
+		if (player)
+		{
+			player.hideElements = 0;
+			if (menuState == MS_INV)
+				player.hideElements |= (EL_ITEMS | EL_SKILLS);
+			
+			if (player.hideElements & EL_ITEMS)
+				players[consoleplayer].inventorytics = 0;
+		}
 		
 		if (!bInitialized)
 		{
@@ -267,6 +284,9 @@ class MenuHandler : EventHandler
 			DrawArmor();
 			DrawItems();
 			DrawKeyItems();
+			DrawKeys();
+			DrawPieces();
+			DrawSkills();
 		}
 	}
 	
@@ -322,13 +342,58 @@ class MenuHandler : EventHandler
 			elements.Push(can);
 	}
 	
+	ui void DrawSkills()
+	{
+		if (!player)
+			return;
+		
+		int hOfs = 1350;
+		for (uint i = 0; i < player.skillSlots; ++i)
+		{
+			let sk = SkillBox(MenuElement.Create("SkillBox", self, (hOfs,975), (100,100)));
+			if (sk)
+			{
+				sk.slot = i;
+				elements.Push(sk);
+			}
+			
+			hOfs += 100;
+		}
+	}
+	
+	ui void DrawKeys()
+	{
+		let can = MenuElement.Create("KeyCanvas", self, (1300,775), (545,87));
+		if (can)
+			elements.Push(can);
+	}
+	
+	ui void DrawPieces()
+	{
+		if (!player)
+			return;
+		
+		let can = WeaponPieceCanvas(MenuElement.Create("WeaponPieceCanvas", self, (1500,400), (171,108)));
+		if (can)
+		{
+			if (player is "ReforgedMage")
+				can.SetWeapon(WT_WRAI);
+			else if (player is "ReforgedCleric")
+				can.SetWeapon(WT_PURI);
+			else if (player is "ReforgedFighter")
+				can.SetWeapon(WT_ZWEI);
+			
+			elements.Push(can);
+		}
+	}
+	
 	ui void DrawStats()
 	{
 		if (oldMenuState != MS_STAT)
 		{
 			ClearUI();
 			
-			let can = MenuElement.Create("StatCanvas", self, (960,440), (1320,780));
+			let can = MenuElement.Create("StatCanvas", self, (960,500), (1320,780));
 			if (can)
 				elements.Push(can);
 		}
@@ -450,6 +515,17 @@ class MenuHandler : EventHandler
 				let inv = players[e.Player].mo.FindInventory(command[1]);
 				if (inv)
 					players[e.Player].mo.UseInventory(inv);
+			}
+			else if (command[0] ~== "swapskill")
+			{
+				let rpg = RPGPlayer(players[e.Player].mo);
+				if (!rpg || e.args[0] >= rpg.skillSlots)
+					return;
+				
+				if (command[1] ~== "null")
+					rpg.SetActiveSkill(e.args[0]);
+				else
+					rpg.SetActiveSkill(e.args[0], (class<Skill>)(command[1]));
 			}
 		}
 		else

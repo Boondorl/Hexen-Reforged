@@ -1,5 +1,7 @@
 class Skill : Inventory abstract
 {
+	ui bool discovered;
+	
 	int cost;
 	int drain;
 	int drainInterval;
@@ -15,6 +17,7 @@ class Skill : Inventory abstract
 	class<Weapon> activeWeapon;
 	class<CastWeapon> cast;
 	string weaponName;
+	String description;
 	
 	bool bActive;
 	bool bInCast;
@@ -41,6 +44,7 @@ class Skill : Inventory abstract
 	property ActiveWeapon : activeWeapon;
 	property WeaponName : weaponName;
 	property Cast : cast;
+	property Description : description;
 	
 	deprecated("3.7") private int skillFlags;
 	flagdef NoEffect: skillFlags, 0;

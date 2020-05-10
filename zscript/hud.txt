@@ -334,43 +334,46 @@ class ReforgedStatusBar : BaseStatusBar
 				}
 			}
 			
-			// Active skills
-			Vector2 boxSize = TexMan.GetScaledSize(box);
-			boxsize.y *= 1.2;
-			boxsize *= 0.5;
-			int xOfs = -orbSize.x*1.25-aspectOfs;
-			int yOfs = -chainSize.y-boxsize.y/2;
-			string key;
-			int strWidth;
-			
-			// 3rd spell
-			DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
-			key = GetKeyForSpell("Spell3");
-			DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
-			
-			let skill3 = rpg.activeSkills[2];
-			if (skill3)
-				DrawSkill(skill3, xOfs, yOfs);
-			xOfs -= boxsize.x;
-			
-			// 2nd spell
-			DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
-			key = GetKeyForSpell("Spell2");
-			DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
-			
-			let skill2 = rpg.activeSkills[1];
-			if (skill2)
-				DrawSkill(skill2, xOfs, yOfs);
-			xOfs -= boxsize.x;
-			
-			// 1st spell
-			DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
-			key = GetKeyForSpell("Spell1");
-			DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
-			
-			let skill1 = rpg.activeSkills[0];
-			if (skill1)
-				DrawSkill(skill1, xOfs, yOfs);
+			if (!(rpg.hideElements & EL_SKILLS))
+			{
+				// Active skills
+				Vector2 boxSize = TexMan.GetScaledSize(box);
+				boxsize.y *= 1.2;
+				boxsize *= 0.5;
+				int xOfs = -orbSize.x*1.25-aspectOfs;
+				int yOfs = -chainSize.y-boxsize.y/2;
+				string key;
+				int strWidth;
+				
+				// 3rd spell
+				DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+				key = GetKeyForSpell("Spell3");
+				DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
+				
+				let skill3 = rpg.activeSkills[2];
+				if (skill3)
+					DrawSkill(skill3, xOfs, yOfs);
+				xOfs -= boxsize.x;
+				
+				// 2nd spell
+				DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+				key = GetKeyForSpell("Spell2");
+				DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
+				
+				let skill2 = rpg.activeSkills[1];
+				if (skill2)
+					DrawSkill(skill2, xOfs, yOfs);
+				xOfs -= boxsize.x;
+				
+				// 1st spell
+				DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+				key = GetKeyForSpell("Spell1");
+				DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
+				
+				let skill1 = rpg.activeSkills[0];
+				if (skill1)
+					DrawSkill(skill1, xOfs, yOfs);
+			}
 		}
 
 		//frags/keys
@@ -378,17 +381,20 @@ class ReforgedStatusBar : BaseStatusBar
 			DrawString(mHUDFont, FormatNumber(CPlayer.FragCount, 3), (70, -16));
 		
 		// Inventory item and bar
-		DrawImage("IBOX", (orbSize.x*1.65+aspectOfs, -chainSize.y), 0, scale: (0.7, 0.84));
-		if (!isInventoryBarVisible() && !Level.NoInventoryBar && CPlayer.mo.InvSel != null)
+		if (!rpg || !(rpg.hideElements & EL_ITEMS))
 		{
-			// This code was changed to always fit the item into the box, regardless of alignment or sprite size.
-			// Heretic's ARTIBOX is 30x30 pixels. 
-			DrawInventoryIcon(CPlayer.mo.InvSel, (orbSize.x*1.65+aspectOfs, -chainSize.y*3.1), DI_ARTIFLASH|DI_ITEM_CENTER, boxsize:(28, 28), scale: (0.7, 0.84));
-			DrawString(mIndexFont, FormatNumber(CPlayer.mo.InvSel.Amount, 3), (orbSize.x*1.8+aspectOfs, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_TEXT_ALIGN_RIGHT);
+			DrawImage("IBOX", (orbSize.x*1.65+aspectOfs, -chainSize.y), 0, scale: (0.7, 0.84));
+			if (!isInventoryBarVisible() && !Level.NoInventoryBar && CPlayer.mo.InvSel != null)
+			{
+				// This code was changed to always fit the item into the box, regardless of alignment or sprite size.
+				// Heretic's ARTIBOX is 30x30 pixels. 
+				DrawInventoryIcon(CPlayer.mo.InvSel, (orbSize.x*1.65+aspectOfs, -chainSize.y*3.1), DI_ARTIFLASH|DI_ITEM_CENTER, boxsize:(28, 28), scale: (0.7, 0.84));
+				DrawString(mIndexFont, FormatNumber(CPlayer.mo.InvSel.Amount, 3), (orbSize.x*1.8+aspectOfs, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_TEXT_ALIGN_RIGHT);
+			}
+			
+			if (isInventoryBarVisible())
+				DrawReforgedItems(diparms, (orbSize.x*1.65+aspectOfs, -chainSize.y*3.1), (orbSize.x*1.8+aspectOfs, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_ITEM_CENTER, HX_SHADOW);
 		}
-		
-		if (isInventoryBarVisible())
-			DrawReforgedItems(diparms, (orbSize.x*1.65+aspectOfs, -chainSize.y*3.1), (orbSize.x*1.8+aspectOfs, -chainSize.y*1.15 - mIndexFont.mFont.GetHeight()), DI_ITEM_CENTER, HX_SHADOW);
 	}
 	
 	String GetKeyForSpell(string alias)
