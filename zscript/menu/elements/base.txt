@@ -486,6 +486,8 @@ class TextBox : MenuElement
 	{
 		super.Initialize();
 		
+		size.y = 0;
+		
 		fnt = NewSmallFont;
 		scale = 1;
 		
@@ -502,6 +504,7 @@ class TextBox : MenuElement
 		if (scale <= 0)
 			return;
 		
+		center.y -= size.y / 2;
 		size.y = 0;
 		
 		int fHeight = fnt.GetHeight();
@@ -518,6 +521,8 @@ class TextBox : MenuElement
 		
 		if (title && text)
 			size.y += scaledFH;
+		
+		center.y += size.y / 2;
 		
 		super.Execute(fracTic);
 		

@@ -152,8 +152,8 @@ class StatBox : MenuElement
 		MenuElement.Create("StatIncrementer", handler, (x + 50, center.y), (100,100), self);
 		MenuElement.Create("LevelDisplay", handler, (x + 150, center.y), (100,100), self);
 		MenuElement.Create("StatDecrementer", handler, (x + 250, center.y), (100,100), self);
-		description = TextBox(MenuElement.Create("StatTextBox", handler, (x + 650, center.y), (600,0), self));
-		bonus = TextBox(MenuElement.Create("StatTextBox", handler, (x + 1125, center.y), (300,0), self));
+		description = TextBox(MenuElement.Create("StatTextBox", handler, (x + 650, center.y - size.y/3), (600,0), self));
+		bonus = TextBox(MenuElement.Create("StatTextBox", handler, (x + 1125, center.y - size.y/3), (300,0), self));
 	}
 	
 	override void PreChildExecute(double fracTic)
