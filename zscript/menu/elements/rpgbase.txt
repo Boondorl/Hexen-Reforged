@@ -51,6 +51,23 @@ class Tooltip : TextBox
 		super.Execute(fracTic);
 	}
 	
+	override void PreBackground()
+	{
+		if (!owner)
+			return;
+
+		int wOfs, hOfs;
+		[wOfs, hOfs] = Screen.GetViewWindow();
+
+		double sh = hOfs + 1080 * scalar.y;
+		double half = scaledSize.y/2;
+		
+		if (scaledCenter.y + half > sh)
+			ScaledShift((0, -(scaledSize.y + owner.scaledSize.y)));
+		else if (scaledCenter.y - half < 0)
+			ScaledShift((0, scaledSize.y + owner.scaledSize.y));
+	}
+	
 	override void PostDraw(double fracTic)
 	{
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
