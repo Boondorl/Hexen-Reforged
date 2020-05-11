@@ -70,7 +70,7 @@ class WeaponPieceCanvas : MenuElement
 		return 0;
 	}
 	
-	override void PreChildTick()
+	override void PostChildTick()
 	{
 		bDrawFull = (players[consoleplayer].mo.FindInventory(weap) != null);
 		if (!bDrawfull)

@@ -93,6 +93,31 @@ class MenuHandler : EventHandler
 		}
 	}
 	
+	// This has to be done here since it can't be modified from UI scope
+	void ResetWeaponPieces(uint player)
+	{
+		if (player >= MAXPLAYERS)
+			return;
+		
+		for (let inv = players[player].mo.inv; inv; inv = inv.inv)
+		{
+			let wh = WeaponHolder(inv);
+			if (wh && players[player].mo.FindInventory(wh.PieceWeapon))
+				wh.PieceMask = 0;
+		}
+	}
+	
+	override void WorldTick()
+	{
+		for (uint i = 0; i < MAXPLAYERS; ++i)
+		{
+			if (!playerInGame[i] || !players[i].mo)
+				continue;
+			
+			ResetWeaponPieces(i);
+		}
+	}
+	
 	override void UITick()
 	{
 		let mo = players[consoleplayer].mo;
