@@ -56,6 +56,13 @@ class WeaponPieceCanvas : MenuElement
 				pieces.Push(pb);
 			}
 		}
+		
+		// We have to correct this here because SOMEONE didn't crop the vanilla sprites properly
+		int pieceSize = pieces[0].size.x + pieces[1].size.x + pieces[2].size.x;
+		if (pieceSize > size.x)
+			pieces[2].Shift((3,0));
+		else if (pieceSize < size.x)
+			pieces[1].Shift((3,0));
 	}
 	
 	int GetWeaponPieceMask()
