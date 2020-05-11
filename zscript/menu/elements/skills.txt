@@ -68,6 +68,7 @@ class SkillPage : Canvas
 {
 	uint slot;
 	bool bKill;
+	MenuElement remove;
 	
 	uint Find(Skill sk)
 	{
@@ -85,6 +86,48 @@ class SkillPage : Canvas
 		return i;
 	}
 	
+	void AddRemove()
+	{
+		remove = MenuElement.Create("SkillSelect", handler, pos, (100,100), self);
+		if (++curItem < maxItemsRow)
+			pos.x += offset.x;
+		else
+		{
+			curItem = 0;
+			pos.x = defaultPos.x;
+			pos.y += offset.y;
+		}
+		
+		SkillSelect head;
+		Vector2 headCenter;
+		uint max = children.Size() - 1;
+		for (uint i = 0; i < max; ++i)
+		{
+			let sb = SkillSelect(children[i]);
+			if (!sb)
+				continue;
+			
+			if (!head)
+			{
+				head = sb;
+				headCenter = sb.center;
+			}
+			
+			for (; i < max; ++i)
+			{
+				let nextsb = SkillSelect(children[i+1]);
+				if (nextsb)
+				{
+					sb.Shift(nextsb.center - sb.center);
+					break;
+				}
+			}
+		}
+		
+		if (head)
+			remove.Shift(headCenter - remove.center);
+	}
+	
 	override void Initialize()
 	{
 		super.Initialize();
@@ -98,25 +141,22 @@ class SkillPage : Canvas
 		offset = (100,100);
 		defaultPos = pos = (center.x - size.x/2+50, center.y - size.y/2 + 50);
 		maxItemsRow = 3;
-		
-		MenuElement.Create("SkillSelect", handler, pos, (100,100), self);
-		if (++curItem < maxItemsRow)
-			pos.x += offset.x;
-		else
-		{
-			curItem = 0;
-			pos.x = defaultPos.x;
-			pos.y += offset.y;
-		}
 	}
 	
 	override void PreChildTick()
 	{
+		let par = SkillBox(parent);
+		if (!remove && par.sk)
+			AddRemove();
+		
 		// Remove skills no longer present
-		for (uint i = 1; i < children.Size(); ++i)
+		for (uint i = 0; i < children.Size(); ++i)
 		{
 			let child = SkillSelect(children[i]);
 			if (!child || handler.skills.Find(child.sk) != handler.skills.Size())
+				continue;
+			
+			if (child == remove && par.sk)
 				continue;
 			
 			for (uint j = children.Size() - 1; j > i; --j)
@@ -149,7 +189,6 @@ class SkillPage : Canvas
 		}
 		
 		// Add new skills
-		let par = SkillBox(parent);
 		for (uint i = 0; i < handler.skills.Size(); ++i)
 		{
 			if (handler.skills[i] == par.sk || Find(handler.skills[i]) != children.Size())
