@@ -242,6 +242,8 @@ class MenuHandler : EventHandler
 			else if (menuState == MS_STAT)
 				DrawStats();
 			
+			held = null;
+			
 			for (uint i = 0; i < elements.Size(); ++i)
 			{
 				if (elements[i])
