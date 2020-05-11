@@ -1,0 +1,136 @@
+enum EWeaponTypes
+{
+	WT_ZWEI,
+	WT_PURI,
+	WT_WRAI
+}
+
+class WeaponPieceCanvas : MenuElement
+{
+	Array<PieceBox> pieces;
+	class<Weapon> weap;
+	TextureID weapon;
+	TextureID full;
+	
+	bool bDrawFull;
+	
+	void SetWeapon(int w)
+	{
+		for (uint i = 0; i < pieces.Size(); ++i)
+		{
+			if (pieces[i])
+				pieces[i].Destroy();
+		}
+		pieces.Clear();
+		
+		weapon = TexMan.CheckForTexture("WPSLOT"..w, TexMan.Type_Any);
+		full = TexMan.CheckForTexture("WPFULL"..w, TexMan.Type_Any);
+		
+		String tex = "WPIECE";
+		switch (w)
+		{
+			case WT_ZWEI:
+				weap = "ReforgedQuietus";
+				tex = tex.."F";
+				break;
+					
+			case WT_PURI:
+				weap = "CWeapWraithverge";
+				tex = tex.."C";
+				break;
+				
+			case WT_WRAI:
+				weap = "MWeapBloodscourge";
+				tex = tex.."M";
+				break;
+		}
+		
+		double ofs;
+		for (uint i = 1; i < 4; ++i)
+		{
+			let pb = PieceBox(MenuElement.Create("PieceBox", handler, center, size, self));
+			if (pb)
+			{
+				pb.part = TexMan.CheckForTexture(tex..i, TexMan.Type_Any);
+				ofs = pb.SetPos(i, ofs);
+				pieces.Push(pb);
+			}
+		}
+	}
+	
+	int GetWeaponPieceMask()
+	{
+		for (let inv = players[consoleplayer].mo.inv; inv; inv = inv.inv)
+		{
+			let wh = WeaponHolder(inv);
+			if (wh && wh.PieceWeapon == weap)
+				return wh.PieceMask;
+		}
+		
+		return 0;
+	}
+	
+	override void PreChildTick()
+	{
+		bDrawFull = (players[consoleplayer].mo.FindInventory(weap) != null);
+		if (!bDrawfull)
+		{
+			int mask = GetWeaponPieceMask();
+			if (mask & 1)
+				pieces[0].bDraw = true;
+			if (mask & 2)
+				pieces[1].bDraw = true;
+			if (mask & 4)
+				pieces[2].bDraw = true;
+		}
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		if (bDrawFull)
+			DrawTexture(full, scaledCenter, (3,3));
+		else
+			DrawTexture(weapon, scaledCenter, (3,3));
+	}
+}
+
+class PieceBox : MenuElement
+{
+	TextureID part;
+	bool bDraw;
+	
+	double SetPos(int slot, double offset)
+	{
+		Vector2 s = TexMan.GetScaledSize(part);
+		s *= 3;
+		
+		switch (slot)
+		{
+			case 1:
+				center.x = center.x - size.x/2 + s.x/2;
+				break;
+				
+			case 2:
+				center.x = center.x - size.x/2 + offset + s.x/2;
+				break;
+				
+			case 3:
+				center.x = center.x + size.x/2 - s.x/2;
+				break;
+		}
+		
+		size.x = s.x;
+		return s.x;
+	}
+	
+	override void PostChildTick()
+	{
+		bDraw = false;
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		if (bDraw)
+			DrawTexture(part, scaledCenter, (3,3));
+	}
+}

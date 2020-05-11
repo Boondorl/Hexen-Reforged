@@ -1,0 +1,555 @@
+class MenuElement : Object ui
+{
+	MenuHandler handler;
+	MenuElement parent;
+	Array<MenuElement> children;
+	MenuElement touching;
+	
+	bool bTile;
+	TextureID background;
+	double backgroundAlpha;
+	double backgroundScale;
+	double backgroundDesaturation;
+	int backgroundColor;
+	
+	int age;
+	Vector2 size;
+	Vector2 center;
+	Vector2 tolerance;
+	
+	Vector2 scaledSize;
+	Vector2 scaledCenter;
+	Vector2 scaledTolerance;
+	Vector2 scalar;
+	
+	bool bKeepAspectRatio;
+	bool bCenter;
+	bool bInvisible;
+	bool bCollision;
+	
+	bool bLeftClicked;
+	bool bRightClicked;
+	bool bSelected;
+	bool bHeld;
+	bool bHovering;
+	
+	protected int holdTimer;
+	protected uint deltatime;
+	private uint prevTime;
+	
+	static MenuElement Create(class<MenuElement> type, MenuHandler han, Vector2 pos, Vector2 size, MenuElement par = null)
+	{
+		let element = MenuElement(new(type));
+		if (!element)
+			return null;
+		
+		element.handler = han;
+		element.center = pos;
+		element.size = size;
+		
+		if (par)
+		{
+			element.parent = par;
+			par.children.Push(element);
+		}
+		
+		element.Initialize();
+		
+		return element;
+	}
+	
+	void DrawTexture(TextureID texture, Vector2 pos, Vector2 scale = (1,1), double alpha = 1, int color = 0)
+	{
+		if (bInvisible || scale.x <= 0 || scale.y <= 0)
+			return;
+			
+		Vector2 size = TexMan.GetScaledSize(texture);
+		size.y *= 1.2;
+			
+		size.x *= scale.x;
+		size.y *= scale.y;
+			
+		if (bKeepAspectRatio)
+			size *= min(scalar.x, scalar.y);
+		else
+		{
+			size.x *= scalar.x;
+			size.y *= scalar.y;
+		}
+			
+		Screen.DrawTexture(texture, false, pos.x, pos.y,
+							DTA_CenterOffset, true, DTA_DestWidthF, size.x, DTA_DestHeightF, size.y,
+							DTA_Alpha, alpha, DTA_ColorOverlay, color);
+	}
+	
+	void DrawText(Font fnt, int color, Vector2 pos, string text, Vector2 offset = (0,0), double scale = 1)
+	{
+		if (bInvisible || scale <= 0)
+			return;
+		
+		double vWidth = Screen.GetWidth();
+		double vHeight = Screen.GetHeight();
+		
+		double ratio = min(scalar.x, scalar.y) * scale;
+		vWidth /= ratio;
+		vHeight /= ratio;
+		
+		offset *= ratio;
+		
+		pos.x += offset.x;
+		pos.y += offset.y;
+		
+		pos /= ratio;
+				
+		Screen.DrawText(fnt, color, pos.x, pos.y, text,
+						DTA_VirtualWidthF, vWidth, DTA_VirtualHeightF, vHeight, DTA_KeepRatio, true);
+	}
+	
+	void DrawBorder(Color col, double thickness, double alpha = 1)
+	{
+		thickness *= min(scalar.x, scalar.y);
+		if (thickness < 1)
+			thickness = 1;
+		
+		Vector2 half = scaledSize / 2 + (thickness, thickness)*2;
+		
+		Screen.DrawThickLine(scaledCenter.x - half.x, scaledCenter.y - half.y, scaledCenter.x + half.x, scaledCenter.y - half.y, thickness, col, 255*alpha);
+		Screen.DrawThickLine(scaledCenter.x + half.x, scaledCenter.y - half.y, scaledCenter.x + half.x, scaledCenter.y + half.y, thickness, col, 255*alpha);
+		Screen.DrawThickLine(scaledCenter.x + half.x, scaledCenter.y + half.y, scaledCenter.x - half.x, scaledCenter.y + half.y, thickness, col, 255*alpha);
+		Screen.DrawThickLine(scaledCenter.x - half.x, scaledCenter.y + half.y, scaledCenter.x - half.x, scaledCenter.y - half.y, thickness, col, 255*alpha);
+	}
+	
+	void CheckCollision(MenuElement other, Vector2 pos, bool sameClass = false, bool exact = false)
+	{
+		if (!other || self == other)
+			return;
+		
+		if (bCollision && (!sameClass || ((exact && GetClass() == other.GetClass()) || self is other.GetClass())))
+		{
+			Vector2 orMin = (scaledCenter.x - scaledTolerance.x, scaledCenter.y - scaledTolerance.y);
+			Vector2 orMax = (scaledCenter.x + scaledTolerance.x, scaledCenter.y + scaledTolerance.y);
+			
+			Vector2 otMin = (pos.x - other.scaledTolerance.x, pos.y - other.scaledTolerance.y);
+			Vector2 otMax = (pos.x + other.scaledTolerance.x, pos.y + other.scaledTolerance.y);
+			
+			if ((orMin.x <= otMax.x && orMax.x >= otMin.x) &&
+				(orMin.y <= otMax.y && orMax.y >= otMin.y))
+			{
+				if (!other.touching)
+					other.touching = self;
+				else
+				{
+					if (other.ScaledDistanceToSquared(touching) > other.ScaledDistanceToSquared(self))
+						other.touching = self;
+				}
+			}
+		}
+		
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			if (children[i])
+				children[i].CheckCollision(other, pos, sameClass, exact);
+		}
+	}
+	
+	double DistanceTo(MenuElement other)
+	{
+		if (!other)
+			return double.max;
+		
+		return (other.center - center).Length();
+	}
+	
+	double DistanceToSquared(MenuElement other)
+	{
+		if (!other)
+			return double.max;
+		
+		Vector2 temp = other.center - center;
+		return (temp dot temp);
+	}
+	
+	double ScaledDistanceTo(MenuElement other)
+	{
+		if (!other)
+			return double.max;
+		
+		return (other.scaledCenter - scaledCenter).Length();
+	}
+	
+	double ScaledDistanceToSquared(MenuElement other)
+	{
+		if (!other)
+			return double.max;
+		
+		Vector2 temp = other.scaledCenter - scaledCenter;
+		return (temp dot temp);
+	}
+	
+	void Shift(Vector2 diff)
+	{
+		center += diff;
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			if (children[i])
+				children[i].Shift(diff);
+		}
+	}
+	
+	void ScaledShift(Vector2 diff)
+	{
+		scaledCenter += diff;
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			if (children[i])
+				children[i].Shift(diff);
+		}
+	}
+	
+	void DrawBackground()
+	{
+		if (!background.IsValid() || backgroundScale <= 0)
+			return;
+		
+		int desat = 255 * backgroundDesaturation;
+		
+		if (bTile)
+		{
+			int cx, cy, cw, ch;
+			[cx, cy, cw, ch] = Screen.GetClipRect();
+			
+			Vector2 topLeft = (scaledCenter.x - scaledSize.x/2, scaledCenter.y - scaledSize.y/2);
+			
+			Screen.SetClipRect(topLeft.x, topLeft.y, scaledSize.x, scaledSize.y);
+			
+			Vector2 s = TexMan.GetScaledSize(background);
+			s.y *= 1.2;
+			
+			s *= min(scalar.x, scalar.y) * backgroundScale;
+			Vector2 half = s / 2;
+			
+			Vector2 pos = (topLeft.x + half.x, topLeft.y + half.y);
+			while (pos.y - half.y < topLeft.y + scaledSize.y)
+			{
+				Screen.DrawTexture(background, true, pos.x, pos.y,
+									DTA_CenterOffset, true, DTA_DestWidthF, s.x, DTA_DestHeightF, s.y,
+									DTA_Alpha, backgroundAlpha, DTA_Desaturate, desat, DTA_ColorOverlay, backgroundColor);
+				
+				pos.x += s.x;
+				if (pos.x - half.x >= topLeft.x + scaledSize.x)
+				{
+					pos.x = topLeft.x + half.x;
+					pos.y += s.y;
+				}
+			} 
+			
+			Screen.SetClipRect(cx, cy, cw, ch);
+		}
+		else
+		{
+			Screen.DrawTexture(background, true, scaledCenter.x, scaledCenter.y,
+								DTA_CenterOffset, true, DTA_DestWidthF, scaledSize.x, DTA_DestHeightF, scaledSize.y,
+								DTA_Alpha, backgroundAlpha, DTA_Desaturate, desat, DTA_ColorOverlay, backgroundColor);
+		}
+
+	}
+	
+	virtual void Initialize()
+	{
+		bCenter = true;
+		bKeepAspectRatio = true;
+		tolerance = (size.x / 2, size.y / 2);
+		backgroundAlpha = 1;
+		backgroundScale = 1;
+	}
+	
+	virtual void Clear()
+	{
+		bLeftClicked = false;
+		bRightClicked = false;
+		bSelected = false;
+		bHeld = false;
+		holdTimer = 0;
+	}
+	
+	virtual void PreChildTick() {}
+	
+	virtual void PostChildTick() {}
+	
+	virtual void Tick()
+	{
+		if (!handler)
+		{
+			Destroy();
+			return;
+		}
+		
+		++age;
+		
+		PreChildTick();
+		
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			if (children[i])
+				children[i].Tick();
+		}
+		
+		PostChildTick();
+	}
+	
+	virtual void PreChildExecute(double fracTic) {}
+	
+	virtual void PostChildExecute(double fracTic) {}
+	
+	virtual void Execute(double fracTic)
+	{
+		uint currentTime = MSTime();
+		if (!prevTime)
+			prevTime = currentTime;
+		
+		deltatime = currentTime - prevTime;
+		if (deltaTime > 200) // Cap to a minimum of 5 FPS
+			deltaTime = 200;
+		
+		prevTime = currentTime;
+		
+		if (!handler)
+		{
+			Destroy();
+			return;
+		}
+		
+		touching = null;
+		bHovering = false;
+		
+		int wOfs, hOfs, w, h;
+		[wOfs, hOfs, w, h] = Screen.GetViewWindow();
+		
+		scalar.x = w / 1920.;
+		scalar.y = h / 1080.;
+		
+		if (bKeepAspectRatio)
+		{
+			double ratio = min(scalar.x, scalar.y);
+			
+			scaledSize = size * ratio;
+			scaledTolerance = tolerance * ratio;
+		}
+		else
+		{
+			scaledSize.x = size.x * scalar.x;
+			scaledSize.y = size.y * scalar.y;
+			
+			scaledTolerance.x = tolerance.x * scalar.x;
+			scaledTolerance.y = tolerance.y * scalar.y;
+		}
+		
+		if (bCenter)
+		{
+			double ratio = min(scalar.x, scalar.y);
+			scaledCenter.x = wOfs + center.x*ratio + abs(1920*ratio - 1920*scalar.x)/2;
+			scaledCenter.y = hOfs + center.y*ratio + abs(1080*ratio - 1080*scalar.y)/2;
+		}
+		else
+		{
+			scaledCenter.x = wOfs + center.x * scalar.x;
+			scaledCenter.y = hOfs + center.y * scalar.y;
+		}
+		
+		PreBackground();
+		
+		DrawBackground();
+		
+		PostBackground();
+		
+		double sw = scaledSize.x / 2;
+		double sh = scaledSize.y / 2;
+			
+		if (bHeld ||
+			(handler.mouse.x >= (scaledCenter.x-sw) && handler.mouse.x <= (scaledCenter.x+sw) &&
+			handler.mouse.y >= (scaledCenter.y-sh) && handler.mouse.y <= (scaledCenter.y+sh)))
+		{
+			switch (handler.mouseAction)
+			{
+				case MI_LEFTPRESS:
+					bLeftClicked = true;
+					OnLeftClick();
+					break;
+						
+				case MI_LEFTHOLD:
+					OnLeftHold();
+					break;
+						
+				case MI_LEFTRELEASE:
+					OnLeftRelease();
+					bLeftClicked = false;
+					break;
+						
+				case MI_RIGHTPRESS:
+					bRightClicked = true;
+					OnRightClick();
+					break;
+						
+				case MI_RIGHTHOLD:
+					OnRightHold();
+					break;
+						
+				case MI_RIGHTRELEASE:
+					OnRightRelease();
+					bRightClicked = false;
+					break;
+			}
+				
+			if (bHeld)
+				OnHeld();
+			else
+			{
+				bHovering = true;
+				OnHover();
+			}
+		}
+		else
+		{
+			holdTimer = 0;
+			bLeftClicked = false;
+			bRightClicked = false;
+		}
+		
+		if (!bHeld && bSelected)
+			OnSelected();
+		
+		PreChildExecute(fracTic);
+		
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			if (children[i])
+			{
+				if (children[i].bHeld)
+				{
+					handler.held = children[i];
+					continue;
+				}
+				
+				children[i].Execute(fracTic);
+			}
+		}
+		
+		PostChildExecute(fracTic);
+	}
+	
+	virtual void PreBackground() {}
+	
+	virtual void PostBackground() {}
+	
+	virtual void OnHover() {}
+	
+	virtual void OnHeld() {}
+	
+	virtual void OnSelected() {}
+	
+	virtual void OnLeftClick() {}
+	
+	virtual void OnRightClick() {}
+	
+	virtual void OnLeftHold() {}
+	
+	virtual void OnRightHold() {}
+	
+	virtual void OnLeftRelease() {}
+	
+	virtual void OnRightRelease() {}
+	
+	override void OnDestroy()
+	{
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			if (children[i])
+				children[i].Destroy();
+		}
+		
+		super.OnDestroy();
+	}
+}
+
+class TextBox : MenuElement
+{
+	Font fnt;
+	double scale;
+	
+	String text;
+	
+	String title;
+	bool bCenterTitle;
+	bool bBoldTitle;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		fnt = NewSmallFont;
+		scale = 1;
+		
+		bCenterTitle = true;
+		bBoldTitle = true;
+	}
+	
+	virtual void PreDraw(double fracTic) {}
+	
+	virtual void PostDraw(double fracTic) {}
+	
+	override void Execute(double fracTic)
+	{
+		if (scale <= 0)
+			return;
+		
+		size.y = 0;
+		
+		int fHeight = fnt.GetHeight();
+		int scaledW = size.x / scale;
+		int scaledFH = fHeight * scale;
+		
+		let lines = fnt.BreakLines(text, scaledW);
+		for (int i = 0; i < lines.Count(); ++i)
+			size.y += scaledFH;
+		
+		let titleLines = fnt.BreakLines(title, scaledW);
+		for (int i = 0; i < titleLines.Count(); ++i)
+			size.y += scaledFH;
+		
+		if (title && text)
+			size.y += scaledFH;
+		
+		super.Execute(fracTic);
+		
+		PreDraw(fracTic);
+		
+		Vector2 half = scaledSize / 2;
+		int hOfs;
+		int x = scaledCenter.x;
+		if (!bCenterTitle)
+			x -= half.x;
+		
+		for (int i = 0; i < titleLines.Count(); ++i)
+		{
+			let line = Font.TEXTCOLOR_BOLD..titleLines.StringAt(i)..Font.TEXTCOLOR_NORMAL;
+			int xOfs;
+			if (bCenterTitle)
+				xOfs = fnt.StringWidth(line) / 2;
+			
+			DrawText(fnt, Font.CR_UNTRANSLATED, (x, scaledCenter.y-half.y), line, (-xOfs,hOfs), scale);
+			hOfs += fHeight;
+		}
+		
+		if (title && text)
+			hOfs += fHeight;
+		
+		for (int i = 0; i < lines.Count(); ++i)
+		{
+			let line = lines.StringAt(i);
+			DrawText(fnt, Font.CR_UNTRANSLATED, (scaledCenter.x-half.x, scaledCenter.y-half.y), line, (0,hOfs), scale);
+			hOfs += fHeight;
+		}
+		
+		PostDraw(fracTic);
+	}
+}

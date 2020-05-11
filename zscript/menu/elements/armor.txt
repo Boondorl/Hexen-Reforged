@@ -1,0 +1,88 @@
+class ArmorBox : TooltipMenuElement
+{
+	enum EArmorTypes
+	{
+		AT_HEAD = 1,
+		AT_AMUL,
+		AT_CHEST,
+		AT_BRACE,
+		AT_SHIELD
+	}
+	
+	Inventory armor;
+	int type;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		background = TexMan.CheckForTexture("ARTIBOX", TexMan.Type_Any);
+		backgroundAlpha = 0.6;
+	}
+	
+	override void PreChildTick()
+	{
+		if (!armor)
+		{
+			if (tool)
+				tool.Destroy();
+			
+			switch (type)
+			{
+				case AT_HEAD:
+					armor = players[consoleplayer].mo.FindInventory("HelmetPiece");
+					break;
+					
+				case AT_AMUL:
+					armor = players[consoleplayer].mo.FindInventory("AmuletPiece");
+					break;
+					
+				case AT_CHEST:
+					armor = players[consoleplayer].mo.FindInventory("ChestPiece");
+					break;
+					
+				case AT_BRACE:
+					armor = players[consoleplayer].mo.FindInventory("BracerPiece");
+					break;
+					
+				case AT_SHIELD:
+					armor = players[consoleplayer].mo.FindInventory("ShieldPiece");
+					break;
+			}
+		}
+		else if (armor.owner != players[consoleplayer].mo)
+			armor = null;
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		if (armor)
+		{
+			double ratio = (1 - armor.health*1. / armor.default.health) * 0.8;
+			int alpha = int(0xFF * ratio) << 24;
+			int col = alpha | 0x00FF0000;
+			
+			DrawTexture(armor.icon, scaledCenter, (2.25,2.25), color: col);
+		}
+		
+		if (tool && !bHovering)
+			tool.Destroy();
+	}
+	
+	override void OnHover()
+	{
+		if (!armor)
+			return;
+		
+		if (!tool)
+			tool = Tooltip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
+		
+		if (tool)
+		{
+			tool.text = String.Format("%sDurability:%s %d / %d\n\n", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, armor.health, armor.default.health);
+			let ar = ArmorPiece(armor);
+			if (ar)
+				tool.text.AppendFormat("%s", ar.description);
+		}
+	}
+}

@@ -1,0 +1,103 @@
+class KeyCanvas : Canvas
+{
+	uint Find(Inventory key)
+	{
+		uint i;
+		for (; i < children.Size(); ++i)
+		{
+			let child = KeyBox(children[i]);
+			if (!child)
+				continue;
+			
+			if (child.key == key)
+				return i;
+		}
+		
+		return i;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		offset = (49.5,87);
+		defaultPos = pos = (center.x - size.x/2 + 24.5, center.y - size.y/2 + 43.5);
+		background = TexMan.CheckForTexture("KEYBAR2", TexMan.Type_Any);
+		backgroundScale = 2.5;
+		bTile = true;
+	}
+	
+	override void PreChildTick()
+	{
+		// Remove keys no longer present
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			let child = KeyBox(children[i]);
+			if (!child || handler.keys.Find(child.key) != handler.keys.Size())
+				continue;
+			
+			for (uint j = children.Size() - 1; j > i; --j)
+			{
+				let kb = KeyBox(children[j]);
+				if (!kb)
+					continue;
+					
+				for (; j > i; --j)
+				{
+					let prevkb = KeyBox(children[j-1]);
+					if (prevkb)
+					{
+						kb.Shift(prevkb.center - kb.center);
+						break;
+					}
+				}
+			}
+			
+			child.Destroy();
+			children.Delete(i--);
+			pos.x -= offset.x;
+		}
+		
+		// Add new keys
+		for (uint i = 0; i < handler.keys.Size(); ++i)
+		{
+			if (Find(handler.keys[i]) != children.Size())
+				continue;
+			
+			let kb = KeyBox(MenuElement.Create("KeyBox", handler, pos, (47,87), self));
+			if (kb)
+			{
+				kb.key = handler.keys[i];
+				pos.x += offset.x;
+			}
+		}
+	}
+}
+
+class KeyBox : MenuElement
+{
+	Inventory key;
+	
+	override void PreChildExecute(double fracTic)
+	{
+		if (key)
+			DrawTexture(key.icon, scaledCenter, (2.5,2.5));
+	}
+	
+	override void OnHover()
+	{
+		if (key)
+		{
+			String tag = key.GetTag();
+			String modName = tag;
+			
+			String first = tag.Left(3);
+			if (first ~== "Key")
+				modName = tag.Mid(3).." "..first;
+			
+			int fH = NewSmallFont.GetHeight();
+			int length = NewSmallFont.StringWidth(modName);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y - scaledSize.y/2), modName, (-length/2,-fH), 2);
+		}
+	}
+}

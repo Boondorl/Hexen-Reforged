@@ -1,0 +1,342 @@
+class StatCanvas : Canvas
+{
+	MenuElement button;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		offset.y = 125;
+		defaultPos = pos = (center.x, center.y - size.y/2 + offset.y/2);
+		
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
+		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
+		backgroundAlpha = 0.6;
+	}
+	
+	uint Find(Stat st)
+	{
+		uint i;
+		for (; i < children.Size(); ++i)
+		{
+			let child = StatBox(children[i]);
+			if (!child)
+				continue;
+			
+			if (child.st == st)
+				return i;
+		}
+		
+		return i;
+	}
+	
+	override void PreChildTick()
+	{
+		// Remove stats no longer present
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			let child = StatBox(children[i]);
+			if (!child || handler.stats.Find(child.st) != handler.stats.Size())
+				continue;
+			
+			for (uint j = children.Size() - 1; j > i; --j)
+			{
+				let sb = StatBox(children[j]);
+				if (!sb)
+					continue;
+					
+				for (; j > i; --j)
+				{
+					let prevsb = StatBox(children[j-1]);
+					if (prevsb)
+					{
+						sb.Shift(prevsb.center - sb.center);
+						break;
+					}
+				}
+			}
+			
+			child.Destroy();
+			children.Delete(i--);
+			if (children.Size())
+				pos.y -= offset.y;
+		}
+		
+		// Add new stats
+		for (uint i = 0; i < handler.stats.Size(); ++i)
+		{
+			if (Find(handler.stats[i]) != children.Size())
+				continue;
+			
+			let sb = StatBox(MenuElement.Create("StatBox", handler, pos, (size.x,offset.y), self));
+			if (sb)
+			{
+				sb.SetDefault(handler.stats[i]);
+				
+				pos.y += offset.y;
+			}
+		}
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void PostChildExecute(double fracTic)
+	{
+		int fHeight = NewSmallFont.GetHeight();
+		Vector2 half = scaledSize / 2;
+		
+		if (handler.totalCost > 0)
+		{
+			String col = Font.TEXTCOLOR_NORMAL;
+			if (handler.player && handler.totalCost > handler.player.currentXP)
+				col = Font.TEXTCOLOR_RED;
+			
+			String text = String.Format("XP Required: %s%d", col, handler.totalCost);
+			int length = NewSmallFont.StringWidth(text);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y-half.y), text, (-length/2, -fHeight), 2);
+		}
+		
+		if (handler.player)
+		{
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-half.x, scaledCenter.y-half.y), String.Format("Level %d", handler.player.currentLevel), (0, -fHeight*2), 2);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-half.x, scaledCenter.y-half.y), String.Format("%d / %d XP", handler.player.currentXP, handler.player.nextLevelXP), (0, -fHeight), 2);
+			
+			if (handler.player.currentPoints != handler.player.points || handler.totalCost > 0)
+			{
+				if (!button)
+					button = MenuElement.Create("ConfirmButton", handler, (center.x, center.y+size.y/2+50), (200,100), self);
+			}
+			else if (button)
+				button.Destroy();
+		}
+	}
+	
+	override void OnDestroy()
+	{
+		if (button)
+			button.Destroy();
+		
+		super.OnDestroy();
+	}
+}
+
+class StatBox : MenuElement
+{
+	Stat st;
+	TextBox description;
+	TextBox bonus;
+	
+	void SetDefault(Stat s)
+	{
+		if (!s)
+			return;
+		
+		st = s;
+		
+		st.currentLevel = st.level;
+		st.currentCost = 0;
+		if (description)
+			description.text = Font.TEXTCOLOR_BOLD..st.GetTag()..Font.TEXTCOLOR_NORMAL.."\n"..st.description;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		double x = center.x - size.x/2;
+		MenuElement.Create("StatIncrementer", handler, (x + 50, center.y), (100,100), self);
+		MenuElement.Create("LevelDisplay", handler, (x + 150, center.y), (100,100), self);
+		MenuElement.Create("StatDecrementer", handler, (x + 250, center.y), (100,100), self);
+		description = TextBox(MenuElement.Create("StatTextBox", handler, (x + 650, center.y), (600,0), self));
+		bonus = TextBox(MenuElement.Create("StatTextBox", handler, (x + 1125, center.y), (300,0), self));
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		if (st && bonus)
+		{
+			String text = Font.TEXTCOLOR_BOLD.."Bonus:\n"..Font.TEXTCOLOR_NORMAL;
+			
+			if (st.currentLevel > 1)
+			{
+				for (uint i = 0; i < st.bonusValue.Size(); ++i)
+				{
+					int val = st.bonusValue[i] * (st.currentLevel - 1);
+					if (val > 0)
+						text.AppendFormat("+");
+					
+					text.AppendFormat("%d%s", val, st.bonusText[i]);
+				}
+			}
+			
+			bonus.text = text;
+		}
+	}
+}
+
+class StatIncrementer : MenuElement
+{
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void PostChildExecute(double fracTic)
+	{
+		let par = StatBox(parent);
+		if (!par)
+			return;
+		
+		let st = par.st;
+		if (!st)
+			return;
+		
+		int fHeight = NewSmallFont.GetHeight() / 2;
+		int width = NewSmallFont.StringWidth("+") / 2;
+		
+		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter, "+", (-width, -fHeight), 3);
+	}
+	
+	override void OnLeftRelease()
+	{
+		let par = StatBox(parent);
+		if (!par || !handler.player)
+			return;
+		
+		let st = par.st;
+		if (!st)
+			return;
+		
+		if (st.currentLevel < st.maxLevel && handler.player.currentPoints > 0)
+		{
+			++st.currentLevel;
+			--handler.player.currentPoints;
+			if (st.currentLevel <= st.level)
+				st.currentCost -= st.cost;
+		}
+	}
+}
+
+class StatDecrementer : MenuElement
+{
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void PostChildExecute(double fracTic)
+	{
+		let par = StatBox(parent);
+		if (!par)
+			return;
+		
+		let st = par.st;
+		if (!st)
+			return;
+		
+		int fHeight = NewSmallFont.GetHeight() / 2;
+		int width = NewSmallFont.StringWidth("+") / 2;
+		
+		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter, "-", (-width, -fHeight), 3);
+	}
+	
+	override void OnLeftRelease()
+	{
+		let par = StatBox(parent);
+		if (!par || !handler.player)
+			return;
+		
+		let st = par.st;
+		if (!st)
+			return;
+		
+		if (st.currentLevel > st.minLevel)
+		{
+			--st.currentLevel;
+			++handler.player.currentPoints;
+			if (st.currentLevel < st.level)
+				st.currentCost += st.cost;
+		}
+	}
+}
+
+class LevelDisplay : MenuElement
+{
+	int oldLevel;
+	
+	override void PreChildTick()
+	{
+		let par = StatBox(parent);
+		if (!par)
+			return;
+		
+		let st = par.st;
+		if (st)
+		{
+			if (oldLevel != st.level)
+				st.currentLevel = st.level;
+			
+			oldLevel = st.level;
+		}
+	}
+	
+	override void PostChildExecute(double fracTic)
+	{
+		let par = StatBox(parent);
+		if (!par)
+			return;
+		
+		let st = par.st;
+		if (!st)
+			return;
+		
+		int col = Font.CR_UNTRANSLATED;
+		if (st.currentLevel < st.level)
+			col = Font.CR_RED;
+		else if (st.currentLevel > st.level)
+			col = Font.CR_GREEN;
+		
+		String num = String.Format("%d", st.currentLevel);
+		int fHeight = NewSmallFont.GetHeight() / 2;
+		int width = NewSmallFont.StringWidth(num) / 2;
+		
+		DrawText(NewSmallFont, col, scaledCenter, num, (-width, -fHeight), 3);
+	}
+}
+
+class StatTextBox : TextBox
+{
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		scale = 1.5;
+	}
+}
+
+class ConfirmButton : MenuElement
+{
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void PostChildExecute(double fracTic)
+	{
+		int fHeight = NewSmallFont.GetHeight();
+		String con = "Confirm";
+		int length = NewSmallFont.StringWidth(con);
+		
+		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter, con, (-length/2, -fHeight/2), 2);
+	}
+	
+	override void OnLeftRelease()
+	{
+		handler.LevelPlayer();
+	}
+}

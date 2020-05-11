@@ -1,0 +1,307 @@
+class ItemCanvas : Canvas
+{
+	uint Find(Inventory item)
+	{
+		uint i;
+		for (; i < children.Size(); ++i)
+		{
+			let child = ItemBox(children[i]);
+			if (!child)
+				continue;
+			
+			if (child.item == item)
+				return i;
+		}
+		
+		return i;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		offset = (150,150);
+		defaultPos = pos = (center.x - size.x/2 + 100, center.y - size.y/2 + 100);
+		maxItemsRow = 7;
+		
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
+		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
+		backgroundAlpha = 0.6;
+	}
+	
+	override void PreChildTick()
+	{
+		// Remove items no longer present
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			let child = ItemBox(children[i]);
+			if (!child || handler.items.Find(child.item) != handler.items.Size())
+				continue;
+			
+			for (uint j = children.Size() - 1; j > i; --j)
+			{
+				let ib = ItemBox(children[j]);
+				if (!ib)
+					continue;
+					
+				for (; j > i; --j)
+				{
+					let previb = ItemBox(children[j-1]);
+					if (previb)
+					{
+						ib.Shift(previb.center - ib.center);
+						break;
+					}
+				}
+			}
+			
+			child.Destroy();
+			children.Delete(i--);
+			if (--curItem >= 0)
+				pos.x -= offset.x;
+			else
+			{
+				curItem = maxItemsRow - 1;
+				pos.y -= offset.y;
+				pos.x = defaultPos.x + offset.x*curItem;
+			}
+		}
+		
+		// Add new items
+		for (uint i = 0; i < handler.items.Size(); ++i)
+		{
+			if (Find(handler.items[i]) != children.Size())
+				continue;
+			
+			let ib = ItemBox(MenuElement.Create("ItemBox", handler, pos, (100,100), self));
+			if (ib)
+			{
+				ib.item = handler.items[i];
+				if (++curItem < maxItemsRow)
+					pos.x += offset.x;
+				else
+				{
+					curItem = 0;
+					pos.x = defaultPos.x;
+					pos.y += offset.y;
+				}
+			}
+		}
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void PostChildExecute(double fracTic)
+	{
+		if (handler.player)
+		{
+			int fH = NewSmallFont.GetHeight();
+			String text = String.Format("%sWeight:%s %.1f / %.1f", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, handler.player.currentCapacity/10., handler.player.carryCapacity/10.);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), text, (0,-fH), 2);
+		}
+	}
+}
+
+class ItemBox : TooltipMenuElement
+{
+	Inventory item;
+	
+	bool bHighlighted;
+	
+	int leftClickTimer;
+	int rightClickTimer;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bCollision = true;
+	}
+	
+	void Swap(ItemBox other)
+	{
+		if (!other || self == other)
+			return;
+		
+		if (parent)
+		{
+			uint index = parent.children.Find(self);
+			uint otherIndex = parent.children.Find(other);
+			parent.children[otherIndex] = self;
+			parent.children[index] = other;
+		}
+		
+		Vector2 temp = other.center;
+		other.center = center;
+		center = temp;
+		
+		if (!item || !other.item)
+			return;
+		
+		string command = String.Format("swapitem:%s:%s", item.GetClassName(), other.item.GetClassName());
+		EventHandler.SendNetworkEvent(command);
+	}
+	
+	override void PreChildTick()
+	{
+		bHighlighted = false;
+		if (item == players[consoleplayer].mo.InvSel)
+			bHighlighted = true;
+	}
+	
+	override void Clear()
+	{
+		super.Clear();
+		
+		leftClickTimer = 0;
+		rightClickTimer = 0;
+	}
+	
+	override void OnHeld()
+	{
+		if (tool)
+			tool.Destroy();
+		
+		ScaledShift(handler.mouse - scaledCenter);
+		DrawBorder("FF FF FF", 3);
+	}
+	
+	virtual void OnHighlighted()
+	{
+		DrawBorder("FF 00 00", 3);
+	}
+	
+	override void OnHover()
+	{
+		if (!bSelected && !bHighlighted)
+			DrawBorder("FF FF FF", 3);
+		
+		if (item)
+		{
+			string title = item.GetTag();
+			int titleLength = NewSmallFont.StringWidth(title);
+			int fHeight = NewSmallFont.GetHeight();
+			
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
+			
+			if (!bHeld && !tool)
+				tool = ToolTip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
+			
+			let rpgi = RPGItem(item);
+			if (rpgi && tool)
+				tool.text = String.Format("%sWeight:%s %.1f\n%sTotal:%s %.1f\n\n%s", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight/10., Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight*rpgi.amount/10., rpgi.description);
+		}
+		
+		if (!bLeftClicked && !bRightClicked)
+		{
+			if (handler.buttonAction == BI_USE)
+			{
+				string use = "use:"..item.GetClassName();
+				EventHandler.SendNetworkEvent(use);
+			}
+		}
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		if (!bHeld && !bSelected && bHighlighted)
+			OnHighlighted();
+		
+		if (item)
+		{
+			DrawTexture(item.icon, scaledCenter, (2,2));
+		
+			if (!bHeld)
+			{
+				int fHeight = NewSmallFont.GetHeight();
+				string amount = String.Format("%d", item.amount);
+				int amtLength = NewSmallFont.StringWidth(amount);
+				
+				DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter+(scaledSize.x/2, scaledSize.y/2), amount, (-amtLength, -fHeight), 2);
+			}
+		}
+		
+		if (tool && !bHovering)
+			tool.Destroy();
+		
+		if (leftClickTimer > 0)
+			leftClickTimer -= deltatime;
+	}
+	
+	override void OnLeftClick()
+	{
+		if (leftClickTimer > 0)
+		{
+			string use = "use:"..item.GetClassName();
+			EventHandler.SendNetworkEvent(use);
+			leftClickTimer = 0;
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		if (item)
+		{
+			if (bHeld)
+			{
+				handler.UpdateCollision(self, handler.mouse, true);
+				let t = ItemBox(touching);
+				if (t && t.parent == parent)
+					Swap(t);
+				
+				bHeld = false;
+			}
+			else if (bLeftClicked)
+			{
+				players[consoleplayer].mo.InvSel = item;
+				if (leftClickTimer <= 0)
+					leftClickTimer = 250;
+			}
+		}
+		
+		holdTimer = 0;
+	}
+	
+	override void OnLeftHold()
+	{
+		if (bLeftClicked)
+		{
+			if (holdTimer < 250)
+				holdTimer += deltatime;
+			else
+				bHeld = true;
+		}
+	}
+	
+	override void OnRightHold()
+	{
+		if (bRightClicked)
+		{
+			if (rightClickTimer < 250)
+				rightClickTimer += deltatime;
+		}
+	}
+	
+	override void OnRightRelease()
+	{
+		if (item)
+		{
+			string drop = "drop:"..item.GetClassName();
+			
+			if (rightClickTimer >= 250)
+			{
+				for (int i = 0; i < item.amount; ++i)
+					EventHandler.SendNetworkEvent(drop);
+			}
+			else				
+				EventHandler.SendNetworkEvent(drop);
+		}
+		
+		rightClickTimer = 0;
+	}
+}

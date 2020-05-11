@@ -37,8 +37,8 @@ class MenuHandler : EventHandler
 	
 	transient ui TextureID cursor;
 	transient ui Array<MenuElement> elements;
-	transient ui Array<MenuElement> navigable;
-	transient ui Array<TextBox> textBoxes; // These get special handling since they should always be draw on top of everything
+	transient ui Array<Tooltip> toolTips; // These get special handling since they should always be draw on top of everything
+	transient ui MenuElement held; // Same for this one
 	
 	transient ui Vector2 mouse;
 	transient ui int mouseAction;
@@ -80,7 +80,7 @@ class MenuHandler : EventHandler
 	}
 	
 	// Sets the menu element nearest to the origin element
-	ui void UpdateCollision(MenuElement origin)
+	ui void UpdateCollision(MenuElement origin, Vector2 pos, bool sameClass = false, bool exact = false)
 	{
 		if (!origin)
 			return;
@@ -89,7 +89,7 @@ class MenuHandler : EventHandler
 		{
 			let probe = elements[i];
 			if (probe && probe != origin)
-				probe.CheckCollision(origin);
+				probe.CheckCollision(origin, pos, sameClass, exact);
 		}
 	}
 	
@@ -97,24 +97,9 @@ class MenuHandler : EventHandler
 	{
 		let mo = players[consoleplayer].mo;
 		
-		// Remove items from UI that should no longer show up
-		for (uint i = 0; i < items.Size(); ++i)
-		{
-			if (!items[i] || items[i].owner != mo)
-				items.Delete(i--);
-		}
-		
-		for (uint i = 0; i < keyItems.Size(); ++i)
-		{
-			if (!keyItems[i] || keyItems[i].owner != mo)
-				keyItems.Delete(i--);
-		}
-		
-		for (uint i = 0; i < keys.Size(); ++i)
-		{
-			if (!keys[i] || keys[i].owner != mo)
-				keys.Delete(i--);
-		}
+		items.Clear();
+		keyItems.Clear();
+		keys.Clear();
 		
 		// Update items
 		for (let probe = mo.inv; probe; probe = probe.inv)
@@ -122,11 +107,11 @@ class MenuHandler : EventHandler
 			if (!probe || probe.amount <= 0)
 				continue;
 			
-			if (probe is "PuzzleItem" && keyItems.Find(probe) == keyItems.Size())
+			if (probe is "PuzzleItem")
 				keyItems.Push(probe);
-			else if (probe is "Key" && keys.Find(probe) == keys.Size())
+			else if (probe is "Key")
 				keys.Push(probe);
-			else if (probe.bInvBar && items.Find(probe) == items.Size())
+			else if (probe.bInvBar)
 				items.Push(probe);
 		}
 		
@@ -135,15 +120,18 @@ class MenuHandler : EventHandler
 		// Update stats and skills
 		if (player)
 		{
+			skills.Clear();
+			stats.Clear();
+			
 			for (uint i = 0; i < player.skills.Size(); ++i)
 			{
-				if (player.skills[i] && skills.Find(player.skills[i]) == skills.Size())
+				if (player.skills[i])
 					skills.Push(player.skills[i]);
 			}
 			
 			for (uint i = 0; i < player.stats.Size(); ++i)
 			{
-				if (player.stats[i] && stats.Find(player.stats[i]) == stats.Size())
+				if (player.stats[i])
 					stats.Push(player.stats[i]);
 			}
 			
@@ -163,10 +151,10 @@ class MenuHandler : EventHandler
 				elements[i].Tick();
 		}
 		
-		for (uint i = 0; i < textBoxes.Size(); ++i)
+		for (uint i = 0; i < toolTips.Size(); ++i)
 		{
-			if (textBoxes[i])
-				textBoxes[i].Tick();
+			if (toolTips[i])
+				toolTips[i].Tick();
 		}
 	}
 	
@@ -179,12 +167,12 @@ class MenuHandler : EventHandler
 		}
 		elements.Clear();
 		
-		for (uint i = 0; i < textBoxes.Size(); ++i)
+		for (uint i = 0; i < toolTips.Size(); ++i)
 		{
-			if (textBoxes[i])
-				textBoxes[i--].Destroy();
+			if (toolTips[i])
+				toolTips[i--].Destroy();
 		}
-		textBoxes.Clear();
+		toolTips.Clear();
 		
 		mouseAction = oldMouseAction = 0;
 		buttonAction = oldButtonAction = 0;
@@ -260,11 +248,14 @@ class MenuHandler : EventHandler
 					elements[i].Execute(e.fracTic);
 			}
 			
-			for (uint i = 0; i < textBoxes.Size(); ++i)
+			for (uint i = 0; i < toolTips.Size(); ++i)
 			{
-				if (textBoxes[i])
-					textBoxes[i].Execute(e.fracTic);
+				if (toolTips[i])
+					toolTips[i].Execute(e.fracTic);
 			}
+			
+			if (held)
+				held.Execute(e.fracTic);
 				
 			Screen.DrawTexture(cursor, false, mouse.x, mouse.y, DTA_TopOffset, 0, DTA_LeftOffset, 0);
 			

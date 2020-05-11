@@ -1,0 +1,197 @@
+class KeyItemCanvas : Canvas
+{
+	uint Find(Inventory item)
+	{
+		uint i;
+		for (; i < children.Size(); ++i)
+		{
+			let child = KeyItemBox(children[i]);
+			if (!child)
+				continue;
+			
+			if (child.item == item)
+				return i;
+		}
+		
+		return i;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		offset = (150,150);
+		defaultPos = pos = (center.x - size.x/2 + 100, center.y - size.y/2 + 100);
+		maxItemsRow = 7;
+		
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
+		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
+		backgroundAlpha = 0.6;
+	}
+	
+	override void PreChildTick()
+	{
+		// Remove items no longer present
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			let child = KeyItemBox(children[i]);
+			if (!child || handler.keyItems.Find(child.item) != handler.keyItems.Size())
+				continue;
+			
+			for (uint j = children.Size() - 1; j > i; --j)
+			{
+				let kb = KeyItemBox(children[j]);
+				if (!kb)
+					continue;
+					
+				for (; j > i; --j)
+				{
+					let prevkb = KeyItemBox(children[j-1]);
+					if (prevkb)
+					{
+						kb.Shift(prevkb.center - kb.center);
+						break;
+					}
+				}
+			}
+			
+			child.Destroy();
+			children.Delete(i--);
+			if (--curItem >= 0)
+				pos.x -= offset.x;
+			else
+			{
+				curItem = maxItemsRow - 1;
+				pos.y -= offset.y;
+				pos.x = defaultPos.x + offset.x*curItem;
+			}
+		}
+		
+		// Add new items
+		for (uint i = 0; i < handler.keyItems.Size(); ++i)
+		{
+			if (Find(handler.keyItems[i]) != children.Size())
+				continue;
+			
+			let kb = KeyItemBox(MenuElement.Create("KeyItemBox", handler, pos, (100,100), self));
+			if (kb)
+			{
+				kb.item = handler.keyItems[i];
+				if (++curItem < maxItemsRow)
+					pos.x += offset.x;
+				else
+				{
+					curItem = 0;
+					pos.x = defaultPos.x;
+					pos.y += offset.y;
+				}
+			}
+		}
+	}
+	
+	override void PreChildExecute(double ticFrac)
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+}
+
+class KeyItemBox : MenuElement
+{
+	Inventory item;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bCollision = true;
+	}
+	
+	void Swap(KeyItemBox other)
+	{
+		if (!other || self == other)
+			return;
+		
+		if (parent)
+		{
+			uint index = parent.children.Find(self);
+			uint otherIndex = parent.children.Find(other);
+			parent.children[otherIndex] = self;
+			parent.children[index] = other;
+		}
+		
+		Vector2 temp = other.center;
+		other.center = center;
+		center = temp;
+		
+		if (!item || !other.item)
+			return;
+		
+		string command = String.Format("swapitem:%s:%s", item.GetClassName(), other.item.GetClassName());
+		EventHandler.SendNetworkEvent(command);
+	}
+	
+	override void OnHeld()
+	{
+		ScaledShift(handler.mouse - scaledCenter);
+		DrawBorder("FF FF FF", 3);
+	}
+	
+	override void OnHover()
+	{
+		DrawBorder("FF FF FF", 3);
+		
+		if (item)
+		{
+			string title = item.GetTag();
+			int titleLength = NewSmallFont.StringWidth(title);
+			int fHeight = NewSmallFont.GetHeight();
+			
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
+		}
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		if (item)
+		{
+			DrawTexture(item.icon, scaledCenter, (2,2));
+		
+			if (!bHeld)
+			{
+				int fHeight = NewSmallFont.GetHeight();
+				string amount = String.Format("%d", item.amount);
+				int amtLength = NewSmallFont.StringWidth(amount);
+				
+				DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter+(scaledSize.x/2, scaledSize.y/2), amount, (-amtLength, -fHeight), 2);
+			}
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		if (item && bHeld)
+		{
+			handler.UpdateCollision(self, handler.mouse, true);
+			let t = KeyItemBox(touching);
+			if (t && t.parent == parent)
+				Swap(t);
+				
+			bHeld = false;
+		}
+		
+		holdTimer = 0;
+	}
+	
+	override void OnLeftHold()
+	{
+		if (bLeftClicked)
+		{
+			if (holdTimer < 250)
+				holdTimer += deltatime;
+			else
+				bHeld = true;
+		}
+	}
+}

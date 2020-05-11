@@ -1,0 +1,106 @@
+class Tooltip : TextBox
+{
+	MenuElement owner;
+	
+	static Tooltip Create(class<Tooltip> tp, MenuHandler handler, Vector2 pos, double width, MenuElement owner)
+	{
+		let tool = Tooltip(new(tp));
+		if (!tool || !owner || !handler)
+			return null;
+		
+		tool.handler = handler;
+		tool.center = pos;
+		tool.size.x = width;
+		tool.owner = owner;
+			
+		tool.Initialize();
+		
+		return tool;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
+		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
+		
+		scale = 2;
+		bCenterTitle = true;
+		
+		double half = size.x/2;
+		if (center.x + half > 1920)
+			center.x = 1920 - half;
+		else if (center.x - half < 0)
+			center.x = half;
+		
+		if (handler)
+			handler.toolTips.Push(self);
+	}
+	
+	override void Execute(double fracTic)
+	{
+		if (!owner)
+		{
+			Destroy();
+			return;
+		}
+		
+		super.Execute(fracTic);
+	}
+	
+	override void PreBackground()
+	{
+		if (!owner)
+			return;
+		
+		int wOfs, hOfs;
+		[wOfs, hOfs] = Screen.GetViewWindow();
+		
+		double sh = hOfs + 1080 * scalar.y;
+		double half = scaledSize.y/2;
+		
+		ScaledShift((0, half));
+		if (scaledCenter.y + half > sh)
+			ScaledShift((0, -(scaledSize.y + owner.scaledSize.y)));
+		else if (scaledCenter.y - half < 0)
+			ScaledShift((0, scaledSize.y + owner.scaledSize.y));
+	}
+	
+	override void PostDraw(double fracTic)
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void OnDestroy()
+	{
+		if (handler)
+			handler.toolTips.Delete(handler.toolTips.Find(self));
+		
+		super.OnDestroy();
+	}
+}
+
+class TooltipMenuElement : MenuElement
+{
+	Tooltip tool;
+	
+	override void OnDestroy()
+	{
+		if (tool)
+			tool.Destroy();
+		
+		super.OnDestroy();
+	}
+}
+
+class Canvas : MenuElement
+{
+	protected int curItem;
+	int maxItemsRow;
+	Vector2 offset;
+	Vector2 defaultPos;
+	Vector2 pos;
+}

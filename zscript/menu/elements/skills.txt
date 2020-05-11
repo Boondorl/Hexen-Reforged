@@ -1,0 +1,240 @@
+class SkillBox : TooltipMenuElement
+{
+	Skill sk;
+	SkillPage sp;
+	uint slot;
+	bool bCreated;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		background = TexMan.CheckForTexture("ARTIBOX", TexMan.Type_Any);
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		if (tool && (!bHovering || !sk))
+			tool.Destroy();
+		
+		if (handler.player && slot < handler.player.skillSlots)
+			sk = handler.player.activeSkills[slot];
+		
+		if (sk)
+			DrawTexture(sk.icon, scaledCenter, (3,3));
+		
+		if (!bCreated && sp && handler.mouseAction == MI_LEFTRELEASE)
+		{
+			double sw = sp.scaledSize.x/2;
+			double sh = sp.scaledSize.y/2;
+			
+			if (handler.mouse.x < (sp.scaledCenter.x-sw) || handler.mouse.x > (sp.scaledCenter.x+sw) ||
+				handler.mouse.y < (sp.scaledCenter.y-sh) || handler.mouse.y > (sp.scaledCenter.y+sh))
+			{
+				sp.Destroy();
+			}
+		}
+		
+		bCreated = false;
+	}
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		
+		if (!sk)
+			return;
+		
+		if (!tool)
+		{
+			tool = Tooltip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
+			tool.title = sk.GetTag();
+			tool.text = sk.description;
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		if (!sp)
+		{
+			bCreated = true;
+			sp = SkillPage(MenuElement.Create("SkillPage", handler, center-(0,size.y/2+150), (300,300), self));
+			sp.slot = slot;
+		}
+	}
+}
+
+class SkillPage : Canvas
+{
+	uint slot;
+	bool bKill;
+	
+	uint Find(Skill sk)
+	{
+		uint i;
+		for (; i < children.Size(); ++i)
+		{
+			let child = SkillSelect(children[i]);
+			if (!child)
+				continue;
+			
+			if (child.sk == sk)
+				return i;
+		}
+		
+		return i;
+	}
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bTile = true;
+		backgroundDesaturation = 1;
+		backgroundColor = 0x9F000000;
+		background = TexMan.CheckForTexture("AUTOPAGE", TexMan.Type_Any);
+		backgroundAlpha = 0.6;
+		
+		offset = (100,100);
+		defaultPos = pos = (center.x - size.x/2+50, center.y - size.y/2 + 50);
+		maxItemsRow = 3;
+		
+		MenuElement.Create("SkillSelect", handler, pos, (100,100), self);
+		if (++curItem < maxItemsRow)
+			pos.x += offset.x;
+		else
+		{
+			curItem = 0;
+			pos.x = defaultPos.x;
+			pos.y += offset.y;
+		}
+	}
+	
+	override void PreChildTick()
+	{
+		// Remove skills no longer present
+		for (uint i = 1; i < children.Size(); ++i)
+		{
+			let child = SkillSelect(children[i]);
+			if (!child || handler.skills.Find(child.sk) != handler.skills.Size())
+				continue;
+			
+			for (uint j = children.Size() - 1; j > i; --j)
+			{
+				let sb = SkillSelect(children[j]);
+				if (!sb)
+					continue;
+					
+				for (; j > i; --j)
+				{
+					let prevsb = SkillSelect(children[j-1]);
+					if (prevsb)
+					{
+						sb.Shift(prevsb.center - sb.center);
+						break;
+					}
+				}
+			}
+			
+			child.Destroy();
+			children.Delete(i--);
+			if (--curItem >= 0)
+				pos.x -= offset.x;
+			else
+			{
+				curItem = maxItemsRow - 1;
+				pos.y -= offset.y;
+				pos.x = defaultPos.x + offset.x*curItem;
+			}
+		}
+		
+		// Add new skills
+		let par = SkillBox(parent);
+		for (uint i = 0; i < handler.skills.Size(); ++i)
+		{
+			if (handler.skills[i] == par.sk || Find(handler.skills[i]) != children.Size())
+				continue;
+			
+			let sb = SkillSelect(MenuElement.Create("SkillSelect", handler, pos, (100,100), self));
+			if (sb)
+			{
+				sb.sk = handler.skills[i];
+				if (++curItem < maxItemsRow)
+					pos.x += offset.x;
+				else
+				{
+					curItem = 0;
+					pos.x = defaultPos.x;
+					pos.y += offset.y;
+				}
+			}
+		}
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+	}
+	
+	override void PostChildExecute(double fracTic)
+	{
+		if (bKill)
+			Destroy();
+	}
+}
+
+class SkillSelect : TooltipMenuElement
+{
+	Skill sk;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		background = TexMan.CheckForTexture("ARTIBOX", TexMan.Type_Any);
+	}
+	
+	override void PreChildExecute(double fracTic)
+	{
+		if (tool && !bHovering)
+			tool.Destroy();
+		
+		if (sk)
+			DrawTexture(sk.icon, scaledCenter, (2.5,2.5));
+	}
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		
+		if (!tool)
+		{
+			tool = Tooltip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
+			
+			if (sk)
+			{
+				tool.title = sk.GetTag();
+				tool.text = sk.description;
+			}
+			else
+				tool.text = "Remove spell from slot";
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		let par = SkillPage(parent);
+		if (!par)
+			return;
+		
+		String command = "swapskill:";
+		if (sk)
+			command.AppendFormat("%s", sk.GetClassName());
+		else
+			command.AppendFormat("null");
+		
+		EventHandler.SendNetworkEvent(command, par.slot);
+		
+		par.bKill = true;
+	}
+}
