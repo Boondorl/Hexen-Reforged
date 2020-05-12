@@ -121,6 +121,7 @@ class ItemBox : TooltipMenuElement
 		super.Initialize();
 		
 		bCollision = true;
+		bNavigate = true;
 	}
 	
 	void Swap(ItemBox other)
@@ -174,6 +175,11 @@ class ItemBox : TooltipMenuElement
 	virtual void OnHighlighted()
 	{
 		DrawBorder("FF 00 00", 3);
+	}
+	
+	override void OnSelected()
+	{
+		DrawBorder("00 FF 00", 3);
 	}
 	
 	override void OnHover()

@@ -5,6 +5,11 @@ class MenuElement : Object ui
 	Array<MenuElement> children;
 	MenuElement touching;
 	
+	MenuElement left;
+	MenuElement right;
+	MenuElement up;
+	MenuElement down;
+	
 	bool bTile;
 	TextureID background;
 	double backgroundAlpha;
@@ -26,6 +31,7 @@ class MenuElement : Object ui
 	bool bCenter;
 	bool bInvisible;
 	bool bCollision;
+	bool bNavigate; // Element can be navigated to with the keyboard
 	
 	bool bLeftClicked;
 	bool bRightClicked;
@@ -361,6 +367,10 @@ class MenuElement : Object ui
 		DrawBackground();
 		
 		PostBackground();
+		
+		bSelected = false;
+		if (handler.selected == self)
+			bSelected = true;
 		
 		double sw = scaledSize.x / 2;
 		double sh = scaledSize.y / 2;
