@@ -352,7 +352,7 @@ class ReforgedStatusBar : BaseStatusBar
 				
 				let skill3 = rpg.activeSkills[2];
 				if (skill3)
-					DrawSkill(skill3, xOfs, yOfs);
+					DrawSkill(skill3, xOfs, yOfs, rpg.activeSkills.Find(skill3) == rpg.selectedSkill);
 				xOfs -= boxsize.x;
 				
 				// 2nd spell
@@ -362,7 +362,7 @@ class ReforgedStatusBar : BaseStatusBar
 				
 				let skill2 = rpg.activeSkills[1];
 				if (skill2)
-					DrawSkill(skill2, xOfs, yOfs);
+					DrawSkill(skill2, xOfs, yOfs, rpg.activeSkills.Find(skill2) == rpg.selectedSkill);
 				xOfs -= boxsize.x;
 				
 				// 1st spell
@@ -372,7 +372,7 @@ class ReforgedStatusBar : BaseStatusBar
 				
 				let skill1 = rpg.activeSkills[0];
 				if (skill1)
-					DrawSkill(skill1, xOfs, yOfs);
+					DrawSkill(skill1, xOfs, yOfs, rpg.activeSkills.Find(skill1) == rpg.selectedSkill);
 			}
 		}
 
@@ -412,7 +412,7 @@ class ReforgedStatusBar : BaseStatusBar
 		return bind;
 	}
 	
-	void DrawSkill(Skill spell, int xOfs, int yOfs)
+	void DrawSkill(Skill spell, int xOfs, int yOfs, bool selected)
 	{
 		if (!spell)
 			return;
@@ -420,6 +420,9 @@ class ReforgedStatusBar : BaseStatusBar
 		double alpha = 1;
 		if (spell.bInCast || spell.bInCoolDown || spell.bCurToggle)
 			alpha = 0.5;
+		
+		if (selected)
+			alpha *= 0.5;
 				
 		DrawTexture(spell.icon, (xOfs, yOfs), DI_ITEM_CENTER, alpha, scale: (0.5, 0.6));
 		if (spell.bInCoolDown)

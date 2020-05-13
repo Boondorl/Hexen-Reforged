@@ -9,6 +9,7 @@ class RPGPlayer : PlayerPawn abstract
 	Array<Stat> stats;
 	Array<Skill> skills;
 	Array<Skill> activeSkills;
+	uint selectedSkill;
 	
 	ui int currentPoints;
 	ui int hideElements;
@@ -173,6 +174,38 @@ class RPGPlayer : PlayerPawn abstract
 			newSkill.bActive = true;
 			newSkill.OnEquip();
 		}
+	}
+	
+	void NextSpell()
+	{
+		uint i = selectedSkill + 1;
+		for (; i != selectedSkill; ++i)
+		{
+			if (i >= skillSlots)
+				i = 0;
+			
+			if (activeSkills[i])
+				break;
+		}
+		
+		if (i != selectedSkill)
+			selectedSkill = i;
+	}
+	
+	void PreviousSpell()
+	{
+		int i = selectedSkill - 1;
+		for (; i != selectedSkill; --i)
+		{
+			if (i < 0)
+				i = skillSlots - 1;
+			
+			if (activeSkills[i])
+				break;
+		}
+		
+		if (i != selectedSkill)
+			selectedSkill = i;
 	}
 	
 	override void PostBeginPlay()

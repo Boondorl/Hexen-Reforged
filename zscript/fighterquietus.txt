@@ -41,10 +41,69 @@ class SwordBox : HurtBox
 	}
 }
 
+class RFWeaponPiece : WeaponPiece
+{
+	Default
+	{
+		Inventory.PickupSound "misc/w_pkup";
+		Inventory.PickupMessage "$TXT_QUIETUS_PIECE";
+		Inventory.RestrictedTo "ReforgedFighter";
+		WeaponPiece.Weapon "ReforgedQuietus";
+		
+		+FLOATBOB
+	}
+}
+
+class RFWeaponPiece1 : RFWeaponPiece replaces FWeaponPiece1
+{
+	Default
+	{
+		WeaponPiece.Number 1;
+	}
+	
+	States
+	{
+		Spawn:
+			WFR1 A -1 Bright;
+			Stop;
+	}
+}
+
+class RFWeaponPiece2 : RFWeaponPiece replaces FWeaponPiece2
+{
+	Default
+	{
+		WeaponPiece.Number 2;
+	}
+	
+	States
+	{
+		Spawn:
+			WFR2 A -1 Bright;
+			Stop;
+	}
+}
+
+class RFWeaponPiece3 : RFWeaponPiece replaces FWeaponPiece3
+{
+	Default
+	{
+		WeaponPiece.Number 3;
+	}
+	
+	States
+	{
+		Spawn:
+			WFR3 A -1 Bright;
+			Stop;
+	}
+}
+
 class ReforgedQuietus : RPGMelee replaces FWeapQuietus
 {
 	Default
 	{
+		Health 3;
 		RPGMelee.ShieldType "SwordBlock";
 		Weapon.SelectionOrder 2900;
 		Weapon.YAdjust 10;

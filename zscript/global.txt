@@ -89,5 +89,23 @@ class GlobalEventsHandler : EventHandler
 			else
 				Console.printf("Markers disabled");
 		}
+		else if (e.Name == "nextspell")
+		{
+			let rpg = RPGPlayer(players[e.Player].mo);
+			if (rpg)
+				rpg.NextSpell();
+		}
+		else if (e.Name == "PrevSpell")
+		{
+			let rpg = RPGPlayer(players[e.Player].mo);
+			if (rpg)
+				rpg.PreviousSpell();
+		}
+		else if (e.Name ~== "currentspell")
+		{
+			let rpg = RPGPlayer(players[e.Player].mo);
+			if (rpg)
+				rpg.UseSkill(rpg.selectedSkill);
+		}
 	}
 }
