@@ -25,9 +25,10 @@ class SkillBox : TooltipMenuElement
 				if (inverted)
 				{
 					pos = (1920, center.y);
-					s.x = 1920 - center.x + half.x;
-					s.y = 1080;
 					origin.x = center.x + half.x;
+					origin.y = center.y - half.y;
+					s.x = 1920 - center.x + half.x;
+					s.y = size.y;
 				}
 				else
 				{
@@ -62,9 +63,10 @@ class SkillBox : TooltipMenuElement
 				}
 				else
 				{
-					s.x = 1920 - center.x + half.x;
-					s.y = 1080;
 					origin.x = center.x + half.x;
+					origin.y = center.y - half.y;
+					s.x = 1920 - center.x + half.x;
+					s.y = size.y;
 				}
 				break;
 				
