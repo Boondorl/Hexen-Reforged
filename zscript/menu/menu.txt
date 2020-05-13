@@ -37,6 +37,15 @@ enum EMenuState
 	MS_STAT
 }
 
+enum EMoveDir
+{
+	MD_NONE,
+	MD_LEFT,
+	MD_UP,
+	MD_RIGHT,
+	MD_DOWN
+}
+
 class MenuHandler : EventHandler
 {
 	transient ui RPGPlayer player;
@@ -52,10 +61,10 @@ class MenuHandler : EventHandler
 	transient ui MenuElement held; // Same for this one
 	
 	transient ui MenuElement selected;
-	
 	transient ui bool bNavMode;
 	transient ui int navTimer;
 	transient ui Vector2 navDir;
+	transient ui Array<MenuElement> navNodes;
 	
 	transient ui Vector2 mouse;
 	transient ui int mouseAction;
@@ -219,8 +228,76 @@ class MenuHandler : EventHandler
 		}
 		toolTips.Clear();
 		
+		navNodes.Clear();
+		selected = null;
+		held = null;
+		
 		mouseAction = oldMouseAction = 0;
 		buttonAction = oldButtonAction = 0;
+	}
+	
+	ui MenuElement GetNearestNode(int dir, bool inverted = false)
+	{
+		if (!selected)
+			return GetTopLeftNode();
+		
+		if (dir == MD_NONE)
+			return null;
+		
+		Vector2 pos, origin, size;
+		[pos, origin, size] = selected.GetNavCollisionBox(dir, inverted);
+		
+		if (size.x <= 0 || size.y <= 0)
+			return null;
+		
+		Vector2 oMax = origin + size;
+		MenuElement el;
+		double dist = double.max;
+		for (uint i = 0; i < navNodes.Size(); ++i)
+		{
+			let node = navNodes[i];
+			if (!node || node == selected)
+				continue;
+			
+			Vector2 half = node.size / 2;
+			Vector2 nMin = node.center - half;
+			Vector2 nMax = node.center + half;
+			
+			if ((nMin.x < oMax.x && nMax.x > origin.x) &&
+				(nMin.y < oMax.y && nMax.y > origin.y))
+			{
+				Vector2 temp = pos - node.center;
+				double length = temp dot temp;
+				if (length < dist)
+				{
+					el = node;
+					dist = length;
+				}
+			}
+		}
+		
+		return el;
+	}
+	
+	ui MenuElement GetTopLeftNode()
+	{
+		MenuElement el;
+		double dist = double.max;
+		
+		for (uint i = 0; i < navNodes.Size(); ++i)
+		{
+			if (!navNodes[i])
+				continue;
+			
+			double length = navNodes[i].center dot navNodes[i].center;
+			if (length < dist)
+			{
+				dist = length;
+				el = navNodes[i];
+			}
+		}
+		
+		return el;
 	}
 	
 	override void RenderOverlay(RenderEvent e)
@@ -283,32 +360,44 @@ class MenuHandler : EventHandler
 			else if (menuState == MS_STAT)
 				DrawStats();
 			
-			SetNavigation();
-			
-			if (selected)
+			if (bNavMode && selected)
 			{
 				if (navTimer <= 0)
 				{
-					if (navDir.y == ND_UP)
+					MenuElement el;
+					int dir = MD_NONE;
+					
+					if (selected.bVertical)
 					{
-						if (selected.up && selected.up != selected)
-							selected = selected.up;
-					}
-					else if (navDir.y == ND_DOWN)
-					{
-						if (selected.down && selected.down != selected)
-							selected = selected.down;
+						if (navDir.y == ND_UP)
+							dir = MD_UP;
+						else if (navDir.y == ND_DOWN)
+							dir = MD_DOWN;
+						
+						el = GetNearestNode(dir);
+						if (!el)
+							el = GetNearestNode(dir, true);
+							
+						if (el && el != selected)
+							selected = el;
 					}
 					
-					if (navDir.x == ND_LEFT)
+					el = null;
+					dir = MD_NONE;
+					
+					if (selected.bHorizontal)
 					{
-						if (selected.left && selected.left != selected)
-							selected = selected.left;
-					}
-					else if (navDir.x == ND_RIGHT)
-					{
-						if (selected.right && selected.right != selected)
-							selected = selected.right;
+						if (navDir.x == ND_LEFT)
+							dir = MD_LEFT;
+						else if (navDir.x == ND_RIGHT)
+							dir = MD_RIGHT;
+						
+						el = GetNearestNode(dir);
+						if (!el)
+							el = GetNearestNode(dir, true);
+							
+						if (el && el != selected)
+							selected = el;
 					}
 					
 					if (navTimer < 0)
@@ -334,70 +423,15 @@ class MenuHandler : EventHandler
 			
 			if (held)
 				held.Execute(e.fracTic);
-				
-			Screen.DrawTexture(cursor, false, mouse.x, mouse.y, DTA_TopOffset, 0, DTA_LeftOffset, 0);
+			
+			if (!bNavMode)
+				Screen.DrawTexture(cursor, false, mouse.x, mouse.y, DTA_TopOffset, 0, DTA_LeftOffset, 0);
 			
 			oldMouseAction = mouseAction;
 			oldButtonAction = buttonAction;
 		}
 		
 		oldMenuState = menuState;
-	}
-	
-	ui void SetNavigation()
-	{
-		ItemCanvas can;
-		for (uint i = 0; i < elements.Size(); ++i)
-		{
-			if (elements[i] is "ItemCanvas")
-			{
-				can = ItemCanvas(elements[i]);
-				break;
-			}
-		}
-		
-		if (!can)
-			return;
-		
-		uint size = can.children.Size();
-		if (!size)
-			return;
-		
-		if (!selected)
-			selected = can.children[0];
-		
-		int row = 1;
-		for (uint i = 0; i < size; ++i)
-		{
-			if (can.maxItemsRow && i == row*can.maxItemsRow)
-				++row;
-			
-			if (!can.children[i])
-				continue;
-			
-			if (i+1 < row*can.maxItemsRow && i+1 < size)
-				can.children[i].right = can.children[i+1];
-			else
-				can.children[i].right = can.children[(row-1)*can.maxItemsRow];
-			
-			if (i-1 >= (row-1)*can.maxItemsRow && i-1 >= 0)
-				can.children[i].left = can.children[i-1];
-			else
-				can.children[i].left= can.children[min(size, row*can.maxItemsRow)-1];
-			
-			if (can.maxItemsRow)
-			{
-				if (i+can.maxItemsRow < size)
-					can.children[i].down = can.children[i+can.maxItemsRow];
-				else
-					can.children[i].down = can.children[i-(row-1)*can.maxItemsRow];
-				
-				if (i - can.MaxItemsRow >= 0)
-					can.children[i].up = can.children[i-can.maxItemsRow];
-				else if (size % can.maxItemsRow > i)
-					can.children[i].up = can.children[size - size % can.maxItemsRow + i];
-			}
-		}
 	}
 	
 	ui void DrawInventory()
@@ -550,6 +584,7 @@ class MenuHandler : EventHandler
 		mouse.x += e.mouseX*0.25;
 		mouse.y += e.mouseY*-1.5;
 			
+		bool curNav = bNavMode;
 		int mAct, bAct, nav;
 		if (e.Type == InputEvent.Type_KeyDown)
 		{
@@ -647,6 +682,26 @@ class MenuHandler : EventHandler
 			buttonAction = bAct;
 		if (nav == 1)
 			navTimer = -1;
+		
+		if (mAct || e.Type == InputEvent.Type_Mouse)
+			bNavMode = false;
+		else if (nav)
+		{
+			bNavMode = true;
+			if (!selected)
+			{
+				selected = GetTopLeftNode();
+				navTimer = Thinker.TICRATE / 3;
+			}
+		}
+		
+		if (curNav != bNavMode)
+		{
+			if (held)
+				held.Clear();
+			
+			held = null;
+		}
 		
 		if (mAct || bAct || nav || e.Type == InputEvent.Type_Mouse)
 			return true;

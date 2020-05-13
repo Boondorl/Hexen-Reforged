@@ -106,6 +106,98 @@ class KeyItemBox : MenuElement
 		super.Initialize();
 		
 		bCollision = true;
+		bNavigate = true;
+	}
+	
+	override Vector2, Vector2, Vector2 GetNavCollisionBox(int dir, bool inverted)
+	{
+		Vector2 pos = center;
+		Vector2 origin, s;
+		Vector2 half = size / 2;
+		
+		switch (dir)
+		{
+			case MD_LEFT:
+				if (inverted)
+				{
+					pos = (1920, center.y);
+					origin.x = center.x + half.x;
+					origin.y = center.y - size.y*2;
+					s.x = 1920 - center.x + half.x;
+					s.y = size.y*4;
+				}
+				else
+				{
+					origin.y = center.y - size.y*2;
+					s.x = center.x - half.x;
+					s.y = size.y*4;
+				}
+				break;
+				
+			case MD_UP:
+				if (inverted)
+				{
+					pos = (center.x, 1080);
+					origin.x = center.x - half.x;
+					origin.y = center.y + half.y;
+					s.x = size.x;
+					s.y = 1080 - (center.y + half.y);
+				}
+				else
+				{
+					origin.x = center.x - half.x;
+					s.x = size.x;
+					s.y = center.y - half.y;
+				}
+				break;
+				
+			case MD_RIGHT:
+				if (inverted)
+				{
+					pos = (0, center.y);
+					origin.y = center.y - size.y*2;
+					s.x = center.x - half.x;
+					s.y = size.y*4;
+				}
+				else
+				{
+					origin.x = center.x + half.x;
+					origin.y = center.y - size.y*2;
+					s.x = 1920 - center.x + half.x;
+					s.y = size.y*4;
+					let par = KeyItemCanvas(parent);
+					if (par && par.children.Find(self) >= par.maxItemsRow*2)
+					{
+						origin.y = center.y - half.y;
+						s.y = size.y;
+					}
+				}
+				break;
+				
+			case MD_DOWN:
+				if (inverted)
+				{
+					pos = (center.x, 0);
+					origin.x = center.x - half.x;
+					s.x = size.x;
+					s.y = center.y - half.y;
+				}
+				else
+				{
+					origin.x = center.x - half.x;
+					origin.y = center.y + half.y;
+					s.x = size.x;
+					s.y = 1080 - (center.y + half.y);
+				}
+				break;
+		}
+		
+		return pos, origin, s;
+	}
+	
+	override void OnSelected()
+	{
+		DrawBorder("FF FF FF", 3);
 	}
 	
 	void Swap(KeyItemBox other)

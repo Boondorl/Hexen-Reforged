@@ -124,6 +124,86 @@ class ItemBox : TooltipMenuElement
 		bNavigate = true;
 	}
 	
+	override Vector2, Vector2, Vector2 GetNavCollisionBox(int dir, bool inverted)
+	{
+		Vector2 pos = center;
+		Vector2 origin, s;
+		Vector2 half = size / 2;
+		
+		switch (dir)
+		{
+			case MD_LEFT:
+				if (inverted)
+				{
+					pos = (1920, center.y);
+					origin.x = center.x + half.x;
+					origin.y = center.y - size.y;
+					s.x = 1920 - center.x + half.x;
+					s.y = size.y*2;
+				}
+				else
+				{
+					origin.y = center.y - size.y;
+					s.x = center.x - half.x;
+					s.y = size.y*2;
+				}
+				break;
+				
+			case MD_UP:
+				if (inverted)
+				{
+					pos = (center.x, 1080);
+					origin.x = center.x - half.x;
+					origin.y = center.y + half.y;
+					s.x = size.x;
+					s.y = 1080 - (center.y + half.y);
+				}
+				else
+				{
+					origin.x = center.x - half.x;
+					s.x = size.x;
+					s.y = center.y - half.y;
+				}
+				break;
+				
+			case MD_RIGHT:
+				if (inverted)
+				{
+					pos = (0, center.y);
+					origin.y = center.y - size.y;
+					s.x = center.x - half.x;
+					s.y = size.y*2;
+				}
+				else
+				{
+					origin.x = center.x + half.x;
+					origin.y = center.y - size.y;
+					s.x = 1920 - center.x + half.x;
+					s.y = size.y*2;
+				}
+				break;
+				
+			case MD_DOWN:
+				if (inverted)
+				{
+					pos = (center.x, 0);
+					origin.x = center.x - half.x;
+					s.x = size.x;
+					s.y = center.y - half.y;
+				}
+				else
+				{
+					origin.x = center.x - half.x;
+					origin.y = center.y + half.y;
+					s.x = size.x;
+					s.y = 1080 - (center.y + half.y);
+				}
+				break;
+		}
+		
+		return pos, origin, s;
+	}
+	
 	void Swap(ItemBox other)
 	{
 		if (!other || self == other)
@@ -174,12 +254,39 @@ class ItemBox : TooltipMenuElement
 	
 	virtual void OnHighlighted()
 	{
-		DrawBorder("FF 00 00", 3);
+		if (!bSelected)
+			DrawBorder("FF 00 00", 3);
 	}
 	
 	override void OnSelected()
 	{
-		DrawBorder("00 FF 00", 3);
+		if (!bHeld)
+			DrawBorder("FF FF FF", 3);
+		
+		if (item)
+		{
+			string title = item.GetTag();
+			int titleLength = NewSmallFont.StringWidth(title);
+			int fHeight = NewSmallFont.GetHeight();
+			
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
+			
+			if (!tool)
+				tool = ToolTip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
+			
+			let rpgi = RPGItem(item);
+			if (rpgi && tool)
+				tool.text = String.Format("%sWeight:%s %.1f\n%sTotal:%s %.1f\n\n%s", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight/10., Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight*rpgi.amount/10., rpgi.description);
+			
+			if (handler.buttonAction == BI_USE)
+			{
+				if (handler.held == self)
+					handler.held.Clear();
+				
+				string use = "use:"..item.GetClassName();
+				EventHandler.SendNetworkEvent(use);
+			}
+		}
 	}
 	
 	override void OnHover()
@@ -201,14 +308,14 @@ class ItemBox : TooltipMenuElement
 			let rpgi = RPGItem(item);
 			if (rpgi && tool)
 				tool.text = String.Format("%sWeight:%s %.1f\n%sTotal:%s %.1f\n\n%s", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight/10., Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight*rpgi.amount/10., rpgi.description);
-		}
-		
-		if (!bLeftClicked && !bRightClicked)
-		{
-			if (handler.buttonAction == BI_USE)
+			
+			if (!bLeftClicked && !bRightClicked)
 			{
-				string use = "use:"..item.GetClassName();
-				EventHandler.SendNetworkEvent(use);
+				if (handler.buttonAction == BI_USE)
+				{
+					string use = "use:"..item.GetClassName();
+					EventHandler.SendNetworkEvent(use);
+				}
 			}
 		}
 	}
@@ -232,8 +339,16 @@ class ItemBox : TooltipMenuElement
 			}
 		}
 		
-		if (tool && !bHovering)
-			tool.Destroy();
+		if (tool)
+		{
+			if (handler.bNavMode)
+			{
+				if (!bSelected)
+					tool.Destroy();
+			}
+			else if (!bHovering)
+				tool.Destroy();
+		}
 		
 		if (leftClickTimer > 0)
 			leftClickTimer -= deltatime;

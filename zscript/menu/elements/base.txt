@@ -5,11 +5,6 @@ class MenuElement : Object ui
 	Array<MenuElement> children;
 	MenuElement touching;
 	
-	MenuElement left;
-	MenuElement right;
-	MenuElement up;
-	MenuElement down;
-	
 	bool bTile;
 	TextureID background;
 	double backgroundAlpha;
@@ -31,7 +26,10 @@ class MenuElement : Object ui
 	bool bCenter;
 	bool bInvisible;
 	bool bCollision;
+	
 	bool bNavigate; // Element can be navigated to with the keyboard
+	bool bHorizontal;
+	bool bVertical;
 	
 	bool bLeftClicked;
 	bool bRightClicked;
@@ -60,6 +58,9 @@ class MenuElement : Object ui
 		}
 		
 		element.Initialize();
+		
+		if (element.handler && element.bNavigate)
+			element.handler.navNodes.Push(element);
 		
 		return element;
 	}
@@ -117,12 +118,20 @@ class MenuElement : Object ui
 		if (thickness < 1)
 			thickness = 1;
 		
-		Vector2 half = scaledSize / 2 + (thickness, thickness)*2;
+		Vector2 half = scaledSize / 2;
+		Vector2 ofs = (floor(thickness * 0.5), ceil(thickness * 0.5));
 		
-		Screen.DrawThickLine(scaledCenter.x - half.x, scaledCenter.y - half.y, scaledCenter.x + half.x, scaledCenter.y - half.y, thickness, col, 255*alpha);
-		Screen.DrawThickLine(scaledCenter.x + half.x, scaledCenter.y - half.y, scaledCenter.x + half.x, scaledCenter.y + half.y, thickness, col, 255*alpha);
-		Screen.DrawThickLine(scaledCenter.x + half.x, scaledCenter.y + half.y, scaledCenter.x - half.x, scaledCenter.y + half.y, thickness, col, 255*alpha);
-		Screen.DrawThickLine(scaledCenter.x - half.x, scaledCenter.y + half.y, scaledCenter.x - half.x, scaledCenter.y - half.y, thickness, col, 255*alpha);
+		Screen.DrawThickLine(scaledCenter.x - half.x, scaledCenter.y - half.y - ofs.y,
+							scaledCenter.x + half.x, scaledCenter.y - half.y - ofs.y, thickness, col, 255*alpha);
+							
+		Screen.DrawThickLine(scaledCenter.x + half.x + ofs.y, scaledCenter.y - half.y,
+							scaledCenter.x + half.x + ofs.y, scaledCenter.y + half.y, thickness, col, 255*alpha);
+							
+		Screen.DrawThickLine(scaledCenter.x + half.x, scaledCenter.y + half.y + ofs.x,
+							scaledCenter.x - half.x, scaledCenter.y + half.y + ofs.x, thickness, col, 255*alpha);
+							
+		Screen.DrawThickLine(scaledCenter.x - half.x - ofs.x, scaledCenter.y + half.y,
+							scaledCenter.x - half.x - ofs.x, scaledCenter.y - half.y, thickness, col, 255*alpha);
 	}
 	
 	void CheckCollision(MenuElement other, Vector2 pos, bool sameClass = false, bool exact = false)
@@ -141,13 +150,8 @@ class MenuElement : Object ui
 			if ((orMin.x <= otMax.x && orMax.x >= otMin.x) &&
 				(orMin.y <= otMax.y && orMax.y >= otMin.y))
 			{
-				if (!other.touching)
+				if (!other.touching || other.ScaledDistanceToSquared(touching) > other.ScaledDistanceToSquared(self))
 					other.touching = self;
-				else
-				{
-					if (other.ScaledDistanceToSquared(touching) > other.ScaledDistanceToSquared(self))
-						other.touching = self;
-				}
 			}
 		}
 		
@@ -260,10 +264,84 @@ class MenuElement : Object ui
 
 	}
 	
+	virtual Vector2, Vector2, Vector2 GetNavCollisionBox(int dir, bool inverted = false)
+	{
+		Vector2 pos = center;
+		Vector2 origin, s;
+		Vector2 half = size / 2;
+		
+		switch (dir)
+		{
+			case MD_LEFT:
+				if (inverted)
+				{
+					pos = (1920, center.y);
+					s.x = 1920 - center.x + half.x;
+					s.y = 1080;
+					origin.x = center.x + half.x;
+				}
+				else
+				{
+					s.x = center.x - half.x;
+					s.y = 1080;
+				}
+				break;
+				
+			case MD_UP:
+				if (inverted)
+				{
+					pos = (center.x, 1080);
+					s.x = 1920;
+					s.y = 1080 - (center.y + half.y);
+					origin.y = center.y + half.y;
+				}
+				else
+				{
+					s.x = 1920;
+					s.y = center.y - half.y;
+				}
+				break;
+				
+			case MD_RIGHT:
+				if (inverted)
+				{
+					pos = (0, center.y);
+					s.x = center.x - half.x;
+					s.y = 1080;
+				}
+				else
+				{
+					s.x = 1920 - center.x + half.x;
+					s.y = 1080;
+					origin.x = center.x + half.x;
+				}
+				break;
+				
+			case MD_DOWN:
+				if (inverted)
+				{
+					pos = (center.x, 0);
+					s.x = 1920;
+					s.y = center.y - half.y;
+				}
+				else
+				{
+					s.x = 1920;
+					s.y = 1080 - (center.y + half.y);
+					origin.y = center.y + half.y;
+				}
+				break;
+		}
+		
+		return pos, origin, s;
+	}
+	
 	virtual void Initialize()
 	{
 		bCenter = true;
 		bKeepAspectRatio = true;
+		bHorizontal = true;
+		bVertical = true;
 		tolerance = (size.x / 2, size.y / 2);
 		backgroundAlpha = 1;
 		backgroundScale = 1;
@@ -273,7 +351,6 @@ class MenuElement : Object ui
 	{
 		bLeftClicked = false;
 		bRightClicked = false;
-		bSelected = false;
 		bHeld = false;
 		holdTimer = 0;
 	}
@@ -369,15 +446,15 @@ class MenuElement : Object ui
 		PostBackground();
 		
 		bSelected = false;
-		if (handler.selected == self)
+		if (handler.bNavMode && handler.selected == self)
 			bSelected = true;
 		
 		double sw = scaledSize.x / 2;
 		double sh = scaledSize.y / 2;
 			
-		if (bHeld ||
+		if (!handler.bNavMode && (bHeld ||
 			(handler.mouse.x >= (scaledCenter.x-sw) && handler.mouse.x <= (scaledCenter.x+sw) &&
-			handler.mouse.y >= (scaledCenter.y-sh) && handler.mouse.y <= (scaledCenter.y+sh)))
+			handler.mouse.y >= (scaledCenter.y-sh) && handler.mouse.y <= (scaledCenter.y+sh))))
 		{
 			switch (handler.mouseAction)
 			{
@@ -409,10 +486,8 @@ class MenuElement : Object ui
 					bRightClicked = false;
 					break;
 			}
-				
-			if (bHeld)
-				OnHeld();
-			else
+			
+			if (!bHeld)
 			{
 				bHovering = true;
 				OnHover();
@@ -423,10 +498,13 @@ class MenuElement : Object ui
 			holdTimer = 0;
 			bLeftClicked = false;
 			bRightClicked = false;
+			
+			if (bSelected)
+				OnSelected();
 		}
 		
-		if (!bHeld && bSelected)
-			OnSelected();
+		if (bHeld)
+			OnHeld();
 		
 		PreChildExecute(fracTic);
 		
@@ -471,6 +549,9 @@ class MenuElement : Object ui
 	
 	override void OnDestroy()
 	{
+		if (handler && bNavigate)
+			handler.navNodes.Delete(handler.navNodes.Find(self));
+		
 		for (uint i = 0; i < children.Size(); ++i)
 		{
 			if (children[i])
@@ -511,11 +592,11 @@ class TextBox : MenuElement
 	
 	override void Execute(double fracTic)
 	{
-		if (scale <= 0)
-			return;
-		
 		center.y -= size.y / 2;
 		size.y = 0;
+		
+		if (scale <= 0)
+			return;
 		
 		int fHeight = fnt.GetHeight();
 		int scaledW = size.x / scale;
@@ -527,9 +608,6 @@ class TextBox : MenuElement
 		
 		let titleLines = fnt.BreakLines(title, scaledW);
 		for (int i = 0; i < titleLines.Count(); ++i)
-			size.y += scaledFH;
-		
-		if (title && text)
 			size.y += scaledFH;
 		
 		center.y += size.y / 2;
@@ -554,9 +632,6 @@ class TextBox : MenuElement
 			DrawText(fnt, Font.CR_UNTRANSLATED, (x, scaledCenter.y-half.y), line, (-xOfs,hOfs), scale);
 			hOfs += fHeight;
 		}
-		
-		if (title && text)
-			hOfs += fHeight;
 		
 		for (int i = 0; i < lines.Count(); ++i)
 		{

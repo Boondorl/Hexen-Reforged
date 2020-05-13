@@ -22,6 +22,9 @@ class Tooltip : TextBox
 	{
 		super.Initialize();
 		
+		bHorizontal = false;
+		bVertical = false;
+		
 		bTile = true;
 		backgroundDesaturation = 1;
 		backgroundColor = 0x9F000000;

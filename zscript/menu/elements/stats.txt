@@ -127,6 +127,8 @@ class StatCanvas : Canvas
 
 class StatBox : MenuElement
 {
+	const BONUS_HEADER = Font.TEXTCOLOR_BOLD.."Bonus:\n"..Font.TEXTCOLOR_NORMAL;
+	
 	Stat st;
 	TextBox description;
 	TextBox bonus;
@@ -160,7 +162,7 @@ class StatBox : MenuElement
 	{
 		if (st && bonus)
 		{
-			String text = Font.TEXTCOLOR_BOLD.."Bonus:\n"..Font.TEXTCOLOR_NORMAL;
+			String text = BONUS_HEADER;
 			
 			if (st.currentLevel > 1)
 			{
@@ -168,9 +170,9 @@ class StatBox : MenuElement
 				{
 					int val = st.bonusValue[i] * (st.currentLevel - 1);
 					if (val > 0)
-						text.AppendFormat("+");
+						text = text.."+";
 					
-					text.AppendFormat("%d%s", val, st.bonusText[i]);
+					text = text..val..st.bonusText[i];
 				}
 			}
 			
@@ -268,6 +270,72 @@ class StatDecrementer : MenuElement
 class LevelDisplay : MenuElement
 {
 	int oldLevel;
+	private int coolDown;
+	private double oldNavDir;
+	
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNavigate = true;
+		bHorizontal = false;
+		coolDown = -1;
+	}
+	
+	override void PostChildTick()
+	{
+		if (coolDown > -1)
+			--coolDown;
+	}
+	
+	override Vector2, Vector2, Vector2 GetNavCollisionBox(int dir, bool inverted)
+	{
+		Vector2 pos, origin, s;
+		[pos, origin, s] = super.GetNavCollisionBox(dir, inverted);
+		
+		if (dir == MD_UP && inverted)
+			pos.x = 1920 / 2;
+		
+		return pos, origin, s;
+	}
+	
+	override void OnSelected()
+	{
+		DrawBorder("FF FF FF", 3);
+		
+		if (!parent)
+			return;
+		
+		if (handler.navDir.x != oldNavDir)
+			coolDown = -1;
+		
+		if (coolDown <= 0)
+		{
+			if (handler.navDir.x == ND_LEFT)
+			{
+				for (uint i = 0; i < parent.children.Size(); ++i)
+				{
+					if (parent.children[i] is "StatIncrementer")
+						parent.children[i].OnLeftRelease();
+				}
+			}
+			else if (handler.navDir.x == ND_RIGHT)
+			{
+				for (uint i = 0; i < parent.children.Size(); ++i)
+				{
+					if (parent.children[i] is "StatDecrementer")
+						parent.children[i].OnLeftRelease();
+				}
+			}
+			
+			if (coolDown < 0)
+				coolDown = Thinker.TICRATE / 2;
+			else
+				coolDown = Thinker.TICRATE / 5;
+		}
+		
+		oldNavDir = handler.navDir.x;
+	}
 	
 	override void PreChildTick()
 	{
@@ -321,6 +389,19 @@ class StatTextBox : TextBox
 
 class ConfirmButton : MenuElement
 {
+	override void Initialize()
+	{
+		super.Initialize();
+		
+		bNavigate = true;
+		bHorizontal = false;
+	}
+	
+	override void OnSelected()
+	{
+		DrawBorder("FF FF FF", 3);
+	}
+	
 	override void OnHover()
 	{
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
