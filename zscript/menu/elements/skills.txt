@@ -91,7 +91,12 @@ class SkillBox : TooltipMenuElement
 	
 	override void OnSelected()
 	{
-		
+		if (handler.buttonAction == BI_USE)
+		{
+			OnLeftRelease();
+			if (sp)
+				handler.selected = null;
+		}
 	}
 	
 	override void PreChildExecute(double fracTic)
@@ -290,6 +295,13 @@ class SkillPage : Canvas
 				}
 			}
 		}
+		
+		uint s = children.Size();
+		if (handler && children.Find(handler.selected) >= s)
+		{
+			if (s)
+				handler.selected = children[0];
+		}
 	}
 	
 	override void PreChildExecute(double fracTic)
@@ -332,12 +344,22 @@ class SkillSelect : TooltipMenuElement
 					origin.y = center.y - half.y;
 					s.x = 1920 - center.x + half.x;
 					s.y = size.y;
+					if (parent)
+					{
+						pos.x = parent.center.x + parent.size.x/2;
+						s.x = pos.x - center.x - half.x;
+					}
 				}
 				else
 				{
 					origin.y = center.y - half.y;
 					s.x = center.x - half.x;
 					s.y = size.y;
+					if (parent)
+					{
+						origin.x = parent.center.x - parent.size.x/2;
+						s.x -= origin.x;
+					}
 				}
 				break;
 				
@@ -349,12 +371,22 @@ class SkillSelect : TooltipMenuElement
 					origin.y = center.y + half.y;
 					s.x = size.x;
 					s.y = 1080 - (center.y + half.y);
+					if (parent)
+					{
+						pos.y = parent.center.y + parent.size.y/2;
+						s.y = pos.y - center.y - half.y;
+					}
 				}
 				else
 				{
 					origin.x = center.x - half.x;
 					s.x = size.x;
 					s.y = center.y - half.y;
+					if (parent)
+					{
+						origin.y = parent.center.y - parent.size.y/2;
+						s.y -= origin.y;
+					}
 				}
 				break;
 				
@@ -365,6 +397,11 @@ class SkillSelect : TooltipMenuElement
 					origin.y = center.y - half.y;
 					s.x = center.x - half.x;
 					s.y = size.y;
+					if (parent)
+					{
+						pos.x = origin.x = parent.center.x - parent.size.x/2;
+						s.x -= origin.x;
+					}
 				}
 				else
 				{
@@ -372,6 +409,8 @@ class SkillSelect : TooltipMenuElement
 					origin.y = center.y - half.y;
 					s.x = 1920 - center.x + half.x;
 					s.y = size.y;
+					if (parent)
+						s.x = (parent.center.x + parent.size.x/2) - center.x - half.x;
 				}
 				break;
 				
@@ -382,6 +421,11 @@ class SkillSelect : TooltipMenuElement
 					origin.x = center.x - half.x;
 					s.x = size.x;
 					s.y = center.y - half.y;
+					if (parent)
+					{
+						pos.y = origin.y = parent.center.y - parent.size.y/2;
+						s.y -= origin.y;
+					}
 				}
 				else
 				{
@@ -389,6 +433,8 @@ class SkillSelect : TooltipMenuElement
 					origin.y = center.y + half.y;
 					s.x = size.x;
 					s.y = 1080 - (center.y + half.y);
+					if (parent)
+						s.y = (parent.center.y + parent.size.y/2) - center.y - half.y;
 				}
 				break;
 		}

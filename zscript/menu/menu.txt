@@ -421,7 +421,7 @@ class MenuHandler : EventHandler
 					toolTips[i].Execute(e.fracTic);
 			}
 			
-			if (selected && !selected.bHeld)
+			if (bNavMode && selected && !selected.bHeld)
 				selected.DrawBorder("FF FF FF", 3);
 			
 			if (held)
@@ -704,6 +704,8 @@ class MenuHandler : EventHandler
 				held.Clear();
 			
 			held = null;
+			if (bNavMode)
+				navTimer = Thinker.TICRATE / 3;
 		}
 		
 		if (mAct || bAct || nav || e.Type == InputEvent.Type_Mouse)
