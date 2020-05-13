@@ -301,8 +301,6 @@ class LevelDisplay : MenuElement
 	
 	override void OnSelected()
 	{
-		DrawBorder("FF FF FF", 3);
-		
 		if (!parent)
 			return;
 		
@@ -399,7 +397,7 @@ class ConfirmButton : MenuElement
 	
 	override void OnSelected()
 	{
-		DrawBorder("FF FF FF", 3);
+		
 	}
 	
 	override void OnHover()

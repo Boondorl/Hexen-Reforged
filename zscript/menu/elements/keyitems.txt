@@ -125,6 +125,8 @@ class KeyItemBox : MenuElement
 					origin.y = center.y - size.y*2;
 					s.x = 1920 - center.x + half.x;
 					s.y = size.y*4;
+					if (handler && !handler.keys.Size())
+						s.y = 1080 - origin.y;
 				}
 				else
 				{
@@ -165,11 +167,16 @@ class KeyItemBox : MenuElement
 					origin.y = center.y - size.y*2;
 					s.x = 1920 - center.x + half.x;
 					s.y = size.y*4;
-					let par = KeyItemCanvas(parent);
-					if (par && par.children.Find(self) >= par.maxItemsRow*2)
+					if (handler && !handler.keys.Size())
+						s.y = 1080 - origin.y;
+					else
 					{
-						origin.y = center.y - half.y;
-						s.y = size.y;
+						let par = KeyItemCanvas(parent);
+						if (par && par.children.Find(self) >= par.maxItemsRow*2)
+						{
+							origin.y = center.y - half.y;
+							s.y = size.y;
+						}
 					}
 				}
 				break;
@@ -197,7 +204,7 @@ class KeyItemBox : MenuElement
 	
 	override void OnSelected()
 	{
-		DrawBorder("FF FF FF", 3);
+		
 	}
 	
 	void Swap(KeyItemBox other)

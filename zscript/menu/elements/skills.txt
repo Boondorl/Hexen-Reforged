@@ -25,16 +25,14 @@ class SkillBox : TooltipMenuElement
 				if (inverted)
 				{
 					pos = (1920, center.y);
-					origin.x = center.x + half.x;
-					origin.y = center.y - half.y;
 					s.x = 1920 - center.x + half.x;
-					s.y = size.y;
+					s.y = 1080;
+					origin.x = center.x + half.x;
 				}
 				else
 				{
-					origin.y = center.y - half.y;
-					s.x = center.x - half.x;
-					s.y = size.y;
+					s.x = center.x - half.x - 50;
+					s.y = 1080;
 				}
 				break;
 				
@@ -42,15 +40,15 @@ class SkillBox : TooltipMenuElement
 				if (inverted)
 				{
 					pos = (center.x, 1080);
-					origin.x = center.x - half.x;
+					origin.x = center.x - size.x;
 					origin.y = center.y + half.y;
-					s.x = size.x;
+					s.x = size.x*2;
 					s.y = 1080 - (center.y + half.y);
 				}
 				else
 				{
-					origin.x = center.x - half.x;
-					s.x = size.x;
+					origin.x = center.x - size.x*(slot+1);
+					s.x = size.x*2*(slot+1);
 					s.y = center.y - half.y;
 				}
 				break;
@@ -59,16 +57,14 @@ class SkillBox : TooltipMenuElement
 				if (inverted)
 				{
 					pos = (0, center.y);
-					origin.y = center.y - half.y;
 					s.x = center.x - half.x;
-					s.y = size.y;
+					s.y = 1080;
 				}
 				else
 				{
-					origin.x = center.x + half.x;
-					origin.y = center.y - half.y;
 					s.x = 1920 - center.x + half.x;
-					s.y = size.y;
+					s.y = 1080;
+					origin.x = center.x + half.x;
 				}
 				break;
 				
@@ -95,7 +91,7 @@ class SkillBox : TooltipMenuElement
 	
 	override void OnSelected()
 	{
-		DrawBorder("FF FF FF", 3);
+		
 	}
 	
 	override void PreChildExecute(double fracTic)

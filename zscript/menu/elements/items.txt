@@ -260,9 +260,6 @@ class ItemBox : TooltipMenuElement
 	
 	override void OnSelected()
 	{
-		if (!bHeld)
-			DrawBorder("FF FF FF", 3);
-		
 		if (item)
 		{
 			string title = item.GetTag();

@@ -4,9 +4,9 @@ class ArmorBox : TooltipMenuElement
 	{
 		AT_HEAD = 1,
 		AT_AMUL,
+		AT_SHIELD,
 		AT_CHEST,
-		AT_BRACE,
-		AT_SHIELD
+		AT_BRACE
 	}
 	
 	Inventory armor;
@@ -17,7 +17,6 @@ class ArmorBox : TooltipMenuElement
 		super.Initialize();
 		
 		background = TexMan.CheckForTexture("ARTIBOX", TexMan.Type_Any);
-		backgroundAlpha = 0.6;
 		bNavigate = true;
 	}
 	
@@ -90,9 +89,9 @@ class ArmorBox : TooltipMenuElement
 				}
 				else
 				{
-					origin.x = center.x - half.x;
+					origin.x = center.x - size.x*max(1, type-2);
 					origin.y = center.y + half.y;
-					s.x = size.x;
+					s.x = size.x*2*max(1, type-2);
 					s.y = 1080 - (center.y + half.y);
 				}
 				break;
@@ -103,7 +102,7 @@ class ArmorBox : TooltipMenuElement
 	
 	override void OnSelected()
 	{
-		DrawBorder("FF FF FF", 3);
+		
 	}
 	
 	override void PreChildTick()

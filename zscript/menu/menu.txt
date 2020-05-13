@@ -421,6 +421,9 @@ class MenuHandler : EventHandler
 					toolTips[i].Execute(e.fracTic);
 			}
 			
+			if (selected && !selected.bHeld)
+				selected.DrawBorder("FF FF FF", 3);
+			
 			if (held)
 				held.Execute(e.fracTic);
 			

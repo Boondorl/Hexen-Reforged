@@ -107,6 +107,12 @@ class KeyBox : MenuElement
 					origin.y = center.y - size.y;
 					s.x = center.x - half.x;
 					s.y = size.y*2;
+					if (handler && (handler.items.Size() || handler.keyItems.Size()))
+					{
+						--s.x;
+						origin.y = 0;
+						s.y = 1080;
+					}
 				}
 				break;
 				
@@ -144,6 +150,11 @@ class KeyBox : MenuElement
 					origin.y = center.y - size.y;
 					s.x = center.x - half.x;
 					s.y = size.y*2;
+					if (handler && (handler.items.Size() || handler.keyItems.Size()))
+					{
+						origin.y = 0;
+						s.y = 1080;
+					}
 				}
 				else
 				{
@@ -187,7 +198,7 @@ class KeyBox : MenuElement
 	
 	override void OnSelected()
 	{
-		DrawBorder("FF FF FF", 3);
+		
 	}
 	
 	override void PreChildExecute(double fracTic)
