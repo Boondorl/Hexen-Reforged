@@ -445,9 +445,7 @@ class MenuElement : Object ui
 		
 		PostBackground();
 		
-		bSelected = false;
-		if (handler.bNavMode && handler.selected == self)
-			bSelected = true;
+		bSelected = (handler.bNavMode && handler.selected == self);
 		
 		double sw = scaledSize.x / 2;
 		double sh = scaledSize.y / 2;
@@ -579,7 +577,11 @@ class MenuElement : Object ui
 	override void OnDestroy()
 	{
 		if (handler && bNavigate)
+		{
 			handler.navNodes.Delete(handler.navNodes.Find(self));
+			if (handler.selected == self)
+				handler.selected = handler.GetNodePos(center);
+		}
 		
 		for (uint i = 0; i < children.Size(); ++i)
 		{

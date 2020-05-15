@@ -66,6 +66,7 @@ class MenuHandler : EventHandler
 	transient ui int navTimer;
 	transient ui Vector2 navDir;
 	transient ui Array<MenuElement> navNodes;
+	transient ui bool bSetNav;
 	
 	transient ui Vector2 mouse;
 	transient ui int mouseAction;
@@ -209,6 +210,14 @@ class MenuHandler : EventHandler
 				toolTips[i].Tick();
 		}
 		
+		if (bSetNav && elements.Size())
+		{
+			if (!selected)
+				selected = GetTopLeftNode();
+			
+			bSetNav = false;
+		}
+		
 		if (navTimer > 0)
 			--navTimer;
 	}
@@ -301,6 +310,38 @@ class MenuHandler : EventHandler
 		return el;
 	}
 	
+	ui MenuElement GetNodePos(Vector2 pos)
+	{
+		MenuElement el;
+		for (uint i = 0; i < navNodes.Size(); ++i)
+		{
+			let node = navNodes[i];
+			if (!node)
+				continue;
+			
+			double w = node.size.x / 2;
+			double h = node.size.y / 2;
+				
+			if (pos.x > (node.center.x-w) && pos.x < (node.center.x+w) &&
+				pos.y > (node.center.y-h) && pos.y < (node.center.y+h))
+			{
+				el = node;
+				break;
+			}
+		}
+		
+		if (el)
+			return el;
+		
+		el = GetNearestNode(ND_LEFT);
+		if (!el)
+			el = GetNearestNode(ND_RIGHT);
+		if (!el)
+			el = GetTopLeftNode();
+		
+		return el;
+	}
+	
 	override void RenderOverlay(RenderEvent e)
 	{
 		int wOfs, hOfs, w, h;
@@ -360,6 +401,9 @@ class MenuHandler : EventHandler
 				DrawInventory();
 			else if (menuState == MS_STAT)
 				DrawStats();
+			
+			if (bNavMode && menuState != oldMenuState)
+				bSetNav = true;
 			
 			if (bNavMode && selected)
 			{
@@ -585,7 +629,14 @@ class MenuHandler : EventHandler
 	override bool InputProcess(InputEvent e)
 	{
 		if (!menuState)
+		{
+			if (e.keyScan >= InputEvent.Key_Pad_LThumb_Right && e.keyScan <= Inputevent.Key_Pad_Y)
+				bNavMode = true;
+			else
+				bNavMode = false;
+			
 			return false;
+		}
 		
 		mouse.x += e.mouseX*0.25;
 		mouse.y += e.mouseY*-1.5;
