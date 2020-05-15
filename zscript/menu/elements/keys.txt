@@ -196,9 +196,26 @@ class KeyBox : MenuElement
 		return pos, origin, s;
 	}
 	
+	private void DrawKeyInfo()
+	{
+		if (!key)
+			return;
+		
+		String tag = key.GetTag();
+		String modName = tag;
+			
+		String first = tag.Left(3);
+		if (first ~== "Key")
+			modName = tag.Mid(3).." "..first;
+			
+		int fH = NewSmallFont.GetHeight();
+		int length = NewSmallFont.StringWidth(modName);
+		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y - scaledSize.y/2), modName, (-length/2,-fH), 2);
+	}
+	
 	override void OnSelected()
 	{
-		
+		DrawKeyInfo();
 	}
 	
 	override void PreChildExecute(double fracTic)
@@ -209,18 +226,6 @@ class KeyBox : MenuElement
 	
 	override void OnHover()
 	{
-		if (key)
-		{
-			String tag = key.GetTag();
-			String modName = tag;
-			
-			String first = tag.Left(3);
-			if (first ~== "Key")
-				modName = tag.Mid(3).." "..first;
-			
-			int fH = NewSmallFont.GetHeight();
-			int length = NewSmallFont.StringWidth(modName);
-			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y - scaledSize.y/2), modName, (-length/2,-fH), 2);
-		}
+		DrawKeyInfo();
 	}
 }

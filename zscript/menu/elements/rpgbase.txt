@@ -45,13 +45,20 @@ class Tooltip : TextBox
 	
 	override void Execute(double fracTic)
 	{
-		if (!owner)
-		{
-			Destroy();
-			return;
-		}
-		
 		super.Execute(fracTic);
+		
+		if (!owner || owner.bHeld)
+			Destroy();
+		else
+		{
+			if (handler.bNavMode)
+			{
+				if (!owner.bSelected)
+					Destroy();
+			}
+			else if (!owner.bHovering)
+				Destroy();
+		}
 	}
 	
 	override void PreBackground()

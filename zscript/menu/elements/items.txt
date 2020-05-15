@@ -230,9 +230,7 @@ class ItemBox : TooltipMenuElement
 	
 	override void PreChildTick()
 	{
-		bHighlighted = false;
-		if (item == players[consoleplayer].mo.InvSel)
-			bHighlighted = true;
+		bHighlighted = (item == players[consoleplayer].mo.InvSel);
 	}
 	
 	override void Clear()
@@ -245,10 +243,9 @@ class ItemBox : TooltipMenuElement
 	
 	override void OnHeld()
 	{
-		if (tool)
-			tool.Destroy();
+		if (!handler.bNavMode)
+			ScaledShift(handler.mouse - scaledCenter);
 		
-		ScaledShift(handler.mouse - scaledCenter);
 		DrawBorder("FF FF FF", 3);
 	}
 	
@@ -258,62 +255,119 @@ class ItemBox : TooltipMenuElement
 			DrawBorder("FF 00 00", 3);
 	}
 	
+	private void DrawItemInfo()
+	{
+		if (!item)
+			return;
+		
+		string title = item.GetTag();
+		int titleLength = NewSmallFont.StringWidth(title);
+		int fHeight = NewSmallFont.GetHeight();
+			
+		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
+			
+		if (!tool && !bHeld)
+			tool = ToolTip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
+			
+		let rpgi = RPGItem(item);
+		if (rpgi && tool)
+			tool.text = String.Format("%sWeight:%s %.1f\n%sTotal:%s %.1f\n\n%s", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight/10., Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight*rpgi.amount/10., rpgi.description);
+	}
+	
+	void CheckSwap()
+	{
+		handler.UpdateCollision(self, handler.bNavMode ? handler.selected.scaledCenter : handler.mouse, true);
+		let t = ItemBox(touching);
+		if (t && t.parent == parent)
+			Swap(t);
+		
+		bHeld = false;
+	}
+	
 	override void OnSelected()
+	{
+		DrawItemInfo();
+		
+		if (handler.buttonAction == BI_USE)
+		{
+			if (handler.held == self)
+				handler.held.Clear();
+				
+			string use = "use:"..item.GetClassName();
+			EventHandler.SendNetworkEvent(use);
+		}
+	}
+	
+	override void OnButtonSelect()
+	{
+		if (!item)
+			return;
+		
+		if (leftClickTimer > 0)
+		{
+			EventHandler.SendNetworkEvent("use:"..item.GetClassName());
+			leftClickTimer = 0;
+		}
+		else
+		{
+			players[consoleplayer].mo.InvSel = item;
+			leftClickTimer = 250;
+		}
+	}
+	
+	override void OnButtonBack()
+	{
+		if (item)
+			EventHandler.SendNetworkEvent("drop:"..item.GetClassName());
+	}
+	
+	override void OnButtonSelectHold()
+	{
+		if (handler.held == self)
+		{
+			bHeld = false;
+			handler.held = null;
+		}
+		else
+		{
+			if (handler.held)
+			{
+				let ib = ItemBox(handler.held);
+				if (ib)
+				{
+					ib.CheckSwap();
+					handler.selected = ib;
+				}
+			}
+			else
+			{
+				bHeld = true;
+				handler.held = self;
+			}
+		}
+	}
+	
+	override void OnButtonBackHold()
 	{
 		if (item)
 		{
-			string title = item.GetTag();
-			int titleLength = NewSmallFont.StringWidth(title);
-			int fHeight = NewSmallFont.GetHeight();
-			
-			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
-			
-			if (!tool)
-				tool = ToolTip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
-			
-			let rpgi = RPGItem(item);
-			if (rpgi && tool)
-				tool.text = String.Format("%sWeight:%s %.1f\n%sTotal:%s %.1f\n\n%s", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight/10., Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight*rpgi.amount/10., rpgi.description);
-			
-			if (handler.buttonAction == BI_USE)
-			{
-				if (handler.held == self)
-					handler.held.Clear();
-				
-				string use = "use:"..item.GetClassName();
-				EventHandler.SendNetworkEvent(use);
-			}
+			string drop = "drop:"..item.GetClassName();
+			for (int i = 0; i < item.amount; ++i)
+				EventHandler.SendNetworkEvent(drop);
 		}
 	}
 	
 	override void OnHover()
 	{
-		if (!bSelected && !bHighlighted)
+		if (!bHighlighted)
 			DrawBorder("FF FF FF", 3);
 		
-		if (item)
+		DrawItemInfo();
+			
+		if (!bLeftClicked && !bRightClicked && handler.buttonAction == BI_USE)
 		{
-			string title = item.GetTag();
-			int titleLength = NewSmallFont.StringWidth(title);
-			int fHeight = NewSmallFont.GetHeight();
-			
-			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
-			
-			if (!bHeld && !tool)
-				tool = ToolTip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
-			
-			let rpgi = RPGItem(item);
-			if (rpgi && tool)
-				tool.text = String.Format("%sWeight:%s %.1f\n%sTotal:%s %.1f\n\n%s", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight/10., Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight*rpgi.amount/10., rpgi.description);
-			
-			if (!bLeftClicked && !bRightClicked)
-			{
-				if (handler.buttonAction == BI_USE)
-				{
-					string use = "use:"..item.GetClassName();
-					EventHandler.SendNetworkEvent(use);
-				}
-			}
+			string use = "use:"..item.GetClassName();
+			EventHandler.SendNetworkEvent(use);
 		}
 	}
 	
@@ -336,17 +390,6 @@ class ItemBox : TooltipMenuElement
 			}
 		}
 		
-		if (tool)
-		{
-			if (handler.bNavMode)
-			{
-				if (!bSelected)
-					tool.Destroy();
-			}
-			else if (!bHovering)
-				tool.Destroy();
-		}
-		
 		if (leftClickTimer > 0)
 			leftClickTimer -= deltatime;
 	}
@@ -355,8 +398,7 @@ class ItemBox : TooltipMenuElement
 	{
 		if (leftClickTimer > 0)
 		{
-			string use = "use:"..item.GetClassName();
-			EventHandler.SendNetworkEvent(use);
+			EventHandler.SendNetworkEvent("use:"..item.GetClassName());
 			leftClickTimer = 0;
 		}
 	}
@@ -366,14 +408,7 @@ class ItemBox : TooltipMenuElement
 		if (item)
 		{
 			if (bHeld)
-			{
-				handler.UpdateCollision(self, handler.mouse, true);
-				let t = ItemBox(touching);
-				if (t && t.parent == parent)
-					Swap(t);
-				
-				bHeld = false;
-			}
+				CheckSwap();
 			else if (bLeftClicked)
 			{
 				players[consoleplayer].mo.InvSel = item;

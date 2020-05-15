@@ -147,8 +147,8 @@ class MenuElement : Object ui
 			Vector2 otMin = (pos.x - other.scaledTolerance.x, pos.y - other.scaledTolerance.y);
 			Vector2 otMax = (pos.x + other.scaledTolerance.x, pos.y + other.scaledTolerance.y);
 			
-			if ((orMin.x <= otMax.x && orMax.x >= otMin.x) &&
-				(orMin.y <= otMax.y && orMax.y >= otMin.y))
+			if ((orMin.x < otMax.x && orMax.x > otMin.x) &&
+				(orMin.y < otMax.y && orMax.y > otMin.y))
 			{
 				if (!other.touching || other.ScaledDistanceToSquared(touching) > other.ScaledDistanceToSquared(self))
 					other.touching = self;
@@ -453,8 +453,8 @@ class MenuElement : Object ui
 		double sh = scaledSize.y / 2;
 			
 		if (!handler.bNavMode && (bHeld ||
-			(handler.mouse.x >= (scaledCenter.x-sw) && handler.mouse.x <= (scaledCenter.x+sw) &&
-			handler.mouse.y >= (scaledCenter.y-sh) && handler.mouse.y <= (scaledCenter.y+sh))))
+			(handler.mouse.x > (scaledCenter.x-sw) && handler.mouse.x < (scaledCenter.x+sw) &&
+			handler.mouse.y > (scaledCenter.y-sh) && handler.mouse.y < (scaledCenter.y+sh))))
 		{
 			switch (handler.mouseAction)
 			{
@@ -500,7 +500,28 @@ class MenuElement : Object ui
 			bRightClicked = false;
 			
 			if (bSelected)
+			{
+				switch (handler.buttonAction)
+				{
+					case BI_LCLICK:
+						OnButtonSelect();
+						break;
+						
+					case BI_RCLICK:
+						OnButtonBack();
+						break;
+						
+					case BI_LHOLD:
+						OnButtonSelectHold();
+						break;
+						
+					case BI_RHOLD:
+						OnButtonBackHold();
+						break;
+				}
+				
 				OnSelected();
+			}
 		}
 		
 		if (bHeld)
@@ -546,6 +567,14 @@ class MenuElement : Object ui
 	virtual void OnLeftRelease() {}
 	
 	virtual void OnRightRelease() {}
+	
+	virtual void OnButtonSelect() {}
+	
+	virtual void OnButtonBack() {}
+	
+	virtual void OnButtonSelectHold() {}
+	
+	virtual void OnButtonBackHold() {}
 	
 	override void OnDestroy()
 	{

@@ -59,6 +59,7 @@ class MenuHandler : EventHandler
 	transient ui Array<MenuElement> elements;
 	transient ui Array<Tooltip> toolTips; // These get special handling since they should always be draw on top of everything
 	transient ui MenuElement held; // Same for this one
+	transient ui MenuElement oldHeld;
 	
 	transient ui MenuElement selected;
 	transient ui bool bNavMode;
@@ -407,7 +408,8 @@ class MenuHandler : EventHandler
 				}
 			}
 			
-			held = null;
+			if (held && !held.bHeld)
+				held = null;
 			
 			for (uint i = 0; i < elements.Size(); ++i)
 			{
@@ -424,7 +426,7 @@ class MenuHandler : EventHandler
 			if (bNavMode && selected && !selected.bHeld)
 				selected.DrawBorder("FF FF FF", 3);
 			
-			if (held)
+			if (oldHeld == held && held)
 				held.Execute(e.fracTic);
 			
 			if (!bNavMode)
@@ -432,6 +434,7 @@ class MenuHandler : EventHandler
 			
 			oldMouseAction = mouseAction;
 			oldButtonAction = buttonAction;
+			oldHeld = held;
 		}
 		
 		oldMenuState = menuState;
@@ -586,7 +589,7 @@ class MenuHandler : EventHandler
 		
 		mouse.x += e.mouseX*0.25;
 		mouse.y += e.mouseY*-1.5;
-			
+		
 		bool curNav = bNavMode;
 		int mAct, bAct, nav;
 		if (e.Type == InputEvent.Type_KeyDown)
@@ -607,42 +610,79 @@ class MenuHandler : EventHandler
 						mAct = MI_RIGHTPRESS;
 					break;
 					
+				case InputEvent.Key_Pad_DPad_Right:
 				case InputEvent.Key_RightArrow:
 					nav = 1;
 					navDir.x += ND_RIGHT;
 					break;
 					
+				case InputEvent.Key_Pad_DPad_Left:
 				case InputEvent.Key_LeftArrow:
 					nav = 1;
 					navDir.x += ND_LEFT;
 					break;
 					
+				case InputEvent.Key_Pad_DPad_Up:
 				case InputEvent.Key_UpArrow:
 					nav = 1;
 					navDir.y += ND_UP;
 					break;
 					
+				case InputEvent.Key_Pad_DPad_Down:
 				case InputEvent.Key_DownArrow:
 					nav = 1;
 					navDir.y += ND_DOWN;
 					break;
+					
+				case InputEvent.Key_Pad_A:
+				case InputEvent.Key_Enter:
+					bAct = BI_LCLICK;
+					break;
+					
+				case InputEvent.Key_Pad_B:
+				case InputEvent.Key_Backspace:
+					bAct = BI_RCLICK;
+					break;
+					
+				case InputEvent.Key_Pad_X:
+				case InputEvent.Key_Space:
+					bAct = BI_LHOLD;
+					break;
+					
+				case InputEvent.Key_Pad_Y:
+				case InputEvent.Key_Tab:
+					bAct = BI_RHOLD;
+					break;
+					
+				case InputEvent.Key_Pad_LTrigger:
+				case InputEvent.Key_PgUp:
+					bAct = BI_NEXT;
+					break;
+					
+				case InputEvent.Key_Pad_RTrigger:
+				case InputEvent.Key_PgDn:
+					bAct = BI_PREV;
+					break;
 			}
 				
-			if (CheckKeyBind(e.keyScan, "+use"))
+			if (!bAct)
 			{
-				if (menuState == MS_STAT)
-					LevelPlayer();
-						
-				menuState = MS_CLOSED;
-				bAct = BI_CLOSE;
+				if (CheckKeyBind(e.keyScan, "+use"))
+				{
+					if (menuState == MS_STAT)
+						LevelPlayer();
+							
+					menuState = MS_CLOSED;
+					bAct = BI_CLOSE;
+				}
+				else if (menuState == MS_INV && CheckKeyBind(e.keyScan, "invuse"))
+					bAct = BI_USE;
 			}
-			else if (menuState == MS_INV && CheckKeyBind(e.keyScan, "invuse"))
-				bAct = BI_USE;
 		}
 		else if (e.Type == InputEvent.Type_KeyUp)
 		{
 			switch (e.keyScan)
-			{
+			{	
 				case InputEvent.Key_Mouse1:
 					if (mouseAction == MI_RIGHTHOLD)
 						mAct = MI_IGNORE;
@@ -657,21 +697,25 @@ class MenuHandler : EventHandler
 						mAct = MI_RIGHTRELEASE;
 					break;
 					
+				case InputEvent.Key_Pad_DPad_Right:
 				case InputEvent.Key_RightArrow:
 					nav = -1;
 					navDir.x -= ND_RIGHT;
 					break;
 					
+				case InputEvent.Key_Pad_DPad_Left:
 				case InputEvent.Key_LeftArrow:
 					nav = -1;
 					navDir.x -= ND_LEFT;
 					break;
 					
+				case InputEvent.Key_Pad_DPad_Up:
 				case InputEvent.Key_UpArrow:
 					nav = -1;
 					navDir.y -= ND_UP;
 					break;
 					
+				case InputEvent.Key_Pad_DPad_Down:
 				case InputEvent.Key_DownArrow:
 					nav = -1;
 					navDir.y -= ND_DOWN;
@@ -686,7 +730,16 @@ class MenuHandler : EventHandler
 		if (nav == 1)
 			navTimer = -1;
 		
-		if (mAct || e.Type == InputEvent.Type_Mouse)
+		if (bAct == BI_NEXT || bAct == BI_PREV)
+		{
+			if (menuState == MS_INV)
+				menuState = MS_STAT;
+			else if (menuState == MS_STAT)
+				menuState = MS_INV;
+		}
+		
+		bool usedMouse = (e.Type == InputEvent.Type_Mouse || mAct);
+		if (usedMouse)
 			bNavMode = false;
 		else if (nav)
 		{
@@ -708,7 +761,7 @@ class MenuHandler : EventHandler
 				navTimer = Thinker.TICRATE / 3;
 		}
 		
-		if (mAct || bAct || nav || e.Type == InputEvent.Type_Mouse)
+		if (usedMouse || bAct || nav)
 			return true;
 		
 		return false;

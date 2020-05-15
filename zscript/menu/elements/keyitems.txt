@@ -202,9 +202,21 @@ class KeyItemBox : MenuElement
 		return pos, origin, s;
 	}
 	
+	private void DrawItemInfo()
+	{
+		if (!item)
+			return;
+		
+		string title = item.GetTag();
+		int titleLength = NewSmallFont.StringWidth(title);
+		int fHeight = NewSmallFont.GetHeight();
+			
+		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
+	}
+	
 	override void OnSelected()
 	{
-		
+		DrawItemInfo();
 	}
 	
 	void Swap(KeyItemBox other)
@@ -233,7 +245,9 @@ class KeyItemBox : MenuElement
 	
 	override void OnHeld()
 	{
-		ScaledShift(handler.mouse - scaledCenter);
+		if (!handler.bNavMode)
+			ScaledShift(handler.mouse - scaledCenter);
+		
 		DrawBorder("FF FF FF", 3);
 	}
 	
@@ -241,14 +255,7 @@ class KeyItemBox : MenuElement
 	{
 		DrawBorder("FF FF FF", 3);
 		
-		if (item)
-		{
-			string title = item.GetTag();
-			int titleLength = NewSmallFont.StringWidth(title);
-			int fHeight = NewSmallFont.GetHeight();
-			
-			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter-(0,scaledSize.y/2), title, (-titleLength / 2, -fHeight), 2);
-		}
+		DrawItemInfo();
 	}
 	
 	override void PreChildExecute(double fracTic)
@@ -268,17 +275,46 @@ class KeyItemBox : MenuElement
 		}
 	}
 	
+	void CheckSwap()
+	{
+		handler.UpdateCollision(self, handler.bNavMode ? handler.selected.scaledCenter : handler.mouse, true);
+		let t = KeyItemBox(touching);
+		if (t && t.parent == parent)
+			Swap(t);
+		
+		bHeld = false;
+	}
+	
+	override void OnButtonSelectHold()
+	{
+		if (handler.held == self)
+		{
+			bHeld = false;
+			handler.held = null;
+		}
+		else
+		{
+			if (handler.held)
+			{
+				let kb = KeyItemBox(handler.held);
+				if (kb)
+				{
+					kb.CheckSwap();
+					handler.selected = kb;
+				}
+			}
+			else
+			{
+				bHeld = true;
+				handler.held = self;
+			}
+		}
+	}
+	
 	override void OnLeftRelease()
 	{
 		if (item && bHeld)
-		{
-			handler.UpdateCollision(self, handler.mouse, true);
-			let t = KeyItemBox(touching);
-			if (t && t.parent == parent)
-				Swap(t);
-				
-			bHeld = false;
-		}
+			CheckSwap();
 		
 		holdTimer = 0;
 	}

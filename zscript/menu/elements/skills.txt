@@ -91,19 +91,9 @@ class SkillBox : TooltipMenuElement
 		return pos, origin, s;
 	}
 	
-	override void OnSelected()
-	{
-		if (handler.buttonAction == BI_USE)
-		{
-			OnLeftRelease();
-			if (sp)
-				handler.selected = null;
-		}
-	}
-	
 	override void PreChildExecute(double fracTic)
 	{
-		if (tool && (!bHovering || !sk))
+		if (tool && !sk)
 			tool.Destroy();
 		
 		if (handler.player && slot < handler.player.skillSlots)
@@ -127,10 +117,8 @@ class SkillBox : TooltipMenuElement
 		bCreated = false;
 	}
 	
-	override void OnHover()
+	private void DrawSkill()
 	{
-		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
-		
 		if (!sk)
 			return;
 		
@@ -142,14 +130,36 @@ class SkillBox : TooltipMenuElement
 		}
 	}
 	
+	override void OnSelected()
+	{
+		DrawSkill();
+	}
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		
+		DrawSkill();
+	}
+	
+	private void CreatePage()
+	{
+		if (sp)
+			return;
+		
+		bCreated = true;
+		sp = SkillPage(MenuElement.Create("SkillPage", handler, center-(0,size.y/2+150), (300,300), self));
+		sp.slot = slot;
+	}
+	
 	override void OnLeftRelease()
 	{
-		if (!sp)
-		{
-			bCreated = true;
-			sp = SkillPage(MenuElement.Create("SkillPage", handler, center-(0,size.y/2+150), (300,300), self));
-			sp.slot = slot;
-		}
+		CreatePage();
+	}
+	
+	override void OnButtonSelect()
+	{
+		CreatePage();
 	}
 }
 
@@ -301,7 +311,9 @@ class SkillPage : Canvas
 		uint s = children.Size();
 		if (handler && children.Find(handler.selected) >= s)
 		{
-			if (s)
+			if (remove)
+				handler.selected = remove;
+			else if (s)
 				handler.selected = children[0];
 		}
 	}
@@ -444,24 +456,14 @@ class SkillSelect : TooltipMenuElement
 		return pos, origin, s;
 	}
 	
-	override void OnSelected()
-	{
-		DrawBorder("FF FF FF", 3);
-	}
-	
 	override void PreChildExecute(double fracTic)
 	{
-		if (tool && !bHovering)
-			tool.Destroy();
-		
 		if (sk)
 			DrawTexture(sk.icon, scaledCenter, (2.5,2.5));
 	}
 	
-	override void OnHover()
+	private void DrawSkillInfo()
 	{
-		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
-		
 		if (!tool)
 		{
 			tool = Tooltip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
@@ -476,7 +478,19 @@ class SkillSelect : TooltipMenuElement
 		}
 	}
 	
-	override void OnLeftRelease()
+	override void OnSelected()
+	{
+		DrawSkillInfo();
+	}
+	
+	override void OnHover()
+	{
+		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		
+		DrawSkillInfo();
+	}
+	
+	private void SelectSkill()
 	{
 		let par = SkillPage(parent);
 		if (!par)
@@ -491,5 +505,28 @@ class SkillSelect : TooltipMenuElement
 		EventHandler.SendNetworkEvent(command, par.slot);
 		
 		par.bKill = true;
+	}
+	
+	override void OnButtonSelect()
+	{
+		SelectSkill();
+		if (parent && parent.parent)
+			handler.selected = parent.parent;
+	}
+	
+	override void OnButtonBack()
+	{
+		let par = SkillPage(parent);
+		if (par)
+		{
+			par.bKill = true;
+			if (par.parent)
+				handler.selected = par.parent;
+		}
+	}
+	
+	override void OnLeftRelease()
+	{
+		SelectSkill();
 	}
 }

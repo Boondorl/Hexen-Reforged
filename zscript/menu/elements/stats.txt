@@ -83,6 +83,21 @@ class StatCanvas : Canvas
 	override void PreChildExecute(double fracTic)
 	{
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		
+		if (handler.buttonAction == BI_RHOLD)
+		{
+			for (uint i = 0; i < children.Size(); ++i)
+			{
+				let sb = StatBox(children[i]);
+				if (sb)
+					sb.ResetStat(false);
+			}
+		}
+		else if (handler.buttonAction == BI_RCLICK)
+		{
+			if (button)
+				handler.selected = button;
+		}
 	}
 	
 	override void PostChildExecute(double fracTic)
@@ -151,15 +166,28 @@ class StatBox : MenuElement
 		super.Initialize();
 		
 		double x = center.x - size.x/2;
-		MenuElement.Create("StatIncrementer", handler, (x + 50, center.y), (100,100), self);
+		MenuElement.Create("StatDecrementer", handler, (x + 50, center.y), (100,100), self);
 		MenuElement.Create("LevelDisplay", handler, (x + 150, center.y), (100,100), self);
-		MenuElement.Create("StatDecrementer", handler, (x + 250, center.y), (100,100), self);
+		MenuElement.Create("StatIncrementer", handler, (x + 250, center.y), (100,100), self);
 		description = TextBox(MenuElement.Create("StatTextBox", handler, (x + 650, center.y - size.y/3), (600,0), self));
 		bonus = TextBox(MenuElement.Create("StatTextBox", handler, (x + 1125, center.y - size.y/3), (300,0), self));
 	}
 	
+	void ResetStat(bool selected)
+	{
+		for (uint i = 0; i < children.Size(); ++i)
+		{
+			let ld = LevelDisplay(children[i]);
+			if (ld && (!selected || ld.bSelected))
+				ld.ResetStat();
+		}
+	}
+	
 	override void PreChildExecute(double fracTic)
 	{
+		if (handler.buttonAction == BI_LHOLD)
+			ResetStat(true);
+		
 		if (st && bonus)
 		{
 			String text = BONUS_HEADER;
@@ -185,7 +213,7 @@ class StatIncrementer : MenuElement
 {
 	override void OnHover()
 	{
-		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		DrawBorder("FF FF FF", 3);
 	}
 	
 	override void PostChildExecute(double fracTic)
@@ -228,7 +256,7 @@ class StatDecrementer : MenuElement
 {
 	override void OnHover()
 	{
-		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		DrawBorder("FF FF FF", 3);
 	}
 	
 	override void PostChildExecute(double fracTic)
@@ -299,6 +327,23 @@ class LevelDisplay : MenuElement
 		return pos, origin, s;
 	}
 	
+	void ResetStat()
+	{
+		let par = StatBox(parent);
+		if (!par)
+			return;
+		
+		let st = par.st;
+		if (!st)
+			return;
+		
+		int diff = st.level - st.currentLevel;
+		st.currentLevel = st.level;
+		st.currentCost = 0;
+		if (handler.player)
+			handler.player.currentPoints -= diff;
+	}
+	
 	override void OnSelected()
 	{
 		if (!parent)
@@ -309,7 +354,7 @@ class LevelDisplay : MenuElement
 		
 		if (coolDown <= 0)
 		{
-			if (handler.navDir.x == ND_LEFT)
+			if (handler.navDir.x == ND_RIGHT)
 			{
 				for (uint i = 0; i < parent.children.Size(); ++i)
 				{
@@ -317,7 +362,7 @@ class LevelDisplay : MenuElement
 						parent.children[i].OnLeftRelease();
 				}
 			}
-			else if (handler.navDir.x == ND_RIGHT)
+			else if (handler.navDir.x == ND_LEFT)
 			{
 				for (uint i = 0; i < parent.children.Size(); ++i)
 				{
@@ -395,11 +440,6 @@ class ConfirmButton : MenuElement
 		bHorizontal = false;
 	}
 	
-	override void OnSelected()
-	{
-		
-	}
-	
 	override void OnHover()
 	{
 		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
@@ -412,6 +452,11 @@ class ConfirmButton : MenuElement
 		int length = NewSmallFont.StringWidth(con);
 		
 		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter, con, (-length/2, -fHeight/2), 2);
+	}
+	
+	override void OnButtonSelect()
+	{
+		handler.LevelPlayer();
 	}
 	
 	override void OnLeftRelease()

@@ -100,9 +100,26 @@ class ArmorBox : TooltipMenuElement
 		return pos, origin, s;
 	}
 	
+	private void DrawArmorStats()
+	{
+		if (!armor)
+			return;
+		
+		if (!tool)
+			tool = Tooltip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
+		
+		if (tool)
+		{
+			tool.text = String.Format("%sDurability:%s %d / %d\n\n", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, armor.health, armor.default.health);
+			let ar = ArmorPiece(armor);
+			if (ar)
+				tool.text.AppendFormat("%s", ar.description);
+		}
+	}
+	
 	override void OnSelected()
 	{
-		
+		DrawArmorStats();
 	}
 	
 	override void PreChildTick()
@@ -149,25 +166,10 @@ class ArmorBox : TooltipMenuElement
 			
 			DrawTexture(armor.icon, scaledCenter, (2.25,2.25), color: col);
 		}
-		
-		if (tool && !bHovering)
-			tool.Destroy();
 	}
 	
 	override void OnHover()
 	{
-		if (!armor)
-			return;
-		
-		if (!tool)
-			tool = Tooltip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
-		
-		if (tool)
-		{
-			tool.text = String.Format("%sDurability:%s %d / %d\n\n", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, armor.health, armor.default.health);
-			let ar = ArmorPiece(armor);
-			if (ar)
-				tool.text.AppendFormat("%s", ar.description);
-		}
+		DrawArmorStats();
 	}
 }
