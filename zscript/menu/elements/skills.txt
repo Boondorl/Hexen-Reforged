@@ -288,7 +288,7 @@ class SkillPage : Canvas
 		}
 		
 		// Add new skills
-		for (uint i = handler.skills.Size()-1; i >= 0; --i)
+		for (int i = handler.skills.Size()-1; i >= 0; --i)
 		{
 			if (handler.skills[i] == par.sk || Find(handler.skills[i]) != children.Size())
 				continue;
