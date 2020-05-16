@@ -456,7 +456,7 @@ class RPGMonster : Actor
 		return ((bFloat && bNoGravity) || pos.z <= floorz || bOnMobj);
 	}
 	
-	void A_MonsterWander(int flags = 0, bool isWandering = true)
+	void A_MonsterWander(int flags = 0)
 	{
 		if (health <= 0)
 			return;
@@ -469,11 +469,8 @@ class RPGMonster : Actor
 			if (bInLeap)
 				vel.xy = (0,0);
 				
-			if (isWandering)
-			{
-				chaseState = null;
-				wanderState = CurState;
-			}
+			chaseState = null;
+			wanderState = CurState;
 			
 			bInLeap = false;
 			flags |= CHF_NODIRECTIONTURN;
@@ -639,7 +636,7 @@ class RPGMonster : Actor
 			
 			if (bFriendly)
 			{
-				A_MonsterWander(0, false);
+				A_MonsterWander();
 				
 				ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
 				Actor mo;
@@ -1093,7 +1090,7 @@ class RPGMonster : Actor
 		else if (bBlasted && !inflictor && mod == 'Melee') // Damage type for hitting lines is hardcoded
 		{
 			damage = self.damage;
-			mod = blastDamageType;
+			mod = "Blunt";
 			bBlasted = false;
 			flags |= DMG_NOBLOCK;
 		}

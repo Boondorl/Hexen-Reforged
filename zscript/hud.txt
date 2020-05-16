@@ -345,34 +345,18 @@ class ReforgedStatusBar : BaseStatusBar
 				string key;
 				int strWidth;
 				
-				// 3rd spell
-				DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
-				key = GetKeyForSpell("Spell3");
-				DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
-				
-				let skill3 = rpg.activeSkills[2];
-				if (skill3)
-					DrawSkill(skill3, xOfs, yOfs, rpg.activeSkills.Find(skill3) == rpg.selectedSkill);
-				xOfs -= boxsize.x;
-				
-				// 2nd spell
-				DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
-				key = GetKeyForSpell("Spell2");
-				DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
-				
-				let skill2 = rpg.activeSkills[1];
-				if (skill2)
-					DrawSkill(skill2, xOfs, yOfs, rpg.activeSkills.Find(skill2) == rpg.selectedSkill);
-				xOfs -= boxsize.x;
-				
-				// 1st spell
-				DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
-				key = GetKeyForSpell("Spell1");
-				DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
-				
-				let skill1 = rpg.activeSkills[0];
-				if (skill1)
-					DrawSkill(skill1, xOfs, yOfs, rpg.activeSkills.Find(skill1) == rpg.selectedSkill);
+				for (uint i = rpg.activeSkills.Size()-1; i >= 0; --i)
+				{
+					DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
+					key = GetKeyForSpell("Spell"..(i+1));
+					DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
+					
+					let sk = rpg.activeSkills[i];
+					if (sk)
+						DrawSkill(sk, xOfs, yOfs, i == rpg.selectedSkill);
+					
+					xOfs -= boxsize.x;
+				}
 			}
 		}
 

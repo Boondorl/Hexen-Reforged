@@ -95,8 +95,11 @@ class StatCanvas : Canvas
 		}
 		else if (handler.buttonAction == BI_RCLICK)
 		{
-			if (button)
+			if (button && handler.selected != button)
+			{
+				S_StartSound("menu/backup", CHAN_AUTO);
 				handler.selected = button;
+			}
 		}
 	}
 	
@@ -244,6 +247,7 @@ class StatIncrementer : MenuElement
 		
 		if (st.currentLevel < st.maxLevel && handler.player.currentPoints > 0)
 		{
+			S_StartSound("menu/backup", CHAN_AUTO);
 			++st.currentLevel;
 			--handler.player.currentPoints;
 			if (st.currentLevel <= st.level)
@@ -287,6 +291,7 @@ class StatDecrementer : MenuElement
 		
 		if (st.currentLevel > st.minLevel)
 		{
+			S_StartSound("menu/backup", CHAN_AUTO);
 			--st.currentLevel;
 			++handler.player.currentPoints;
 			if (st.currentLevel < st.level)

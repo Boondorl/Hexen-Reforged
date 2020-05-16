@@ -582,7 +582,7 @@ class Resurrect : Skill
 			tracer.master = owner;
 			tracer.Trace(start, CurSector, dir, 256, 0);
 			
-			if (tracer.results.hitActor)
+			if (tracer.results.hitType == TRACE_HitActor)
 			{
 				if (!CheckAmmo(10, type, reserveType))
 				{
@@ -593,6 +593,7 @@ class Resurrect : Skill
 				bool gibbed = tracer.results.hitActor.health <= tracer.results.hitActor.GetGibHealth();
 				if (tracer.results.hitActor.A_RaiseSelf(RF_NOCHECKPOSITION))
 				{
+					tracer.results.hitActor.reactionTime = 0;
 					TakeAmmo(10, type, reserveType);
 					
 					if (gibbed)
@@ -644,7 +645,7 @@ class Resurrect : Skill
 			{
 				for (uint i = 0; i < minions.Size(); ++i)
 				{
-					if (minions[i])
+					if (minions[i] && minions[i].CheckPosition(owner.pos.xy))
 					{
 						minions[i].SetOrigin(owner.pos, false);
 						minions[i].target = null;

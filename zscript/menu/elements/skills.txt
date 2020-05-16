@@ -144,7 +144,7 @@ class SkillBox : TooltipMenuElement
 	
 	private void CreatePage()
 	{
-		if (sp)
+		if (sp || !handler.skills.Size())
 			return;
 		
 		bCreated = true;
@@ -315,6 +315,8 @@ class SkillPage : Canvas
 				handler.selected = remove;
 			else if (s)
 				handler.selected = children[0];
+			
+			S_StartSound("menu/backup", CHAN_AUTO);
 		}
 	}
 	
@@ -511,7 +513,10 @@ class SkillSelect : TooltipMenuElement
 	{
 		SelectSkill();
 		if (parent && parent.parent)
+		{
+			S_StartSound("menu/backup", CHAN_AUTO);
 			handler.selected = parent.parent;
+		}
 	}
 	
 	override void OnButtonBack()
@@ -521,7 +526,10 @@ class SkillSelect : TooltipMenuElement
 		{
 			par.bKill = true;
 			if (par.parent)
+			{
+				S_StartSound("menu/backup", CHAN_AUTO);
 				handler.selected = par.parent;
+			}
 		}
 	}
 	

@@ -105,6 +105,7 @@ class MenuHandler : EventHandler
 		
 		oldPoints = player.currentPoints;
 		EventHandler.SendNetworkEvent(command, totalCost, player.currentPoints);
+		S_StartSound("menu/choose", CHAN_AUTO);
 	}
 	
 	// Sets the menu element nearest to the origin element
@@ -213,7 +214,7 @@ class MenuHandler : EventHandler
 		if (bSetNav && elements.Size())
 		{
 			if (!selected)
-				selected = GetTopLeftNode();
+				selected = GetTopLeftNode(false);
 			
 			bSetNav = false;
 		}
@@ -246,10 +247,10 @@ class MenuHandler : EventHandler
 		buttonAction = oldButtonAction = 0;
 	}
 	
-	ui MenuElement GetNearestNode(int dir, bool inverted = false)
+	ui MenuElement GetNearestNode(int dir, bool inverted = false, bool sound = true)
 	{
 		if (!selected)
-			return GetTopLeftNode();
+			return GetTopLeftNode(sound);
 		
 		if (dir == MD_NONE)
 			return null;
@@ -286,10 +287,13 @@ class MenuHandler : EventHandler
 			}
 		}
 		
+		if (sound && el && el != selected)
+			S_StartSound("menu/backup", CHAN_AUTO);
+		
 		return el;
 	}
 	
-	ui MenuElement GetTopLeftNode()
+	ui MenuElement GetTopLeftNode(bool sound = true)
 	{
 		MenuElement el;
 		double dist = double.max;
@@ -306,6 +310,9 @@ class MenuHandler : EventHandler
 				el = navNodes[i];
 			}
 		}
+		
+		if (sound && el && el != selected)
+			S_StartSound("menu/backup", CHAN_AUTO);
 		
 		return el;
 	}
@@ -333,11 +340,11 @@ class MenuHandler : EventHandler
 		if (el)
 			return el;
 		
-		el = GetNearestNode(ND_LEFT);
+		el = GetNearestNode(ND_LEFT, sound: false);
 		if (!el)
-			el = GetNearestNode(ND_RIGHT);
+			el = GetNearestNode(ND_RIGHT, sound: false);
 		if (!el)
-			el = GetTopLeftNode();
+			el = GetTopLeftNode(false);
 		
 		return el;
 	}
@@ -369,6 +376,9 @@ class MenuHandler : EventHandler
 		
 		mouse.x = clamp(mouse.x, wOfs, wOfs+w);
 		mouse.y = clamp(mouse.y, hOfs, hOfs+h);
+		
+		if (menuState != oldMenuState)
+			S_StartSound("menu/choose", CHAN_AUTO);
 		
 		if (!menuState && oldMenuState)
 			ClearUI();
@@ -786,7 +796,10 @@ class MenuHandler : EventHandler
 			if (menuState == MS_INV)
 				menuState = MS_STAT;
 			else if (menuState == MS_STAT)
+			{
+				player.currentPoints = player.points;
 				menuState = MS_INV;
+			}
 		}
 		
 		bool usedMouse = (e.Type == InputEvent.Type_Mouse || mAct);

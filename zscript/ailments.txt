@@ -296,6 +296,13 @@ class Chill : Ailment
 	
 	override void Effect()
 	{
+		if (owner.health <= 0)
+		{
+			OnLoss();
+			Destroy();
+			return;
+		}
+		
 		if (owner.tics == owner.CurState.tics)
 		{
 			if (bJustSlowed)

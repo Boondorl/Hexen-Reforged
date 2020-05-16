@@ -188,8 +188,7 @@ class RPGPlayer : PlayerPawn abstract
 				break;
 		}
 		
-		if (i != selectedSkill)
-			selectedSkill = i;
+		selectedSkill = i;
 	}
 	
 	void PreviousSpell()
@@ -204,8 +203,7 @@ class RPGPlayer : PlayerPawn abstract
 				break;
 		}
 		
-		if (i != selectedSkill)
-			selectedSkill = i;
+		selectedSkill = i;
 	}
 	
 	override void PostBeginPlay()
