@@ -148,9 +148,9 @@ class ReforgedFighter : RPGPlayer
 	
 	override void InitializeSkills()
 	{
-		AddSkill("BloodLust");
-		AddSkill("LightningAxe");
-		AddSkill("Charge");
+		GiveInventoryType("BloodLust");
+		GiveInventoryType("LightningAxe");
+		GiveInventoryType("Charge");
 		
 		SetActiveSkill(0, "BloodLust");
 		SetActiveSkill(1, "LightningAxe");
@@ -161,14 +161,15 @@ class ReforgedFighter : RPGPlayer
 	{
 		super.InitializeStats();
 		
-		for (uint i = 0; i < stats.Size(); ++i)
+		for (let probe = inv; probe; probe = probe.inv)
 		{
-			if (!stats[i])
+			let st = Stat(probe);
+			if (!st)
 				continue;
-			
-			let cls = stats[i].GetClass();
+				
+			let cls = st.GetClass();
 			if (cls == "Strength" || cls == "Vitality")
-				stats[i].LevelUp(2, true);
+				st.LevelUp(2, true);
 		}
 	}
 	

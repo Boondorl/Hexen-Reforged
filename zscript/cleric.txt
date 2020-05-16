@@ -104,7 +104,7 @@ class ReforgedCleric : RPGPlayer
 	
 	override void InitializeSkills()
 	{
-		AddSkill("Heal");
+		GiveInventoryType("Heal");
 		
 		SetActiveskill(0, "Heal");
 	}
@@ -113,14 +113,15 @@ class ReforgedCleric : RPGPlayer
 	{
 		super.InitializeStats();
 		
-		for (uint i = 0; i < stats.Size(); ++i)
+		for (let probe = inv; probe; probe = probe.inv)
 		{
-			if (!stats[i])
+			let st = Stat(probe);
+			if (!st)
 				continue;
-			
-			let cls = stats[i].GetClass();
+				
+			let cls = st.GetClass();
 			if (cls == "Agility" || cls == "Wisdom" || cls == "Dexterity" || cls == "Vitality")
-				stats[i].LevelUp(1, true);
+				st.LevelUp(1, true);
 		}
 	}
 }

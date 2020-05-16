@@ -6,8 +6,13 @@ enum EHideTypes
 
 class RPGPlayer : PlayerPawn abstract
 {
-	Array<Stat> stats;
-	Array<Skill> skills;
+	// Animation modifier for weapons
+	private State prevState;
+	private double prevOffset;
+	private int ticsToRemove;
+	private double interval;
+	private int ticTimer;
+	
 	Array<Skill> activeSkills;
 	uint selectedSkill;
 	
@@ -76,28 +81,168 @@ class RPGPlayer : PlayerPawn abstract
 			if (rpgi)
 				currentCapacity += rpgi.amount*rpgi.weight;
 		}
+		
+		HandleAttackModifier();
+	}
+	
+	private void HandleAttackModifier()
+	{
+		let weap = player.ReadyWeapon;
+		if (!weap)
+			return;
+			
+		let psp = player.GetPSprite(PSP_WEAPON);
+		if (!psp || !psp.CurState)
+			return;
+		
+		if (attackModifier == 1)
+		{
+			prevState = psp.CurState;
+			prevOffset = psp.y;
+			return;
+		}
+		
+		State raise = weap.GetUpState();
+		State lower = weap.GetDownState();
+		State ready = weap.GetReadyState();
+			
+		bool inRaise = raise != ready && psp.CurState.InStateSequence(raise);
+		bool inLower = lower != ready && psp.CurState.InStateSequence(lower);
+			
+		if (inRaise || inLower)
+		{
+			int diff = psp.y - prevOffset;
+			psp.y += diff * (1/max(double.epsilon, attackModifier) - 1);
+		}
+		else
+		{
+			bool inParry = psp.CurState.InStateSequence(weap.FindState("Parry"));
+			bool inBlock = psp.CurState.InStateSequence(weap.FindState("Reload"));
+						
+			if (inParry || inBlock)
+			{
+				ticsToRemove = 0;
+				ticTimer = 0;
+				interval = 0;
+			}
+			else
+			{
+				bool inReady = weap.GetAtkState(false) != ready && psp.CurState.InStateSequence(ready);
+				int dist = 0;
+				if (!inReady && prevState)
+					dist = prevState.DistanceTo(psp.CurState);
+								
+				if (dist < 0 || (dist >= 1 && !psp.CurState.InStateSequence(prevState)))
+					CalculateTics(psp.CurState);
+			}
+		}
+		
+		prevState = psp.CurState;
+		prevOffset = psp.y;
+		
+		RemoveTics();
+	}
+	
+	private void CalculateTics(State current)
+	{
+		ticsToRemove = 0;
+		ticTimer = 0;
+		interval = 0;
+		
+		if (!current)
+			return;
+							
+		int totalTics = 0;
+		State thisState = current;
+		State lastState;
+		do
+		{
+			totalTics += thisState.tics;
+								
+			lastState = thisState;
+			thisState = thisState.NextState;
+		} while (thisState && lastState.DistanceTo(thisState) == 1);
+							
+		ticsToRemove = round(totalTics * (1-attackModifier));
+		ticsToRemove = min(ticsToRemove, totalTics);
+						
+		totalTics -= ticsToRemove;
+						
+		if (totalTics <= 0 && ticsToRemove > 0)
+			interval = -1.;
+		else if (ticsToRemove > 0)
+			interval = totalTics*1. / ticsToRemove;
+	}
+	
+	private void RemoveTics()
+	{
+		let psp = player.GetPSprite(PSP_WEAPON);
+		if (!psp || !psp.CurState)
+		{
+			ticsToRemove = 0;
+			ticTimer = 0;
+			interval = 0;
+			return;
+		}
+		
+		if (ticsToRemove > 0 && psp.CurState.tics > 0)
+		{
+			bool deleteAll = (interval == -1.);
+			if (deleteAll)
+				interval = 1.;
+			
+			if (interval <= 0)
+			{
+				ticsToRemove = 0;
+				ticTimer = 0;
+				interval = 0;
+			}
+			else if (!(ticTimer++ % ceil(interval)))
+			{
+				int mod = 1;
+				if (deleteAll)
+					mod = ticsToRemove;
+				else if (interval < 1)
+					mod = ceil(1/interval);
+				
+				mod = min(ticsToRemove, mod);
+					
+				if (psp.tics > mod)
+					psp.tics -= mod;
+				else
+				{
+					int temp = mod;
+					do
+					{
+						if (!psp || !psp.CurState)
+							return;
+						
+						int tempMod = min(temp, psp.tics);
+						temp -= tempMod;
+						psp.tics -= tempMod;
+						if (psp.tics <= 0)
+						{
+							prevState = psp.CurState;
+							player.SetPsprite(PSP_WEAPON, psp.CurState.NextState);
+						}
+					} while (temp > 0);
+				}
+				
+				ticsToRemove -= mod;
+			}
+		}
 	}
 	
 	override void GiveDefaultInventory()
 	{
 		super.GiveDefaultInventory();
 		
-		for (uint i = 0; i < stats.Size(); ++i)
+		for (let probe = inv; probe; probe = probe.inv)
 		{
-			if (stats[i])
-				stats[i].GiveDefault();
+			let st = Stat(probe);
+			if (st)
+				st.GiveDefault();
 		}
-	}
-	
-	void UseSkill(uint slot)
-	{
-		if (slot >= skillSlots)
-			return;
-		
-		if (!activeSkills[slot])
-			Console.Printf("No skill available");
-		else
-			activeSkills[slot].Use(false);
 	}
 	
 	virtual void LevelUp()
@@ -114,45 +259,15 @@ class RPGPlayer : PlayerPawn abstract
 	
 	virtual void InitializeStats()
 	{
-		AddStat('Agility');
-		AddStat('Vitality');
-		AddStat('Wisdom');
-		AddStat('Intelligence');
-		AddStat('Strength');
-		AddStat('Dexterity');
+		GiveInventoryType('Agility');
+		GiveInventoryType('Vitality');
+		GiveInventoryType('Wisdom');
+		GiveInventoryType('Intelligence');
+		GiveInventoryType('Strength');
+		GiveInventoryType('Dexterity');
 	}
 	
 	virtual void InitializeSkills() {}
-	
-	protected void AddStat(class<Stat> stat)
-	{
-		if (!stat)
-			return;
-		
-		let st = Stat(Spawn(stat));
-		if (st)
-		{
-			if (st.CallTryPickup(self))
-				stats.Push(st);
-			else
-				st.Destroy();
-		}
-	}
-	
-	protected void AddSkill(class<Skill> skill)
-	{
-		if (!skill)
-			return;
-		
-		let sk = Skill(Spawn(skill));
-		if (sk)
-		{
-			if (sk.CallTryPickup(self))
-				skills.Push(sk);
-			else
-				sk.Destroy();
-		}
-	}
 	
 	void SetActiveSkill(uint slot, class<Skill> skill = null)
 	{
@@ -174,6 +289,17 @@ class RPGPlayer : PlayerPawn abstract
 			newSkill.bActive = true;
 			newSkill.OnEquip();
 		}
+	}
+	
+	void UseSkill(uint slot)
+	{
+		if (slot >= skillSlots)
+			return;
+		
+		if (!activeSkills[slot])
+			Console.Printf("No skill available");
+		else
+			activeSkills[slot].Use(false);
 	}
 	
 	void NextSpell()
@@ -209,6 +335,10 @@ class RPGPlayer : PlayerPawn abstract
 	override void PostBeginPlay()
 	{
 		super.PostBeginPlay();
+		
+		let psp = player.GetPSprite(PSP_WEAPON);
+		if (psp)
+			prevOffset = psp.y;
 		
 		GiveInventoryType("ArmorPieceManager");
 		GiveInventoryType("BuffManager");
@@ -270,10 +400,11 @@ class RPGPlayer : PlayerPawn abstract
 			points = 0;
 			currentXP = nextLevelXP;
 			
-			for (uint i = 0; i < stats.Size(); ++i)
+			for (let probe = inv; probe; probe = probe.inv)
 			{
-				if (stats[i])
-					stats[i].LevelUp(stats[i].maxLevel - stats[i].level);
+				let st = Stat(probe);
+				if (st)
+					st.LevelUp(st.maxLevel - st.level);
 			}
 			
 			GiveBody(-100);

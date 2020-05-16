@@ -154,6 +154,8 @@ class MenuHandler : EventHandler
 		items.Clear();
 		keyItems.Clear();
 		keys.Clear();
+		skills.Clear();
+		stats.Clear();
 		
 		// Update items
 		for (let probe = mo.inv; probe; probe = probe.inv)
@@ -165,6 +167,10 @@ class MenuHandler : EventHandler
 				keyItems.Push(probe);
 			else if (probe is "Key")
 				keys.Push(probe);
+			else if (probe is "Skill")
+				skills.Push(Skill(probe));
+			else if (probe is "Stat")
+				stats.Push(Stat(probe));
 			else if (probe.bInvBar)
 				items.Push(probe);
 		}
@@ -174,21 +180,6 @@ class MenuHandler : EventHandler
 		// Update stats and skills
 		if (player)
 		{
-			skills.Clear();
-			stats.Clear();
-			
-			for (uint i = 0; i < player.skills.Size(); ++i)
-			{
-				if (player.skills[i])
-					skills.Push(player.skills[i]);
-			}
-			
-			for (uint i = 0; i < player.stats.Size(); ++i)
-			{
-				if (player.stats[i])
-					stats.Push(player.stats[i]);
-			}
-			
 			if (oldPoints < 0)
 				oldPoints = 0;
 			

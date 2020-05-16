@@ -104,34 +104,56 @@ class ReforgedMage : RPGPlayer
 	
 	override void InitializeSkills()
 	{
-		AddSkill("Desecrate");
-		AddSkill("KineticBlast");
-		
-		AddSkill("LightningBulwark");
-		AddSkill("Elementalist");
-		AddSkill("Resurrect");
-		AddSkill("Haste");
-		AddSkill("IceNova");
-		AddSkill("Shadow");
-		AddSkill("Thunder");
+		GiveInventoryType("Desecrate");
+		GiveInventoryType("KineticBlast");
 		
 		SetActiveSkill(0, "Desecrate");
 		SetActiveSkill(1, "KineticBlast");
-		SetActiveSkill(2, "LightningBulwark");
 	}
 	
 	override void InitializeStats()
 	{
 		super.InitializeStats();
 		
-		for (uint i = 0; i < stats.Size(); ++i)
+		for (let probe = inv; probe; probe = probe.inv)
 		{
-			if (!stats[i])
+			let st = Stat(probe);
+			if (!st)
 				continue;
-			
-			let cls = stats[i].GetClass();
+				
+			let cls = st.GetClass();
 			if (cls == "Wisdom" || cls == "Intelligence")
-				stats[i].LevelUp(2, true);
+				st.LevelUp(2, true);
+		}
+	}
+	
+	override void LevelUp()
+	{
+		super.LevelUp();
+		
+		switch (currentLevel)
+		{
+			case 2:
+				GiveInventoryType("LightningBulwark");
+				break;
+				
+			case 3:
+				GiveInventoryType("Elementalist");
+				break;
+				
+			case 5:
+				GiveInventoryType("Resurrect");
+				GiveInventoryType("Haste");
+				break;
+				
+			case 8:
+				GiveInventoryType("IceNova");
+				GiveInventoryType("Shadow");
+				break;
+				
+			case 11:
+				GiveInventoryType("Thunder");
+				break;
 		}
 	}
 }

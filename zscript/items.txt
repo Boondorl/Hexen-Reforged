@@ -219,23 +219,37 @@ class PowerDynamicTorch : Powerup
 	Default
 	{
 		Powerup.Duration -120;
+		
+		+INVENTORY.HUBPOWER
 	}
 	
-	override void AttachToOwner(Actor other)
+	private void CreateLights()
 	{
-		super.AttachToOwner(other);
+		if (!owner)
+			return;
+		
 		target = Spawn("TorchLight");
 		tracer = Spawn("TorchGlow");
-		if (owner.player)
-		{
-			if (target)
-				target.master = owner.player.mo;
-			if (tracer)
-				tracer.master = owner.player.mo;
-		}
+		
+		if (target)
+			target.master = owner;
+		if (tracer)
+			tracer.master = owner;
 	}
 	
-	override void DetachFromOwner()
+	override void Travelled()
+	{
+		CreateLights();
+	}
+	
+	override void InitEffect()
+	{
+		super.InitEffect();
+		
+		CreateLights();
+	}
+	
+	override void EndEffect()
 	{
 		let light = TorchLight(target);
 		if (light)
@@ -245,7 +259,7 @@ class PowerDynamicTorch : Powerup
 		if (light2)
 			light2.bStartFade = true;
 		
-		super.DetachFromOwner();
+		super.EndEffect();
 	}
 }
 
@@ -532,6 +546,8 @@ class PowerSpeedNoIcon : PowerSpeed
 	{
 		Powerup.Duration -30;
 		Inventory.Icon "";
+		
+		+INVENTORY.HUBPOWER
 	}
 }
 
