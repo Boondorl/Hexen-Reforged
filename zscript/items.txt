@@ -150,7 +150,7 @@ class ReforgedCrystalVial : Health
 {
 	Default
 	{
-		Inventory.Amount 5;
+		Inventory.Amount 10;
 		Inventory.PickupMessage "$TXT_ITEMHEALTH";
 		
 		+FLOATBOB
@@ -480,7 +480,7 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 		Actor mo;
 		while (mo = Actor(it.Next()))
 		{
-			if (mo == owner || mo == self || (mo.bBoss && !(blastflags & BF_AFFECTBOSSES)) || mo.bDormant || mo.bDontBlast || owner.IsFriend(mo))
+			if (mo == owner || (mo.bBoss && !(blastflags & BF_AFFECTBOSSES)) || mo.bDormant || mo.bDontBlast || owner.IsFriend(mo))
 				continue;
 			
 			if (mo.bIceCorpse || mo.bCanBlast)

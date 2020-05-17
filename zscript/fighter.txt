@@ -230,7 +230,7 @@ class BloodlustBuff : Buff
 			return;
 		
 		if ((thing.bIsMonster || thing.player) &&
-			!owner.IsFriend(thing) &&
+			!owner.IsFriend(thing) && thing.target && owner.IsFriend(thing.target) &&
 			owner.Distance3DSquared(thing) <= range*range)
 		{
 			owner.GiveBody(owner.player.mo.maxHealth*0.04);

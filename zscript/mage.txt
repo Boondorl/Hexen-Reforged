@@ -127,9 +127,9 @@ class ReforgedMage : RPGPlayer
 		}
 	}
 	
-	override void LevelUp()
+	override void LevelUp(bool cheat)
 	{
-		super.LevelUp();
+		super.LevelUp(cheat);
 		
 		switch (currentLevel)
 		{

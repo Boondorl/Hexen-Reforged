@@ -22,7 +22,7 @@ class XPHandler : EventHandler
 				}
 			}
 		}
-		else if (e.thing.bIsMonster && e.inflictor && !e.thing.IsFriend(e.inflictor))
+		else if (e.thing.bIsMonster && e.thing.target && e.thing.IsHostile(e.thing.target))
 		{
 			for (int i = 0; i < players.Size(); ++i)
 			{

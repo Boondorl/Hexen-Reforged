@@ -392,10 +392,10 @@ class RPGMonster : Actor
 					break;
 				}
 				
-				if (!mo.target || mo.target.health <= 0)
+				if (!mo.target || mo.target.health <= 0 || mo.target == self)
 					continue;
 				
-				if (!IsFriend(mo.target) && !mo.target.bShadow &&
+				if (IsHostile(mo.target) && !mo.target.bShadow &&
 					AbsAngle(angle, AngleTo(mo)) <= 90 && CheckSight(mo))
 				{
 					target = mo.target;
@@ -500,7 +500,7 @@ class RPGMonster : Actor
 			realTarget = null;
 		}
 		
-		if (!bFriendly && target && target.health > 0 && target.bIsMonster && !IsFriend(target))
+		if (!bFriendly && target && target.health > 0 && target.bIsMonster && !target.bFriendly)
 		{
 			if (--rageTimer <= 0 && --searchCoolDown <= 0)
 			{
@@ -939,7 +939,7 @@ class RPGMonster : Actor
 	
 	override bool CanCollideWith(Actor toucher, bool passive)
 	{
-		if (master && master.player && toucher.IsFriend(self))
+		if (master && master.player && IsFriend(toucher))
 			return false;
 		
 		return super.CanCollideWith(toucher, passive);

@@ -245,7 +245,7 @@ class RPGPlayer : PlayerPawn abstract
 		}
 	}
 	
-	virtual void LevelUp()
+	virtual void LevelUp(bool cheat = false)
 	{
 		currentXP -= nextLevelXP;
 		if (currentXP < 0)
@@ -255,6 +255,12 @@ class RPGPlayer : PlayerPawn abstract
 		
 		++currentLevel;
 		++points;
+		
+		if (!cheat)
+		{
+			A_StartSound("misc/chat", CHAN_7);
+			Console.PrintF("+1 stat point");
+		}
 	}
 	
 	virtual void InitializeStats()
@@ -377,7 +383,7 @@ class RPGPlayer : PlayerPawn abstract
 		else if (name ~== "level")
 		{
 			for (int i = 0; i < amount; ++i)
-				LevelUp();
+				LevelUp(true);
 			
 			return;
 		}
@@ -395,7 +401,7 @@ class RPGPlayer : PlayerPawn abstract
 		if (giveall)
 		{
 			for (int i = currentLevel; i < maxLevel; ++i)
-				LevelUp();
+				LevelUp(true);
 			
 			points = 0;
 			currentXP = nextLevelXP;

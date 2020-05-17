@@ -1,8 +1,0 @@
-/*
- * DamNums: by Xaser Acheron
- *
- * Game Defaults for Strife
- */
-
-class DamNumFontGameDefault : DamNumFontStrife {}
-class DamNumFontGameSmall   : DamNumFontStrife {}

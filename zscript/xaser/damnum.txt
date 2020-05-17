@@ -121,12 +121,7 @@ class DamNum : Actor
 		// spawn the font class by name. 'fontclass' below yields null if
 		// 'fontname' is not the name of a DamNumFont subclass -- handy!
 		class<DamNumFont> fontclass = fontname;
-		DamNumFont font;
-		if(fontclass) {
-			font = DamNumFont(Spawn(fontclass));
-		} else {
-			font = DamNumFont(Spawn(DamNum_DefaultFontName)); // good ol' default.
-		}
+		DamNumFont font = DamNumFont(Spawn(fontclass));
 
 		// check to see if the user is opting for a particular
 		// color choice. If so, use it. While we're at it,
