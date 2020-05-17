@@ -110,10 +110,10 @@ class ArmorBox : TooltipMenuElement
 		
 		if (tool)
 		{
-			tool.text = String.Format("%sDurability:%s %d / %d\n\n", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, armor.health, armor.default.health);
+			tool.text = String.Format("%s%s:%s %d / %d\n\n", Font.TEXTCOLOR_BOLD, Stringtable.Localize("$TITLE_DURA"), Font.TEXTCOLOR_NORMAL, armor.health, armor.default.health);
 			let ar = ArmorPiece(armor);
 			if (ar)
-				tool.text.AppendFormat("%s", ar.description);
+				tool.text.AppendFormat("%s", ar.GetDescription());
 		}
 	}
 	

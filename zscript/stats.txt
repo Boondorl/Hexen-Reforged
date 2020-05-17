@@ -3,12 +3,13 @@ class Stat : Inventory abstract
 	ui int currentLevel;
 	ui int currentCost;
 	
-	Array<int> bonusValue;
-	Array<String> bonusText;
+	protected Array<double> bonusValue;
+	protected Array<String> bonusText;
+	
+	private meta string description;
 	
 	int level;
 	int maxLevel;
-	string description;
 	int cost;
 	int minLevel;
 	
@@ -39,14 +40,37 @@ class Stat : Inventory abstract
 	}
 	
 	virtual void GiveDefault() {}
+	
+	clearscope String GetDescription() const
+	{
+		return Stringtable.Localize(description);
+	}
+	
+	clearscope double, String GetBonus(uint index) const
+	{
+		double val;
+		String bonus = "";
+		
+		if (index < bonusValue.Size())
+			val = bonusValue[index];
+		if (index < bonusText.Size())
+			bonus = Stringtable.Localize(bonusText[index]);
+		
+		return val, bonus;
+	}
+	
+	clearscope uint BonusCount() const
+	{
+		return max(bonusValue.Size(), bonusText.Size());
+	}
 }
 
 class Agility : Stat
 {
 	Default
 	{
-		Tag "Agility";
-		Stat.Description "Increases movement speed, carrying capacity, and reduces skill cool downs";
+		Tag "$TAG_AGL";
+		Stat.Description "$DESC_AGL";
 	}
 	
 	override void LevelUp(int levels, bool start)
@@ -67,11 +91,11 @@ class Agility : Stat
 		super.PostBeginPlay();
 		
 		bonusValue.Push(5);
-		bonusText.Push("% movement speed, ");
+		bonusText.Push("$BONUS_AGL1");
 		bonusValue.Push(2);
-		bonusText.Push(" carry capacity, ");
-		bonusValue.Push(-5);
-		bonusText.Push("% skill cool down duration");
+		bonusText.Push("$BONUS_AGL2");
+		bonusValue.Push(-10);
+		bonusText.Push("$BONUS_AGL3");
 	}
 }
 
@@ -79,8 +103,8 @@ class Vitality : Stat
 {
 	Default
 	{
-		Tag "Vitality";
-		Stat.Description "Increases maximum health";
+		Tag "$TAG_VIT";
+		Stat.Description "$DESC_VIT";
 	}
 	
 	override void LevelUp(int levels, bool start)
@@ -106,7 +130,7 @@ class Vitality : Stat
 		super.PostBeginPlay();
 		
 		bonusValue.Push(30);
-		bonusText.Push(" health");
+		bonusText.Push("$BONUS_VIT");
 	}
 }
 
@@ -114,8 +138,8 @@ class Wisdom : Stat
 {
 	Default
 	{
-		Tag "Wisdom";
-		Stat.Description "Increases maximum mana";
+		Tag "$TAG_WIS";
+		Stat.Description "$DESC_WIS";
 	}
 	
 	override void LevelUp(int levels, bool start)
@@ -197,7 +221,7 @@ class Wisdom : Stat
 		super.PostBeginPlay();
 		
 		bonusValue.Push(30);
-		bonusText.Push(" mana");
+		bonusText.Push("$BONUS_WIS");
 	}
 }
 
@@ -207,8 +231,8 @@ class Intelligence : Stat
 	
 	Default
 	{
-		Tag "Intelligence";
-		Stat.Description "Shows mastery in the arcane by increasing magic damage";
+		Tag "$TAG_INT";
+		Stat.Description "$DESC_INT";
 	}
 	
 	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
@@ -229,7 +253,7 @@ class Intelligence : Stat
 			}
 			
 			if (bonusDmg)
-				newdamage = round(newdamage * (1 + 0.1*(level-1)));
+				newdamage = round(newdamage * (1 + 0.2*(level-1)));
 		}
 	}
 	
@@ -237,8 +261,8 @@ class Intelligence : Stat
 	{
 		super.PostBeginPlay();
 		
-		bonusValue.Push(10);
-		bonusText.Push("% magic damage (fire, ice, lightning, poison)");
+		bonusValue.Push(20);
+		bonusText.Push("$BONUS_INT");
 	}
 }
 
@@ -248,8 +272,8 @@ class Strength : Stat
 	
 	Default
 	{
-		Tag "Strength";
-		Stat.Description "Shows mastery in heavy weaponry by increasing physical damage";
+		Tag "$TAG_STR";
+		Stat.Description "$DESC_STR";
 	}
 	
 	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
@@ -270,7 +294,7 @@ class Strength : Stat
 			}
 			
 			if (bonusDmg)
-				newdamage = round(newdamage * (1 + 0.1*(level-1)));
+				newdamage = round(newdamage * (1 + 0.2*(level-1)));
 		}
 	}
 	
@@ -278,8 +302,8 @@ class Strength : Stat
 	{
 		super.PostBeginPlay();
 		
-		bonusValue.Push(10);
-		bonusText.Push("% physical damage (cleave, blunt, pierce)");
+		bonusValue.Push(20);
+		bonusText.Push("$BONUS_STR");
 	}
 }
 
@@ -287,8 +311,8 @@ class Dexterity : Stat
 {
 	Default
 	{
-		Tag "Dexterity";
-		Stat.Description "Shows mastery of all weapons by reducing the  time needed to swap weapons, attack, and cast spells";
+		Tag "$TAG_DEX";
+		Stat.Description "$DESC_DEX";
 	}
 	
 	override void PostBeginPlay()
@@ -296,7 +320,7 @@ class Dexterity : Stat
 		super.PostBeginPlay();
 		
 		bonusValue.Push(-5);
-		bonusText.Push("% reduced swap, cast, and attack time");
+		bonusText.Push("$BONUS_DEX");
 	}
 	
 	override void LevelUp(int levels, bool start)

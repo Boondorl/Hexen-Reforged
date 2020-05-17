@@ -1,7 +1,8 @@
 class RPGItem : Inventory
 {
+	private meta string description;
+	
 	int weight;
-	string description;
 	
 	property Weight : weight;
 	property Description : description;
@@ -43,6 +44,11 @@ class RPGItem : Inventory
 		}
 		
 		return pickup;
+	}
+	
+	clearscope String GetDescription() const
+	{
+		return Stringtable.Localize(description);
 	}
 }
 
@@ -175,7 +181,7 @@ class RPGFlask : RPGHealthPickup replaces ArtiHealth
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIHEALTH";
 		Tag "$TAG_ARTIHEALTH";
-		RPGItem.Description "A lightweight flask that restores up to 15 health";
+		RPGItem.Description "$DESC_ARTIHEALTH";
 		
 		+FLOATBOB
 		+INVENTORY.FANCYPICKUPSOUND
@@ -200,7 +206,7 @@ class RPGUrn : RPGHealthPickup replaces ArtiSuperHealth
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTISUPERHEALTH";
 		Tag "$TAG_ARTISUPERHEALTH";
-		RPGItem.Description "An ancient artifact that can restore up to 100 health";
+		RPGItem.Description "$DESC_ARTISUPERHEALTH";
 		
 		+FLOATBOB
 		+INVENTORY.FANCYPICKUPSOUND
@@ -355,7 +361,7 @@ class RPGTorch : RPGPowerupGiver replaces ArtiTorch
 		Inventory.PickupMessage "$TXT_ARTITORCH";
 		Tag "$TAG_ARTITORCH";
 		RPGPowerupGiver.Type "PowerDynamicTorch";
-		RPGItem.Description "A standard torch capable of lighting your surroundings for a few minutes";
+		RPGItem.Description "$DESC_ARTITORCH";
 		
 		+FLOATBOB
 	}
@@ -396,7 +402,7 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIBLASTRADIUS";
 		Tag "$TAG_ARTIBLASTRADIUS";
-		RPGItem.Description "A small disc capable of reflecting enemies and projectiles in front of you";
+		RPGItem.Description "$DESC_ARTIBLASTRADIUS";
 		
 		+INVENTORY.INVBAR
 		+INVENTORY.FANCYPICKUPSOUND
@@ -519,7 +525,7 @@ class RPGBanish : RPGItem replaces ArtiTeleportOther
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTITELEPORTOTHER";
 		Tag "$TAG_ARTITELEPORTOTHER";
-		RPGItem.Description "A strange device that teleports surrounding enemies to the location it hit";
+		RPGItem.Description "$DESC_ARTITELO";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR
@@ -561,7 +567,7 @@ class RPGBoots : RPGPowerupGiver replaces ArtiSpeedBoots
 		Inventory.PickupMessage "$TXT_ARTISPEED";
 		Tag "$TAG_ARTISPEED";
 		RPGPowerupGiver.Type "PowerSpeedNoIcon";
-		RPGItem.Description "Magic infused boots that temporarily increase your movement speed by 50%";
+		RPGItem.Description "$DESC_ARTISPEED";
 		
 		+FLOATBOB
 	}
@@ -584,7 +590,7 @@ class RPGFlechette : RPGItem replaces ArtiPoisonBag
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIPOISONBAG";
 		Tag "$TAG_ARTIPOISONBAG";
-		RPGItem.Description "A vial of poison that leaves behind naseous gas when thrown. Best to keep a distance";
+		RPGItem.Description "$DESC_ARTIPOISONBAG";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR
@@ -618,7 +624,7 @@ class RPGTeleport : RPGItem replaces ArtiTeleport
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTITELEPORT";
 		Tag "$TAG_ARTITELEPORT";
-		RPGItem.Description "An otherworldly device that allows you to teleport back to safety";
+		RPGItem.Description "$DESC_ARTITELEPORT";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR
@@ -671,7 +677,7 @@ class RPGKrater : RPGItem replaces ArtiBoostMana
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIBOOSTMANA";
 		Tag "$TAG_ARTIBOOSTMANA";
-		RPGItem.Description "A krater that can restore up to 100 blue and green mana";
+		RPGItem.Description "$DESC_ARTIBOOSTMANA";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR
@@ -713,7 +719,7 @@ class RPGPork : RPGItem replaces ArtiPork
 		Inventory.PickupSound "misc/p_pkup";
 		Inventory.PickupMessage "$TXT_ARTIEGG2";
 		Tag "$TAG_ARTIPORK";
-		RPGItem.Description "A humorous artifact that turns any enemies nearby into pigs";
+		RPGItem.Description "$DESC_ARTIPORK";
 		
 		+FLOATBOB
 		+INVENTORY.INVBAR

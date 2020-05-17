@@ -130,10 +130,12 @@ class Heal : Skill
 {
 	Default
 	{
-		Skill.Cost 7;
+		Tag "$TAG_HEAL";
+		Skill.Description "$DESC_HEAL";
+		Skill.Cost 13;
 		Skill.Type "GreenMana";
-		Skill.CastTime 70;
-		Skill.CoolDown 175;
+		Skill.CastTime 175;
+		Skill.CoolDown 350;
 		Skill.BuffType "HealBuff";
 		Inventory.Icon "PTN1A0";
 	}
@@ -148,7 +150,7 @@ class HealBuff : Buff
 {
 	Default
 	{
-		Buff.Duration 70;
+		Buff.Duration 175;
 		Buff.ActionInterval 7;
 		Inventory.Icon "PTN1A0";
 	}

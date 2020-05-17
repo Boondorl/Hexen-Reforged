@@ -259,7 +259,7 @@ class RPGPlayer : PlayerPawn abstract
 		if (!cheat)
 		{
 			A_StartSound("misc/chat", CHAN_7);
-			Console.PrintF("+1 stat point");
+			Console.PrintF("+%d %s", 1, Stringtable.Localize("$TEXT_GAINPOINT"));
 		}
 	}
 	

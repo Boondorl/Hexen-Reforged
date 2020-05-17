@@ -1,5 +1,7 @@
 class Skill : Inventory abstract
 {
+	private meta String description;
+	
 	ui bool discovered;
 	
 	int cost;
@@ -17,7 +19,6 @@ class Skill : Inventory abstract
 	class<Weapon> activeWeapon;
 	class<CastWeapon> cast;
 	string weaponName;
-	String description;
 	
 	bool bActive;
 	bool bInCast;
@@ -132,33 +133,27 @@ class Skill : Inventory abstract
 		if (pickup || owner.health <= 0)
 			return false;
 		
-		if (bInCast)
+		if (bInCast || owner.player.ReadyWeapon is "CastWeapon")
 		{
-			Console.Printf("Currently casting this spell");
+			Console.Printf(Stringtable.Localize("$WARN_CASTING"));
 			return false;
 		}
 		else if (bInCoolDown)
 		{
-			Console.Printf("Spell on cool down");
-			return false;
-		}
-		
-		if (cast && owner.player.ReadyWeapon is "CastWeapon")
-		{
-			Console.Printf("Currently casting a spell");
+			Console.Printf(Stringtable.Localize("$WARN_COOLDOWN"));
 			return false;
 		}
 		
 		if (activeWeapon && (!owner.player.ReadyWeapon || owner.player.ReadyWeapon.GetClass() != activeWeapon))
 		{
-			Console.Printf("You must have "..weaponName.." out to use this");
+			Console.Printf(Stringtable.Localize("$WARN_YOUMUST").." "..Stringtable.Localize(weaponName).." "..Stringtable.Localize("$WARN_TOUSE"));
 			return false;
 		}
 		
 		if ((!bCurToggle && !CheckAmmo(cost, type, reserveType)) ||
 			(bToggle && bSpecialDrain && !CheckAmmo(drain, drainType, reserveDrainType)))
 		{
-			Console.Printf("You do not have enough resources to cast this");
+			Console.Printf(Stringtable.Localize("$WARN_NOAMMO"));
 			return false;
 		}
 		
@@ -332,6 +327,11 @@ class Skill : Inventory abstract
 				psp.y = WEAPONTOP;
 			}
 		}
+	}
+	
+	clearscope String GetDescription() const
+	{
+		return Stringtable.Localize(description);
 	}
 }
 

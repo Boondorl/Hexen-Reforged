@@ -199,6 +199,8 @@ class BloodLust : Skill
 {
 	Default
 	{
+		Tag "$TAG_BLOODLUST";
+		Skill.Description "$DESC_BLOODLUST";
 		Skill.BuffType "BloodlustBuff";
 		Inventory.Icon "PTN1A0";
 	}
@@ -242,12 +244,14 @@ class LightningAxe : Skill
 {
 	Default
 	{
+		Tag "$TAG_TIMONVENG";
+		Skill.Description "$DESC_TIMONVENG";
 		Skill.Cost 5;
 		Skill.CastTime 28;
 		Skill.Type "BlueMana";
 		Skill.ReserveType "RedMana";
 		Skill.ActiveWeapon "ReforgedAxe";
-		Skill.WeaponName "Timon's Axe";
+		Skill.WeaponName "$TAG_FWEAPAXE";
 		Skill.Cast "AxeThrow";
 		Inventory.Icon "MWNDF0";
 	}
@@ -299,8 +303,10 @@ class Charge : Skill
 	
 	Default
 	{
+		Tag "$TAG_CHARGE";
+		Skill.Description "$DESC_CHARGE";
 		Skill.CastTime 2;
-		Skill.CoolDown 175;
+		Skill.CoolDown 350;
 		Inventory.Icon "SUMNA0";
 	}
 	

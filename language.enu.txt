@@ -1,0 +1,136 @@
+[default enu]
+
+// Mana
+
+TAG_BMANA = "Blue Mana";
+TAG_GMANA = "Green Mana";
+TAG_RMANA = "Red Mana";
+
+TXT_MANA_3 = "Red Mana";
+
+// Weapons
+
+TAG_PURIFIER = "Purifier";
+
+// Items
+
+TITLE_WEIGHT = "Weight";
+TITLE_TOTAL = "Total";
+
+DESC_ARTIHEALTH = "A lightweight flask that restores up to 15 health";
+DESC_ARTISUPERHEALTH = "An ancient artifact that can restore up to 100 health";
+DESC_ARTITORCH = "A torch capable of lighting up the surrounding area for a couple minutes";
+DESC_ARTIBLASTRADIUS = "A small disc capable of deflecting enemies and projectiles in front of you";
+DESC_ARTITELO = "A strange device that teleports enemies on top of each other at the location it hits";
+DESC_ARTISPEED = "Magic infused boots that temporarily increase your movement speed by 50%";
+DESC_ARTIPOISONBAG = "A vial of poison that leaves behind a toxic cloud when broken. Best to keep a safe distance";
+DESC_ARTITELEPORT = "An otherworldly device that allows you to teleport back to the safety of where you entered the level";
+DESC_ARTIBOOSTMANA = "A krater that can restore up to 100 blue and green mana";
+DESC_ARTIPORK = "A humorous artifact that can turn surrounding enemies into pigs";
+
+// Armor
+
+TITLE_DURA = "Durability";
+
+DESC_BRACE = "Extra effective against cleaving hits";
+DESC_CHEST = "High durability armor. Weak to lightning and blunt hits";
+DESC_SHIELD = "High durability shield that can block piercing hits";
+DESC_HELMET = "Capable of reducing critical hit damage by 20%. Weak to lightning and blunt hits";
+DESC_AMUL = "Extra effective against elemental damage but weak to physical damage. Can absorb poison";
+
+// Stats
+
+TITLE_BONUS = "Bonus";
+
+TEXT_LEVEL = "Level";
+TEXT_REQUIRED = "Required";
+TEXT_CONFIRM = "Confirm";
+
+TAG_AGL = "Agility";
+TAG_VIT = "Vitality";
+TAG_WIS = "Wisdom";
+TAG_STR = "Strength";
+TAG_INT = "Intelligence";
+TAG_DEX = "Dexterity";
+
+DESC_AGL = "Increases movement speed, carrying capacity, and reduces skill cool downs";
+DESC_VIT = "Increases maximum health";
+DESC_WIS = "Increases maximum mana across all types";
+DESC_STR = "Increases physical damage dealt";
+DESC_INT = "Increases elemental damage dealt";
+DESC_DEX = "Increases attack, cast, and swap speed";
+
+BONUS_AGL1 = "% movement speed, ";
+BONUS_AGL2 = " carry capacity, ";
+BONUS_AGL3 = "% skill cool down duration";
+
+BONUS_VIT = " health";
+
+BONUS_WIS = " mana";
+
+BONUS_STR = "% physical damage (cleave, blunt, pierce)";
+
+BONUS_INT = "% elemental damage (fire, ice, lightning, poison)";
+
+BONUS_DEX = "% swap, cast, and attack duration";
+
+// Skills
+
+TITLE_REQUIRE = "Requires";
+TITLE_TOGGLE = "Toggle";
+
+WARN_CASTING = "Currently casting";
+WARN_COOLDOWN = "Skill on cool down";
+WARN_YOUMUST = "You must have";
+WARN_TOUSE = "equipped to use this skill";
+WARN_NOAMMO = "You do not have enough resources to cast this";
+
+DESC_REMOVE = "Remove skill from slot";
+
+// Fighter
+
+TAG_BLOODLUST = "Blood Lust";
+TAG_TIMONVENG = "Timon's Vengeance";
+TAG_CHARGE = "Charge";
+
+DESC_BLOODLUST = "Nearby enemies killed by you or an ally restore up to 4% of your max health";
+DESC_TIMONVENG = "Hurl a spectral image of your axe that shocks enemies when hit";
+DESC_CHARGE = "Charge through enemies while knocking them back. Distance scales with movement speed";
+
+//Cleric
+
+TAG_HEAL = "Heal";
+
+DESC_HEAL = "Restore up to 25 health over 5 seconds. Will not overheal but will keep working even if at full health";
+
+// Mage
+
+TAG_DESECRATE = "Desecrate";
+TAG_KINETIC = "Kinetic Blast";
+TAG_BULWARK = "Lightning Bulwark";
+TAG_ELEMEN = "Elementalist";
+TAG_RESURRECT = "Resurrect";
+TAG_HASTE = "Haste";
+TAG_NOVA = "Ice Nova";
+TAG_SHADOW = "Shadow";
+TAG_THUNDER = "Thunder";
+
+DESC_DESECRATE = "Consume the corpse of a foe to yield a vial that heals up to 10 health";
+DESC_KINETIC = "Shoots out a projectile that, on impact, explodes into 8 bouncing projectiles";
+DESC_BULWARK = "Protect yourself in a barrier of electricity. Enemies that melee you shock it and nearby enemies";
+DESC_ELEMEN = "Switch between ice and fire attacks with your Frost Shards";
+DESC_RESURRECT = "Raise a slain foe to fight for you (up to 5 minions)";
+DESC_HASTE = "Increase your projectile speed by 50%";
+DESC_NOVA = "Unleash a devasting blast of ice, chilling and freezing all enemies around you";
+DESC_SHADOW = "Become nearly invisible. Only nearby enemies will see and attempt to attack you";
+DESC_THUNDER = "Fire a devasting bolt of lightning from your hand that chain reacts to nearby hit enemies";
+
+// HUD
+
+TITLE_LIFE = "Life";
+
+TEXT_POINTAVAIL = "point available";
+TEXT_POINTSAVAIL = "points available";
+TEXT_GAINPOINT = "passive point";
+TEXT_SKILLAVAIL = "New skill available";
+TEXT_SKILLSAVAIL = "New skills available";

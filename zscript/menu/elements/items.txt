@@ -101,7 +101,7 @@ class ItemCanvas : Canvas
 		if (handler.player)
 		{
 			int fH = NewSmallFont.GetHeight();
-			String text = String.Format("%sWeight:%s %.1f / %.1f", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, handler.player.currentCapacity/10., handler.player.carryCapacity/10.);
+			String text = String.Format("%s%s:%s %.1f / %.1f", Font.TEXTCOLOR_BOLD, Stringtable.Localize("$TITLE_WEIGHT"), Font.TEXTCOLOR_NORMAL, handler.player.currentCapacity/10., handler.player.carryCapacity/10.);
 			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2), text, (0,-fH), 2);
 		}
 	}
@@ -271,7 +271,7 @@ class ItemBox : TooltipMenuElement
 			
 		let rpgi = RPGItem(item);
 		if (rpgi && tool)
-			tool.text = String.Format("%sWeight:%s %.1f\n%sTotal:%s %.1f\n\n%s", Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight/10., Font.TEXTCOLOR_BOLD, Font.TEXTCOLOR_NORMAL, rpgi.weight*rpgi.amount/10., rpgi.description);
+			tool.text = String.Format("%s%s:%s %.1f\n%s%s:%s %.1f\n\n%s", Font.TEXTCOLOR_BOLD, Stringtable.Localize("$TITLE_WEIGHT"), Font.TEXTCOLOR_NORMAL, rpgi.weight/10., Font.TEXTCOLOR_BOLD, Stringtable.Localize("$TITLE_TOTAL"), Font.TEXTCOLOR_NORMAL, rpgi.weight*rpgi.amount/10., rpgi.GetDescription());
 	}
 	
 	void CheckSwap()

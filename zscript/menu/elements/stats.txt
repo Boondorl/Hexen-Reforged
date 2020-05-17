@@ -114,14 +114,14 @@ class StatCanvas : Canvas
 			if (handler.player && handler.totalCost > handler.player.currentXP)
 				col = Font.TEXTCOLOR_RED;
 			
-			String text = String.Format("XP Required: %s%d", col, handler.totalCost);
+			String text = String.Format("XP %s: %s%d", Stringtable.Localize("$TEXT_REQUIRED"), col, handler.totalCost);
 			int length = NewSmallFont.StringWidth(text);
 			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x, scaledCenter.y-half.y), text, (-length/2, -fHeight), 2);
 		}
 		
 		if (handler.player)
 		{
-			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-half.x, scaledCenter.y-half.y), String.Format("Level %d", handler.player.currentLevel), (0, -fHeight*2), 2);
+			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-half.x, scaledCenter.y-half.y), String.Format("%s %d", Stringtable.Localize("$TEXT_LEVEL"), handler.player.currentLevel), (0, -fHeight*2), 2);
 			DrawText(NewSmallFont, Font.CR_UNTRANSLATED, (scaledCenter.x-half.x, scaledCenter.y-half.y), String.Format("%d / %d XP", handler.player.currentXP, handler.player.nextLevelXP), (0, -fHeight), 2);
 			
 			if (handler.player.currentPoints != handler.player.points || handler.totalCost > 0)
@@ -145,8 +145,6 @@ class StatCanvas : Canvas
 
 class StatBox : MenuElement
 {
-	const BONUS_HEADER = Font.TEXTCOLOR_BOLD.."Bonus:\n"..Font.TEXTCOLOR_NORMAL;
-	
 	Stat st;
 	TextBox description;
 	TextBox bonus;
@@ -161,7 +159,7 @@ class StatBox : MenuElement
 		st.currentLevel = st.level;
 		st.currentCost = 0;
 		if (description)
-			description.text = Font.TEXTCOLOR_BOLD..st.GetTag()..Font.TEXTCOLOR_NORMAL.."\n"..st.description;
+			description.text = Font.TEXTCOLOR_BOLD..st.GetTag()..Font.TEXTCOLOR_NORMAL.."\n"..st.GetDescription();
 	}
 	
 	override void Initialize()
@@ -193,17 +191,26 @@ class StatBox : MenuElement
 		
 		if (st && bonus)
 		{
-			String text = BONUS_HEADER;
+			String text = Font.TEXTCOLOR_BOLD..Stringtable.Localize("$TITLE_BONUS")..":\n"..Font.TEXTCOLOR_NORMAL;
 			
 			if (st.currentLevel > 1)
 			{
-				for (uint i = 0; i < st.bonusValue.Size(); ++i)
+				for (uint i = 0; i < st.BonusCount(); ++i)
 				{
-					int val = st.bonusValue[i] * (st.currentLevel - 1);
+					double val;
+					string bonus;
+					
+					[val, bonus] = st.GetBonus(i);
+					val *= (st.currentLevel - 1);
 					if (val > 0)
 						text = text.."+";
 					
-					text = text..val..st.bonusText[i];
+					if (val ~== floor(val))
+						text.AppendFormat("%.0f", val);
+					else
+						text.AppendFormat("%.2f", val);
+					
+					text = text..bonus;
 				}
 			}
 			
@@ -453,7 +460,7 @@ class ConfirmButton : MenuElement
 	override void PostChildExecute(double fracTic)
 	{
 		int fHeight = NewSmallFont.GetHeight();
-		String con = "Confirm";
+		String con = Stringtable.Localize("$TEXT_CONFIRM");
 		int length = NewSmallFont.StringWidth(con);
 		
 		DrawText(NewSmallFont, Font.CR_UNTRANSLATED, scaledCenter, con, (-length/2, -fHeight/2), 2);

@@ -10,7 +10,7 @@ class BlueMana : Ammo replaces Mana1
 		Height 8;
 		Inventory.Icon "MAN1I0";
 		Inventory.PickupMessage "$TXT_MANA_1";
-		Tag "$AMMO_MANA1";
+		Tag "$TAG_BMANA";
 		
 		+FLOATBOB
 		+INVENTORY.IGNORESKILL
@@ -36,7 +36,7 @@ class GreenMana : Ammo replaces Mana2
 		Height 8;
 		Inventory.Icon "MAN2G0";
 		Inventory.PickupMessage "$TXT_MANA_2";
-		Tag "$AMMO_MANA2";
+		Tag "$TAG_GMANA";
 		
 		+FLOATBOB
 		+INVENTORY.IGNORESKILL
@@ -61,7 +61,8 @@ class RedMana : Ammo replaces Mana3
 		Radius 8;
 		Height 8;
 		Inventory.Icon "MAN3G0";
-		Inventory.PickupMessage "$TXT_MANA_BOTH";
+		Inventory.PickupMessage "$TXT_MANA_3";
+		Tag "$TAG_RMANA";
 		
 		+FLOATBOB
 		+INVENTORY.IGNORESKILL

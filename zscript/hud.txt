@@ -189,7 +189,7 @@ class ReforgedStatusBar : BaseStatusBar
 		Screen.SetClipRect(cx, cy, cw, ch);
 		
 		int fHeight = mBigFont.mFont.GetHeight();
-		String healthNum = "Life";
+		String healthNum = Stringtable.Localize("$TITLE_LIFE");
 		DrawString(mBigFont, healthNum, (aspectOfs+orbSize.x/6, -orbSize.y - fHeight*0.6), scale: (0.3, 0.3));
 		DrawString(mHUDFont, FormatNumber(mHealthInterpolator.GetValue()), (aspectOfs+orbSize.x*5/6., -orbSize.y - fHeight*0.6), DI_TEXT_ALIGN_RIGHT, scale: (0.5, 0.5));
 		
@@ -299,9 +299,9 @@ class ReforgedStatusBar : BaseStatusBar
 			{
 				string pointMessage;
 				if (rpg.currentPoints == 1)
-					pointMessage = String.Format("%d point available", rpg.currentPoints);
+					pointMessage = String.Format("%d %s", rpg.currentPoints, Stringtable.Localize("$TEXT_POINTAVAIL"));
 				else
-					pointMessage = String.Format("%d points available", rpg.currentPoints);
+					pointMessage = String.Format("%d %s", rpg.currentPoints, Stringtable.Localize("$TEXT_POINTSAVAIL"));
 				
 				int length = (vWidth - mBigFont.mFont.StringWidth(pointMessage)*0.6)/2;
 				int height = -chainsize.y - mBigFont.mFont.GetHeight()*0.6;

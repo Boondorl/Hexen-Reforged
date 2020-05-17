@@ -165,12 +165,13 @@ class ArmorPieceManager : Inventory
 
 class ArmorPiece : Armor abstract
 {
+	private meta String description;
+	
 	double savePercent;
 	int breakPoints;
 	double lossPercent;
 	double criticalFactor;
 	uint priority;
-	String description;
 	
 	property SavePercent : savePercent;
 	property BreakPoints : breakPoints;
@@ -231,6 +232,11 @@ class ArmorPiece : Armor abstract
 		
 		super.Touch(toucher);
 	}
+	
+	clearscope String GetDescription() const
+	{
+		return Stringtable.Localize(description);
+	}
 }
 
 class BracerPiece : ArmorPiece replaces ArtiBoostArmor
@@ -243,7 +249,7 @@ class BracerPiece : ArmorPiece replaces ArtiBoostArmor
 		Inventory.PickupMessage "$TXT_ARTIBOOSTARMOR";
 		Inventory.Icon "BRACA0";
 		DamageFactor "Cleave", 0.75;
-		ArmorPiece.Description "Extra effective against cleaving hits";
+		ArmorPiece.Description "$DESC_BRACE";
 		
 		+FLOATBOB
 	}
@@ -267,7 +273,7 @@ class ChestPiece : ArmorPiece replaces MeshArmor
 		Inventory.Icon "AR_1A0";
 		DamageFactor "Blunt", 1.25;
 		DamageFactor "Electric", 1.25;
-		ArmorPiece.Description "High durability armor. Weak to lightning and blunt hits";
+		ArmorPiece.Description "$DESC_CHEST";
 		
 		+FLOATBOB
 	}
@@ -289,7 +295,7 @@ class ShieldPiece : ArmorPiece replaces FalconShield
 		Health 600;
 		Inventory.PickupMessage "$TXT_ARMOR2";
 		Inventory.Icon "AR_2A0";
-		ArmorPiece.Description "High durability shield that can block piercing hits";
+		ArmorPiece.Description "$DESC_SHIELD";
 		
 		+FLOATBOB
 		+ARMORPIECE.BLOCKPIERCING
@@ -315,7 +321,7 @@ class HelmetPiece : ArmorPiece replaces PlatinumHelm
 		Inventory.Icon "AR_3A0";
 		DamageFactor "Blunt", 1.25;
 		DamageFactor "Electric", 1.25;
-		ArmorPiece.Description "Capable of reducing critical hit damage by 20%. Weak to lightning and blunt hits";
+		ArmorPiece.Description "$DESC_HELMET";
 		
 		+FLOATBOB
 		+ARMORPIECE.CRITSTOPPER
@@ -345,7 +351,7 @@ class AmuletPiece : ArmorPiece replaces AmuletOfWarding
 		DamageFactor "Ice", 0.75;
 		DamageFactor "Electric", 0.75;
 		DamageFactor "Poison", 0.75;
-		ArmorPiece.Description "Extra effective against elemental damage but weak to physical damage. Can absorb poison";
+		ArmorPiece.Description "$DESC_AMUL";
 		
 		+FLOATBOB
 		+ARMORPIECE.BLOCKPOISON

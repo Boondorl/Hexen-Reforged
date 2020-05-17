@@ -9,8 +9,8 @@
  * damage types (*or ones I've used in past mods, hehe). For all other cases,
  * define your own! It works wonders.
  */
-
-[enu default]
+ 
+[default enu]
 
 DAMNUM_TYPECOLOR_CRIT         = "DamGold";
 DAMNUM_TYPECOLOR_HEAL		  = "DamGreen";

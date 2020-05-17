@@ -126,7 +126,7 @@ class SkillBox : TooltipMenuElement
 		{
 			tool = Tooltip.Create("Tooltip", handler, (center.x, center.y+size.y/2), 600, self);
 			tool.title = sk.GetTag();
-			tool.text = sk.description;
+			tool.text = sk.GetDescription();
 		}
 	}
 	
@@ -479,10 +479,10 @@ class SkillSelect : TooltipMenuElement
 			if (sk)
 			{
 				tool.title = sk.GetTag();
-				tool.text = sk.description;
+				tool.text = sk.GetDescription();
 			}
 			else
-				tool.text = "Remove spell from slot";
+				tool.text = Stringtable.Localize("$DESC_REMOVE");
 		}
 	}
 	

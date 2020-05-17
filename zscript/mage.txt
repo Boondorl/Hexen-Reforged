@@ -203,13 +203,13 @@ class Desecrate : Skill
 		Skill.Type "GreenMana";
 		Skill.ReserveType "RedMana";
 		Inventory.Icon "PTN1A0";
-		Tag "Desecrate";
-		Skill.Description "Consume the corpse of a foe to yield a health pickup";
+		Tag "$TAG_DESECRATE";
+		Skill.Description "$DESC_DESECRATE";
 	}
 	
 	override void UseSkill()
 	{
-		if (!CheckAmmo(5, type, reserveType))
+		if (!CheckAmmo(8, type, reserveType))
 		{
 			Console.Printf("You do not have enough resources to cast this");
 			return;
@@ -225,7 +225,7 @@ class Desecrate : Skill
 			
 			if (tracer.results.hitType == TRACE_HitActor)
 			{
-				TakeAmmo(5, type, reserveType);
+				TakeAmmo(8, type, reserveType);
 				let mo = Spawn("ReforgedCrystalVial", tracer.results.hitActor.pos, ALLOW_REPLACE);
 				if (mo && !mo.bNoGravity)
 					mo.vel.z += 7;
@@ -246,8 +246,8 @@ class KineticBlast : Skill
 		Skill.ReserveType "RedMana";
 		Inventory.Icon "MWNDF0";
 		Skill.Cast "KineticHands";
-		Tag "Kinetic Blast";
-		Skill.Description "Shoots out a projectile that, on impact, explodes into bouncing projectiles";
+		Tag "$TAG_KINETIC";
+		Skill.Description "$DESC_KINETIC";
 	}
 	
 	override void UseSkill()
@@ -390,8 +390,8 @@ class LightningBulwark : Skill
 		Skill.Drain 4;
 		Skill.DrainType "GreenMana";
 		Skill.ReserveDrainType "RedMana";
-		Tag "Lightning Bulwark";
-		Skill.Description "Protect yourself in a barrier of electricity. Enemies that melee you shock it and nearby enemies";
+		Tag "$TAG_BULWARK";
+		Skill.Description "$DESC_BULWARK";
 		
 		+SKILL.TOGGLE
 		+SKILL.SPECIALDRAIN
@@ -468,8 +468,8 @@ class Elementalist : Skill
 	{
 		Skill.BuffType "ElementalistBuff";
 		Inventory.Icon "DMFXA1";
-		Tag "Elementalist";
-		Skill.Description "Switch between ice and fire with your Frost Shards";
+		Tag "$TAG_ELEMEN";
+		Skill.Description "$DESC_ELEMEN";
 		
 		+SKILL.TOGGLE
 	}
@@ -511,8 +511,8 @@ class Resurrect : Skill
 		Skill.Type "BlueMana";
 		Skill.ReserveType "RedMana";
 		Inventory.Icon "MAN3A0";
-		Tag "Resurrect";
-		Skill.Description "Raise a slain foe to fight for you (max of 5 minions)";
+		Tag "$TAG_RESURRECT";
+		Skill.Description "$DESC_RESURRECT";
 	}
 	
 	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
@@ -683,12 +683,12 @@ class Haste : Skill
 	Default
 	{
 		Skill.BuffType "HasteBuff";
-		Skill.Drain 1;
+		Skill.Drain 2;
 		Skill.DrainType "BlueMana";
 		Skill.ReserveDrainType "RedMana";
 		Inventory.Icon "MWNDC0";
-		Tag "Haste";
-		Skill.Description "Use mana to increase your projectiles' speed by 50%";
+		Tag "$TAG_HASTE";
+		Skill.Description "$DESC_HASTE";
 		
 		+SKILL.TOGGLE
 		+SKILL.SPECIALDRAIN
@@ -749,13 +749,13 @@ class IceNova : Skill
 {
 	Default
 	{
-		Skill.Cost 50;
+		Skill.Cost 32;
 		Skill.Type "BlueMana";
 		Skill.ReserveType "RedMana";
-		Skill.CoolDown 1050;
+		Skill.CoolDown 700;
 		Inventory.Icon "SHEXB0";
-		Tag "Ice Nova";
-		Skill.Description "Unleash a devasting blast of ice, chilling and freezing all enemies around you";
+		Tag "$TAG_NOVA";
+		Skill.Description "$DESC_NOVA";
 	}
 	
 	override void UseSkill()
@@ -780,10 +780,10 @@ class Shadow : Skill
 		Skill.Drain 1;
 		Skill.DrainType "GreenMana";
 		Skill.ReserveDrainType "RedMana";
-		Skill.DrainInterval 9;
+		Skill.DrainInterval 12;
 		Inventory.Icon "SPIRA1";
-		Tag "Shadow";
-		Skill.Description "Become nearly invisible. Only nearby enemies will see and attempt to attack you";
+		Tag "$TAG_SHADOW";
+		Skill.Description "$DESC_SHADOW";
 		
 		+SKILL.TOGGLE
 	}
@@ -821,10 +821,10 @@ class Thunder : Skill
 {
 	Default
 	{
-		Skill.Cost 15;
+		Skill.Cost 10;
 		Skill.Type "RedMana";
 		Inventory.Icon "MLFXI0";
-		Tag "Thunder";
-		Skill.Description "Fire a devasting bolt of lightning from your hand that chain reacts to nearby hit enemies";
+		Tag "$TAG_THUNDER";
+		Skill.Description "$DESC_THUNDER";
 	}
 }
