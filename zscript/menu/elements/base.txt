@@ -595,7 +595,7 @@ class MenuElement : Object ui
 
 class TextBox : MenuElement
 {
-	Font fnt;
+	transient Font fnt;
 	double scale;
 	
 	String text;

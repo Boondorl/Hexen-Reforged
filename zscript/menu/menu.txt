@@ -48,24 +48,24 @@ enum EMoveDir
 
 class MenuHandler : EventHandler
 {
-	transient ui RPGPlayer player;
-	transient ui Array<Inventory> items;
-	transient ui Array<Inventory> keyItems;
-	transient ui Array<Skill> skills;
-	transient ui Array<Stat> stats;
-	transient ui Array<Inventory> keys;
+	ui RPGPlayer player;
+	ui Array<Inventory> items;
+	ui Array<Inventory> keyItems;
+	ui Array<Skill> skills;
+	ui Array<Stat> stats;
+	ui Array<Inventory> keys;
+	ui int oldPoints;
 	
-	transient ui TextureID cursor;
-	transient ui Array<MenuElement> elements;
-	transient ui Array<Tooltip> toolTips; // These get special handling since they should always be draw on top of everything
-	transient ui MenuElement held; // Same for this one
-	transient ui MenuElement oldHeld;
+	ui Array<MenuElement> elements;
+	ui Array<Tooltip> toolTips; // These get special handling since they should always be draw on top of everything
+	ui MenuElement held; // Same for this one
+	ui MenuElement oldHeld;
 	
-	transient ui MenuElement selected;
+	ui MenuElement selected;
+	ui Array<MenuElement> navNodes;
 	transient ui bool bNavMode;
 	transient ui int navTimer;
 	transient ui Vector2 navDir;
-	transient ui Array<MenuElement> navNodes;
 	transient ui bool bSetNav;
 	
 	transient ui Vector2 mouse;
@@ -75,11 +75,11 @@ class MenuHandler : EventHandler
 	transient ui int oldButtonAction;
 	
 	transient ui bool bInitialized;
+	transient ui TextureID cursor;
 	transient ui int menuState;
 	transient ui int oldMenuState;
 	
 	transient ui int totalCost;
-	transient ui int oldPoints;
 	
 	ui void LevelPlayer()
 	{
@@ -149,6 +149,23 @@ class MenuHandler : EventHandler
 	
 	override void UITick()
 	{
+		player = RPGPlayer(players[consoleplayer].mo);
+		
+		if (!bInitialized)
+		{
+			int wOfs, hOfs, w, h;
+			[wOfs, hOfs, w, h] = Screen.GetViewWindow();
+			
+			mouse.x = wOfs + w/2;
+			mouse.y = hOfs + h/2;
+			
+			cursor = TexMan.CheckForTexture("CURSOR", TexMan.Type_Any);
+			
+			ClearUI();
+			
+			bInitialized = true;
+		}
+		
 		let mo = players[consoleplayer].mo;
 		
 		items.Clear();
@@ -174,8 +191,6 @@ class MenuHandler : EventHandler
 			else if (probe.bInvBar)
 				items.Push(probe);
 		}
-		
-		player = RPGPlayer(players[consoleplayer].mo);
 		
 		// Update stats and skills
 		if (player)
@@ -236,6 +251,9 @@ class MenuHandler : EventHandler
 		
 		mouseAction = oldMouseAction = 0;
 		buttonAction = oldButtonAction = 0;
+		
+		if (player)
+			oldPoints = player.currentPoints;
 	}
 	
 	ui MenuElement GetNearestNode(int dir, bool inverted = false, bool sound = true)
@@ -353,16 +371,6 @@ class MenuHandler : EventHandler
 			
 			if (player.hideElements & EL_ITEMS)
 				players[consoleplayer].inventorytics = 0;
-		}
-		
-		if (!bInitialized)
-		{
-			mouse.x = wOfs + w/2;
-			mouse.y = hOfs + h/2;
-			
-			cursor = TexMan.CheckForTexture("CURSOR", TexMan.Type_Any);
-			
-			bInitialized = true;
 		}
 		
 		mouse.x = clamp(mouse.x, wOfs, wOfs+w);
