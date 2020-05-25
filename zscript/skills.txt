@@ -160,15 +160,18 @@ class Skill : Inventory abstract
 		if (!bCurToggle)
 			TakeAmmo(cost, type, reserveType);
 			
+		let rpg = RPGPlayer(owner);
 		if (castTime > 0)
 		{
 			castTimer = castTime;
+			if (rpg)
+				castTimer *= rpg.attackModifier;
+			
 			bInCast = true;
 		}
 		else if (coolDown > 0)
 		{
 			coolDownTimer = coolDown;
-			let rpg = RPGPlayer(owner);
 			if (rpg)
 				coolDownTimer *= rpg.coolDownModifier;
 				
@@ -460,6 +463,10 @@ class Buff : Inventory abstract
 	virtual void Effect() {}
 	
 	virtual void ThingDied(Actor thing, Actor inflictor) {}
+	
+	virtual void OnDamage(Actor inflictor, Actor source) {}
+	
+	virtual void DealtDamage(Actor damaged) {}
 	
 	virtual void MissileFired(Actor missile) {}
 	

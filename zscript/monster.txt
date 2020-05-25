@@ -1,7 +1,5 @@
 class CollisionBox : Actor
 {
-	Vector3 oldPos;
-	
 	double length;
 	double forwardOffset;
 	double sideOffset;
@@ -46,10 +44,6 @@ class CollisionBox : Actor
 		}
 		
 		bDead = false;
-		
-		// Uncomment this when no longer debugging with markers
-		//if (master.pos == oldPos)
-			//return;
 				
 		Vector3 masterForward = (AngleToVector(master.angle), 0);
 		Vector3 masterRight = (AngleToVector(master.angle-90), 0);
@@ -90,8 +84,6 @@ class CollisionBox : Actor
 					}
 			}
 		// End of debug code
-		
-		oldPos = master.pos;
 	}
 	
 	override void BeginPlay()
@@ -109,6 +101,7 @@ class SightTracer : LineTracer
 {
 	Actor master;
 	Actor target;
+	
 	bool bMelee; // Blocked by no hitscan lines
 	bool bMissile; // Blocked by no projectile lines
 	bool bMonster; // Blocked by no monster lines
@@ -145,7 +138,7 @@ class SightTracer : LineTracer
 				if (results.hitActor != master &&
 					(results.hitActor == target ||
 					(!bThruObj && !results.hitActor.bShootable && results.hitActor.bSolid) ||
-					(!bThruMonst && results.hitActor.bIsMonster && (!master || !results.hitActor.IsFriend(master)))))
+					(!bThruMonst && results.hitActor.bIsMonster && (!master || !results.hitActor.IsHostile(master)))))
 				{
 					return TRACE_Stop;
 				}
@@ -429,19 +422,27 @@ class RPGMonster : Actor
 		if (!tracer)
 			return false;
 		
+		double grav = GetGravity();
+		if (grav <= 0)
+			return false;
+		
 		double ang = VectorAngle(dir.x, dir.y);
 		double width = radius*1.42;
+		
+		double zOfs;
+		for (double zVel = jumpSpeed; zVel >= 0; zVel -= grav)
+			zOfs += zVel;
 			
 		tracer.master = self;
-		Vector3 start = pos + (0,0,jumpSpeed*6 + 4);
+		Vector3 start = pos + (0,0,zOfs);
 		tracer.Trace(start, CurSector, dir, distance, 0);
 		if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
 		{
-			start.xy = Vec2Angle(width, angle-90);
+			start.xy = Vec2Angle(width, ang-90);
 			tracer.Trace(start, CurSector, dir, distance, 0);
 			if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
 			{
-				start.xy = Vec2Angle(width, angle+90);
+				start.xy = Vec2Angle(width, ang+90);
 				tracer.Trace(start, CurSector, dir, distance, 0);
 				if (tracer.results.hitType == TRACE_HitNone || tracer.results.hitActor == target)
 					return true;
@@ -532,7 +533,7 @@ class RPGMonster : Actor
 					let mo = tracer.results.hitActor;
 					double hitZ = mo.pos.z + mo.height - pos.z;
 					double secHeight = mo.ceilingZ - mo.pos.z + hitZ;
-					if (!grav || secHeight < height*1.25 || hitZ > jumpSpeed*6 / grav || !CheckLeap(dir, radius*2.5))
+					if (grav <= 0 || secHeight < height*1.25 || hitZ > jumpSpeed*6 / grav || !CheckLeap(dir, radius*2.5))
 					{
 						realTarget = target;
 						target = mo;
@@ -562,8 +563,12 @@ class RPGMonster : Actor
 					vel.xy = (0,0);
 				
 				bInLeap = false;
-				if (grav != 0 && !bStuck && !bFloat && !bNoGravity && bJumper && AbsAngle(idealAngle, ang) <= 45)
+				if (grav > 0 && !bStuck && !bFloat && !bNoGravity && bJumper && AbsAngle(idealAngle, ang) <= 45)
 				{
+					double zOfs;
+					for (double zVel = jumpSpeed; zVel >= 0; zVel -= grav)
+						zOfs += zVel;
+					
 					let tracer = new("JumpCheckTracer");
 					if (tracer)
 					{
@@ -578,7 +583,7 @@ class RPGMonster : Actor
 							double secHeight = secCeilZ - secFloorZ;
 							double delta = secFloorZ - pos.z;
 								
-							if (secHeight >= height*1.25 && delta > MaxStepHeight && delta <= jumpSpeed*6 / grav && CheckLeap(dir, radius*2.5))
+							if (secHeight >= height*1.25 && delta > MaxStepHeight && delta <= zOfs && CheckLeap(dir, radius*2.5))
 							{
 								vel.z += jumpSpeed;
 								idealAngle = ang;
@@ -590,7 +595,7 @@ class RPGMonster : Actor
 						{
 							double hitZ = tracer.results.hitActor.pos.z + tracer.results.hitActor.height - pos.z;
 							double secHeight = tracer.results.hitActor.ceilingZ - tracer.results.hitActor.pos.z + hitZ;
-							if (secHeight >= height*1.25 && hitZ <= jumpSpeed*6 / grav && CheckLeap(dir, radius*2.5))
+							if (secHeight >= height*1.25 && hitZ <= zOfs && CheckLeap(dir, radius*2.5))
 							{
 								vel.z += jumpSpeed;
 								idealAngle = ang;

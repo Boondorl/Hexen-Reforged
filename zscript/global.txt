@@ -11,22 +11,16 @@ class GlobalEventsHandler : EventHandler
 		{
 			e.thing.Destroy();
 		}
-		else if (e.thing.bMissile && e.thing.target && e.thing.target.player)
+		else if (e.thing.bMissile && e.thing.target)
 		{
-			for (uint i = 0; i < MAXPLAYERS; ++i)
+			let bm = BuffManager(e.thing.target.FindInventory("BuffManager"));
+			if (!bm)
+				return;
+				
+			for (uint i = 0; i < bm.buffs.Size(); ++i)
 			{
-				if (!playerInGame[i])
-					continue;
-				
-				let bm = BuffManager(players[i].mo.FindInventory("BuffManager"));
-				if (!bm)
-					continue;
-				
-				for (uint j = 0; j < bm.buffs.Size(); ++j)
-				{
-					if (bm.buffs[j])
-						bm.buffs[j].MissileFired(e.thing);
-				}
+				if (bm.buffs[i])
+					bm.buffs[i].MissileFired(e.thing);
 			}
 		}
 		else if (e.thing is "Inventory")
@@ -45,6 +39,35 @@ class GlobalEventsHandler : EventHandler
 			}
 			else if (e.thing is "PuzzleItem")
 				Inventory(e.thing).bInvBar = false;
+		}
+	}
+	
+	override void WorldThingDamaged(WorldEvent e)
+	{
+		if (e.thing)
+		{
+			let bm = BuffManager(e.thing.FindInventory("BuffManager"));
+			if (bm)
+			{
+				for (uint i = 0; i < bm.buffs.Size(); ++i)
+				{
+					if (bm.buffs[i])
+						bm.buffs[i].OnDamage(e.inflictor, e.damageSource);
+				}
+			}
+		}
+		
+		if (e.damageSource)
+		{
+			let bm = BuffManager(e.damageSource.FindInventory("BuffManager"));
+			if (bm)
+			{
+				for (uint i = 0; i < bm.buffs.Size(); ++i)
+				{
+					if (bm.buffs[i])
+						bm.buffs[i].DealtDamage(e.thing);
+				}
+			}
 		}
 	}
 	
@@ -74,14 +97,14 @@ class GlobalEventsHandler : EventHandler
 		
 		if (command.Size() == 2)
 		{
-			if (command[0] ~== "Spell")
+			if (command[0] ~== "Skill")
 			{
 				let rpg = RPGPlayer(players[e.Player].mo);
 				if (rpg)
 					rpg.UseSkill(command[1].ToInt(10));
 			}
 		}
-		else if (e.Player == net_arbitrator && e.Name == "ToggleMarker")
+		else if (e.Player == net_arbitrator && e.Name ~== "ToggleMarker")
 		{
 			bMarkers = !bMarkers;
 			if (bMarkers)
@@ -89,23 +112,35 @@ class GlobalEventsHandler : EventHandler
 			else
 				Console.printf("Markers disabled");
 		}
-		else if (e.Name == "nextspell")
+		else if (e.Name ~== "NextSkill")
 		{
 			let rpg = RPGPlayer(players[e.Player].mo);
 			if (rpg)
 				rpg.NextSpell();
 		}
-		else if (e.Name == "PrevSpell")
+		else if (e.Name ~== "PrevSkill")
 		{
 			let rpg = RPGPlayer(players[e.Player].mo);
 			if (rpg)
 				rpg.PreviousSpell();
 		}
-		else if (e.Name ~== "currentspell")
+		else if (e.Name ~== "CurrentSkill")
 		{
 			let rpg = RPGPlayer(players[e.Player].mo);
 			if (rpg)
 				rpg.UseSkill(rpg.selectedSkill);
+		}
+		else if (e.Name ~== "KillMinions")
+		{
+			ThinkerIterator it = ThinkerIterator.Create("Actor", Thinker.STAT_DEFAULT);
+			Actor mo;
+			while (mo = Actor(it.Next()))
+			{
+				if (!mo || !mo.bIsMonster || mo.health <= 0 || !mo.master || mo.master != players[e.Player].mo)
+					continue;
+				
+				mo.DamageMobj(null, null, Actor.TELEFRAG_DAMAGE, "Telefrag");
+			}
 		}
 	}
 }

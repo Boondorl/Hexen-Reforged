@@ -137,7 +137,7 @@ class SkillBox : TooltipMenuElement
 	
 	override void OnHover()
 	{
-		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		DrawBorder("FF FF FF", 3);
 		
 		DrawSkill();
 	}
@@ -493,7 +493,7 @@ class SkillSelect : TooltipMenuElement
 	
 	override void OnHover()
 	{
-		Screen.DrawFrame(scaledCenter.x-scaledSize.x/2, scaledCenter.y-scaledSize.y/2, scaledSize.x, scaledSize.y);
+		DrawBorder("FF FF FF", 3);
 		
 		DrawSkillInfo();
 	}

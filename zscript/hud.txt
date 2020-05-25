@@ -312,8 +312,7 @@ class ReforgedStatusBar : BaseStatusBar
 			let bm = BuffManager(rpg.FindInventory("BuffManager"));
 			if (bm)
 			{
-				int xOfs = aspectOfs+2.5*HUDScale.x;
-				int yOfs = HUDScale.y;
+				int xOfs = aspectOfs;
 				int fH = mHUDFont.mFont.GetHeight()*0.5;
 				
 				for (uint i = 0; i < bm.buffs.Size(); ++i)
@@ -326,11 +325,14 @@ class ReforgedStatusBar : BaseStatusBar
 					buffsize.y *= 1.2;
 					buffsize *= 0.6;
 					
-					DrawTexture(bf.icon, (xOfs, yOfs+buffsize.y), DI_ITEM_CENTER_BOTTOM, scale: (0.6, 0.72));
+					DrawTexture(bf.icon, (xOfs+buffsize.x/2, buffsize.y), DI_ITEM_CENTER_BOTTOM, scale: (0.6, 0.72));
 					if (!bf.bInfinite)
-						DrawString(mHUDFont, FormatNumber((bf.duration-bf.durationTimer+35) / 35), (xOfs+buffsize.x, yOfs+buffsize.y-fH), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
+						DrawString(mHUDFont, FormatNumber((bf.duration-bf.durationTimer+35) / 35), (xOfs+buffsize.x, buffsize.y-fH), DI_TEXT_ALIGN_RIGHT, scale: (0.5,0.5));
 					
-					xOfs += buffsize.x + 2.5*HUDScale.x;
+					if (bf.bStackable)
+						DrawString(mHUDFont, FormatNumber(bf.stacks), (xOfs, buffsize.y-fH), scale: (0.5,0.5));
+					
+					xOfs += buffsize.x;
 				}
 			}
 			
@@ -348,7 +350,7 @@ class ReforgedStatusBar : BaseStatusBar
 				for (uint i = rpg.activeSkills.Size()-1; i >= 0; --i)
 				{
 					DrawImage("ARTIBOX", (xOfs, -chainSize.y), 0, scale: (0.5, 0.6));
-					key = GetKeyForSpell("Spell"..(i+1));
+					key = GetKeyForSkill("Skill"..(i+1));
 					DrawString(mBigFont, key, (xOfs-boxsize.x/2, -chainSize.y-fHeight*0.3), scale: (0.3,0.3));
 					
 					let sk = rpg.activeSkills[i];
@@ -381,7 +383,7 @@ class ReforgedStatusBar : BaseStatusBar
 		}
 	}
 	
-	String GetKeyForSpell(string alias)
+	String GetKeyForSkill(string alias)
 	{
 		string bind;
 		int key1, key2;

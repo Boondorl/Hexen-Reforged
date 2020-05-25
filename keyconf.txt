@@ -1,4 +1,4 @@
-AddKeySection "Hexen Reforged" HRKeys
+AddKeySection "Menu" MenuKeys
 
 AddMenuKey "Stats" ToggleStats
 Alias ToggleStats "event ToggleStats"
@@ -8,29 +8,45 @@ AddMenuKey "Inventory" ToggleInventory
 Alias ToggleInventory "event ToggleInventory"
 DefaultBind I ToggleInventory
 
-AddMenuKey "Spell 1" Spell1
-Alias Spell1 "netevent Spell:0"
-DefaultBind G Spell1
+AddKeySection "Combat" CombatKeys
 
-AddMenuKey "Spell 2" Spell2
-Alias Spell2 "netevent Spell:1"
-DefaultBind H Spell2
+AddMenuKey "Secondary Fire" +altattack
 
-AddMenuKey "Spell 3" Spell3
-Alias Spell3 "netevent Spell:2"
-DefaultBind X Spell3
+AddMenuKey "Bash" +user1
 
-AddMenuKey "Use Current Spell" CurrentSpell
-Alias CurrentSpell "netevent currentspell"
-DefaultBind / CurrentSpell
+AddMenuKey "Block" +reload
 
-AddMenuKey "Next Spell" NextSpell
-Alias NextSpell "netevent nextspell"
-DefaultBind ] NextSpell
+AddMenuKey "Kill Minions" KillMinions
+Alias KillMinions "netevent KillMinions"
+DefaultBind L KillMinions
 
-AddMenuKey "Previous Spell" PrevSpell
-Alias PrevSpell "netevent PrevSpell"
-DefaultBind [ PrevSpell
+AddKeySection "Skills" SkillKeys
+
+AddMenuKey "Use Selected Skill" CurrentSkill
+Alias CurrentSkill "netevent CurrentSkill"
+DefaultBind / CurrentSkill
+
+AddMenuKey "Next Skill" NextSkill
+Alias NextSkill "netevent NextSkill"
+DefaultBind . NextSkill
+
+AddMenuKey "Previous Skill" PrevSkill
+Alias PrevSkill "netevent PrevSkill"
+DefaultBind , PrevSkill
+
+AddMenuKey "Skill 1" Skill1
+Alias Skill1 "netevent Skill:0"
+DefaultBind G Skill1
+
+AddMenuKey "Skill 2" Skill2
+Alias Skill2 "netevent Skill:1"
+DefaultBind X Skill2
+
+AddMenuKey "Skill 3" Skill3
+Alias Skill3 "netevent Skill:2"
+DefaultBind V Skill3
+
+AddKeySection "Debug" DebugKeys
 
 AddMenuKey "Toggle Debug Markers" ToggleMarker
 Alias ToggleMarker "netevent ToggleMarker"

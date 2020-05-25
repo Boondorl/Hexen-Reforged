@@ -59,7 +59,7 @@ class KeyCanvas : Canvas
 		}
 		
 		// Add new keys
-		for (uint i = 0; i < handler.keys.Size(); ++i)
+		for (int i = handler.keys.Size() - 1; i >= 0 ; --i)
 		{
 			if (Find(handler.keys[i]) != children.Size())
 				continue;

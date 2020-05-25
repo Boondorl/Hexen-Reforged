@@ -211,7 +211,7 @@ class Desecrate : Skill
 	{
 		if (!CheckAmmo(8, type, reserveType))
 		{
-			Console.Printf("You do not have enough resources to cast this");
+			Console.Printf(Stringtable.Localize("$WARN_NOAMMO"));
 			return;
 		}
 				
@@ -248,13 +248,6 @@ class KineticBlast : Skill
 		Skill.Cast "KineticHands";
 		Tag "$TAG_KINETIC";
 		Skill.Description "$DESC_KINETIC";
-	}
-	
-	override void UseSkill()
-	{
-		let rpg = RPGPlayer(owner.player.mo);
-		if (rpg)
-			castTimer *= rpg.attackModifier;
 	}
 }
 
@@ -499,12 +492,7 @@ class Resurrect : Skill
 {
 	const MAX_MINIONS = 5;
 	
-	Array<Actor> minions;
-	
-	Array<class<Actor> > minionName;
-	Array<int> minionHealth;
-	
-	int prevLevelNum;
+	ResurrectBuff tracker;
 	
 	Default
 	{
@@ -513,39 +501,121 @@ class Resurrect : Skill
 		Inventory.Icon "MAN3A0";
 		Tag "$TAG_RESURRECT";
 		Skill.Description "$DESC_RESURRECT";
+		Skill.BuffType "ResurrectBuff";
 	}
 	
-	override void ModifyDamage(int damage, Name damageType, out int newdamage, bool passive, Actor inflictor, Actor source, int flags)
+	override void UseSkill()
 	{
-		if (damage <= 0)
-			return;
-		
-		if (passive)
+		let tracer = new("UndeadTracer");
+		if (tracer)
 		{
-			if (source && source.bIsMonster && !owner.IsFriend(source))
+			Vector3 start = owner.pos + (0,0, owner.player.mo.viewheight - owner.floorclip);
+			Vector3 dir = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch));
+			tracer.master = owner;
+			tracer.Trace(start, CurSector, dir, 256, 0);
+			
+			if (tracer.results.hitType == TRACE_HitActor)
 			{
-				for (uint i = 0; i < minions.Size(); ++i)
+				if (!CheckAmmo(10, type, reserveType))
 				{
-					if (minions[i] && !minions[i].target)
-						minions[i].target = source;
+					Console.Printf(Stringtable.Localize("$WARN_NOAMMO"));
+					return;
+				}
+				
+				bool gibbed = tracer.results.hitActor.health < tracer.results.hitActor.GetGibHealth();
+				if (tracer.results.hitActor.A_RaiseSelf(RF_NOCHECKPOSITION))
+				{
+					if (!tracker)
+					{
+						GiveBuff(owner);
+						tracker = ResurrectBuff(owner.FindInventory("ResurrectBuff"));
+					}
+					
+					tracer.results.hitActor.reactionTime = 0;
+					tracer.results.hitActor.ChangeTID(0);
+					tracer.results.hitActor.A_SetSpecial(0);
+					TakeAmmo(10, type, reserveType);
+					
+					if (gibbed)
+					{
+						let xraise = tracer.results.hitActor.FindState("XRaise");
+						if (xraise)
+							tracer.results.hitActor.SetState(xraise);
+					}
+					
+					uint currentMinions;
+					for (uint i = 0; i < tracker.minions.Size(); ++i)
+					{
+						if (tracker.minions[i])
+							++currentMinions;
+					}
+					
+					if (currentMinions >= MAX_MINIONS)
+					{
+						uint index;
+						int minHealth = 0x7FFFFFFF;
+						for (uint i = 0; i < tracker.minions.Size(); ++i)
+						{
+							if (tracker.minions[i] && tracker.minionHealth[i] < minHealth)
+							{
+								index = i;
+								minHealth = tracker.minionHealth[i];
+							}
+						}
+					
+						if (tracker.minions[index])
+							tracker.minions[index].DamageMobj(null, null, TELEFRAG_DAMAGE, "Telefrag");
+						
+						tracker.minions.Delete(index);
+						tracker.minionHealth.Delete(index);
+						tracker.minionName.Delete(index);
+					}
+					
+					tracker.minions.Push(tracer.results.hitActor);
+					tracker.minionName.Push(tracer.results.hitActor.GetClass());
+					tracker.minionHealth.Push(tracer.results.hitActor.health);
+					
+					tracer.results.hitActor.master = owner;
+					tracer.results.hitActor.bFriendly = true;
+					tracer.results.hitActor.target = null;
+					tracer.results.hitActor.A_SetRenderStyle(0.6, STYLE_Translucent);
+				}
+			}
+			else if (tracker)
+			{
+				for (uint i = 0; i < tracker.minions.Size(); ++i)
+				{
+					// SetZ first?
+					if (tracker.minions[i] && tracker.minions[i].CheckPosition(owner.pos.xy))
+					{
+						tracker.minions[i].SetOrigin(owner.pos, false);
+						tracker.minions[i].target = null;
+					}
 				}
 			}
 		}
-		else
-		{
-			// TODO: Find way to get thing player is attacking
-			for (uint i = 0; i < minions.Size(); ++i)
-			{
-				if (minions[i] && !minions[i].target)
-					minions[i].target = null;
-			}
-		}
+	}
+}
+
+class ResurrectBuff : Buff
+{
+	Array<Actor> minions;
+	
+	Array<class<Actor> > minionName;
+	Array<int> minionHealth;
+	
+	private int prevLevelNum;
+	
+	Default
+	{
+		Inventory.Icon "MAN3A0";
+		
+		+BUFF.STACKABLE
+		+BUFF.INFINITE
 	}
 	
-	override void Tick()
+	override void DoEffect()
 	{
-		super.Tick();
-		
 		if (!prevLevelNum)
 			prevLevelNum = level.levelNum;
 		
@@ -588,92 +658,44 @@ class Resurrect : Skill
 			{
 				minions.Delete(i);
 				minionHealth.Delete(i);
-				minionName.Delete(i);
-				--i;
+				minionName.Delete(i--);
+			}
+		}
+		
+		stacks = 0;
+		for (uint i = 0; i < minions.Size(); ++i)
+		{
+			if (minions[i])
+				++stacks;
+		}
+		
+		if (stacks <= 0)
+		{
+			Destroy();
+			return;
+		}
+		
+		super.DoEffect();
+	}
+	
+	override void OnDamage(Actor inflictor, Actor source)
+	{
+		if (source && source.bIsMonster && !owner.IsFriend(source))
+		{
+			for (uint i = 0; i < minions.Size(); ++i)
+			{
+				if (minions[i] && !minions[i].target)
+					minions[i].target = source;
 			}
 		}
 	}
 	
-	override void UseSkill()
+	override void DealtDamage(Actor damaged)
 	{
-		let tracer = new("UndeadTracer");
-		if (tracer)
+		for (uint i = 0; i < minions.Size(); ++i)
 		{
-			Vector3 start = owner.pos + (0,0, owner.player.mo.viewheight - owner.floorclip);
-			Vector3 dir = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch));
-			tracer.master = owner;
-			tracer.Trace(start, CurSector, dir, 256, 0);
-			
-			if (tracer.results.hitType == TRACE_HitActor)
-			{
-				if (!CheckAmmo(10, type, reserveType))
-				{
-					Console.Printf("You do not have enough resources to cast this");
-					return;
-				}
-				
-				bool gibbed = tracer.results.hitActor.health <= tracer.results.hitActor.GetGibHealth();
-				if (tracer.results.hitActor.A_RaiseSelf(RF_NOCHECKPOSITION))
-				{
-					tracer.results.hitActor.reactionTime = 0;
-					TakeAmmo(10, type, reserveType);
-					
-					if (gibbed)
-					{
-						let xraise = tracer.results.hitActor.FindState("XRaise");
-						if (xraise)
-							tracer.results.hitActor.SetState(xraise);
-					}
-					
-					uint currentMinions;
-					for (uint i = 0; i < minions.Size(); ++i)
-					{
-						if (minions[i])
-							++currentMinions;
-					}
-					
-					if (currentMinions >= MAX_MINIONS)
-					{
-						uint index;
-						int minHealth = 0x7FFFFFFF;
-						for (uint i = 0; i < minions.Size(); ++i)
-						{
-							if (minions[i] && minionHealth[i] < minHealth)
-							{
-								index = i;
-								minHealth = minionHealth[i];
-							}
-						}
-					
-						if (minions[index])
-							minions[index].DamageMobj(null, null, TELEFRAG_DAMAGE, "Telefrag");
-						
-						minions.Delete(index);
-						minionHealth.Delete(index);
-						minionName.Delete(index);
-					}
-					
-					minions.Push(tracer.results.hitActor);
-					minionName.Push(tracer.results.hitActor.GetClass());
-					minionHealth.Push(tracer.results.hitActor.health);
-					
-					tracer.results.hitActor.master = owner;
-					tracer.results.hitActor.bFriendly = true;
-					tracer.results.hitActor.target = null;
-					tracer.results.hitActor.A_SetRenderStyle(0.6, STYLE_Translucent);
-				}
-			}
-			else
-			{
-				for (uint i = 0; i < minions.Size(); ++i)
-				{
-					if (minions[i] && minions[i].CheckPosition(owner.pos.xy))
-					{
-						minions[i].SetOrigin(owner.pos, false);
-						minions[i].target = null;
-					}
-				}
-			}
+			if (minions[i] && !minions[i].target)
+				minions[i].target = damaged;
 		}
 	}
 }
@@ -719,7 +741,7 @@ class HasteBuff : Buff
 	
 	override void MissileFired(Actor missile)
 	{
-		if (!missile || missile.target != owner || missile.master)
+		if (!missile || missile.master)
 			return;
 		
 		missile.speed *= 1.5;

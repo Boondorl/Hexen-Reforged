@@ -175,7 +175,7 @@ class RPGFlask : RPGHealthPickup replaces ArtiHealth
 	Default
 	{
 		RPGItem.Weight 5;
-		Health 15;
+		Health 20;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIPTN2";
 		Inventory.PickupSound "misc/p_pkup";
@@ -199,7 +199,7 @@ class RPGUrn : RPGHealthPickup replaces ArtiSuperHealth
 {
 	Default
 	{
-		RPGItem.Weight 30;
+		RPGItem.Weight 20;
 		Health 100;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTISPHL";
@@ -355,7 +355,7 @@ class RPGTorch : RPGPowerupGiver replaces ArtiTorch
 {
 	Default
 	{
-		RPGItem.Weight 10;
+		RPGItem.Weight 5;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTITRCH";
 		Inventory.PickupMessage "$TXT_ARTITORCH";
@@ -713,7 +713,7 @@ class RPGPork : RPGItem replaces ArtiPork
 {
 	Default
 	{
-		RPGItem.Weight 20;
+		RPGItem.Weight 15;
 		Inventory.PickupFlash "PickupFlash";
 		Inventory.Icon "ARTIPORK";
 		Inventory.PickupSound "misc/p_pkup";
