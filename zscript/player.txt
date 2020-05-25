@@ -54,7 +54,7 @@ class RPGPlayer : PlayerPawn abstract
 		RPGPlayer.MaxLevel 11;
 		RPGPlayer.SkillSlots 3;
 		RPGPlayer.StartLevel 1;
-		RPGPlayer.StartRequiredXP 2000;
+		RPGPlayer.StartRequiredXP 1600;
 		
 		+NODAMAGETHRUST
 		+PLAYERPAWN.NOTHRUSTWHENINVUL
@@ -251,7 +251,7 @@ class RPGPlayer : PlayerPawn abstract
 		if (currentXP < 0)
 			currentXP = 0;
 		
-		nextLevelXP += default.nextLevelXP*2;
+		nextLevelXP += default.nextLevelXP;
 		
 		++currentLevel;
 		++points;

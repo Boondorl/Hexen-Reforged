@@ -105,8 +105,10 @@ class ReforgedCleric : RPGPlayer
 	override void InitializeSkills()
 	{
 		GiveInventoryType("Heal");
+		GiveInventoryType("Toxin");
 		
-		SetActiveskill(0, "Heal");
+		SetActiveSkill(0, "Heal");
+		SetActiveSkill(1, "Toxin");
 	}
 	
 	override void InitializeStats()
@@ -124,6 +126,36 @@ class ReforgedCleric : RPGPlayer
 				st.LevelUp(1, true);
 		}
 	}
+	
+	override void LevelUp(bool cheat)
+	{
+		super.LevelUp(cheat);
+		
+		switch (currentLevel)
+		{
+			case 2:
+				GiveInventoryType("Prayer");
+				break;
+				
+			case 3:
+				GiveInventoryType("Ignite");
+				break;
+				
+			case 5:
+				GiveInventoryType("Blight");
+				GiveInventoryType("Blessing");
+				break;
+				
+			case 8:
+				GiveInventoryType("DivineHeal");
+				GiveInventoryType("Proselytize");
+				break;
+				
+			case 11:
+				GiveInventoryType("DivineWrath");
+				break;
+		}
+	}
 }
 
 class Heal : Skill
@@ -134,6 +166,7 @@ class Heal : Skill
 		Skill.Description "$DESC_HEAL";
 		Skill.Cost 13;
 		Skill.Type "GreenMana";
+		Skill.ReserveType "RedMana";
 		Skill.CastTime 175;
 		Skill.CoolDown 350;
 		Skill.BuffType "HealBuff";
@@ -158,5 +191,506 @@ class HealBuff : Buff
 	override void Effect()
 	{
 		owner.player.mo.GiveBody(1);
+	}
+}
+
+class Toxin : Skill
+{
+	Default
+	{
+		Tag "$TAG_TOXIN";
+		Skill.Description "$DESC_TOXIN";
+		Skill.Cast "ToxinHands";
+		Skill.Cost 5;
+		Skill.Type "BlueMana";
+		Skill.ReserveType "RedMana";
+		Skill.CastTime 35;
+		Inventory.Icon "D2FXA1";
+	}
+}
+
+class ToxinCloud : AreaOfEffect
+{
+	Default
+	{
+		Speed 16;
+		Radius 5;
+		Height 10;
+		AreaOfEffect.AilmentType "Poison";
+		AreaOfEffect.AilmentPower 100;
+		AreaOfEffect.AilmentDamage 15;
+		Alpha 0.5;
+		RenderStyle "Add";
+		Threshold 175;
+		
+		+AREAOFEFFECT.SPHERICAL
+		+NOGRAVITY
+	}
+	
+	States
+	{
+		Spawn:
+			D2FX ABCDEF 4 Bright;
+			Loop;
+			
+		Death:
+			D2FX GHIJ 4 Bright;
+			D2FX KL 3 Bright;
+			Stop;
+	}
+	
+	override void Tick()
+	{
+		if (!(GetAge() % 2) && speed > 0)
+			vel = vel.Unit() * --speed;
+		
+		if (radius < default.radius * 4)
+		{
+			A_SetSize(radius + 1, height + 2);
+			A_SetScale(scale.x+0.25);
+		}
+		
+		super.Tick();
+	}
+}
+
+class ToxinHands : CastWeapon
+{
+	Default
+	{
+		Weapon.YAdjust 10;
+		Weapon.AmmoType1 "BlueMana";
+		Weapon.AmmoType2 "RedMana";
+	}
+
+	States
+	{
+		Select:
+		Deselect:
+		Ready:
+		Fire:
+			CFLM A 2 Offset (0, 40);
+			CFLM D 2 Offset (0, 50);
+			CFLM D 2 Offset (0, 36);
+			CFLM E 4 Bright;
+			CFLM FFFFFFF 5 Bright A_NewProjectile("ToxinCloud");
+			CFLM E 4 Bright;
+			CFLM G 2 Offset (0, 40);
+			CFLM G 2;
+			Stop;
+	}
+}
+
+class Prayer : Skill
+{
+	Default
+	{
+		Tag "$TAG_PRAYER";
+		Skill.Description "$DESC_PRAYER";
+		Skill.BuffType "PrayerBuff";
+		Skill.Cost 26;
+		Skill.Type "GreenMana";
+		Skill.ReserveType "RedMana";
+		Skill.CastTime 1050;
+		Skill.CoolDown 700;
+		Skill.Range 480;
+		Inventory.Icon "DMFXA1";
+		
+		+SKILL.AREABUFF
+	}
+	
+	override void UseSkill()
+	{
+		GiveBuff(owner);
+	}
+}
+
+class PrayerBuff : Buff
+{
+	Default
+	{
+		Buff.Duration 1050;
+		DamageFactor "None", 0.75;
+		Inventory.Icon "DMFXA1";
+		
+		+BUFF.DEFENSIVE
+	}
+}
+
+class Ignite : Skill
+{
+	Default
+	{
+		Tag "$TAG_IGNITE";
+		Skill.Description "$DESC_IGNITE";
+		Skill.Type "BlueMana";
+		Skill.ReserveType "RedMana";
+		Skill.CastTime 17;
+		Inventory.Icon "CFFXA0";
+	}
+	
+	override void UseSkill()
+	{
+		if (!CheckAmmo(5, type, reserveType))
+		{
+			Console.Printf(Stringtable.Localize("$WARN_NOAMMO"));
+			return;
+		}
+		
+		FLineTraceData t;
+		owner.LineTrace(owner.angle, 256, owner.pitch, offsetz: owner.height/2-owner.floorclip+owner.player.mo.attackZOffset*owner.player.crouchfactor, data: t);
+		if (!t.hitActor)
+			return;
+		
+		TakeAmmo(5, type, reserveType);
+		t.hitActor.GiveInventoryType("IgniteDebuff");
+		let id = t.hitActor.FindInventory("IgniteDebuff");
+		if (id)
+			id.master = owner;
+		
+		let brn = Burn(t.hitActor.FindInventory("Burn"));
+		if (brn)
+			brn.AddAilment(owner, 100, 15);
+	}
+}
+
+class IgniteDebuff : Buff
+{
+	Default
+	{
+		Inventory.Icon "CFFXA0";
+		Buff.Duration 175;
+	}
+	
+	override void OwnerDied()
+	{
+		let fi = Spawn("IgniteFire", (owner.pos.xy, owner.floorz), ALLOW_REPLACE);
+		if (fi)
+			fi.target = master;
+	}
+}
+
+class IgniteFire : AreaOfEffect
+{
+	int fireTimer;
+	
+	Default
+	{
+		AreaOfEffect.AilmentPower 100;
+		AreaOfEffect.AilmentType "Burn";
+		AreaOfEffect.AilmentDamage 15;
+		AreaOfEffect.CoolDownToken "GroundFireHit";
+		Height 16;
+		Radius 128;
+		Threshold 175;
+		
+		+AREAOFEFFECT.SHATTERER
+		+AREAOFEFFECT.GROUNDED
+	}
+	
+	override void Effect()
+	{
+		if (++fireTimer > 2)
+		{
+			fireTimer = 0;
+			
+			double rad = frandom(0, radius);
+			double theta = frandom(0, 359.9999);
+			Vector2 ofs = Vec2Offset(rad*cos(theta), rad*sin(theta));
+			Spawn("FlameFX2", (ofs, floorz));
+		}
+	}
+	
+	override int DoSpecialDamage(Actor target, int damage, name damagetype)
+	{
+		if (target && !target.FindInventory("IgniteDebuff"))
+		{
+			target.GiveInventoryType("IgniteDebuff");
+			let fd = target.FindInventory("IgniteDebuff");
+			if (fd)
+				fd.master = target;
+		}
+		
+		return super.DoSpecialDamage(target, damage, damagetype);
+	}
+}
+
+class Blight : Skill
+{
+	Default
+	{
+		Tag "$TAG_BLIGHT";
+		Skill.Description "$DESC_BLIGHT";
+		Skill.BuffType "BlightBuff";
+		Inventory.Icon "MWNDC0";
+	}
+	
+	override void OnEquip()
+	{
+		GiveBuff(owner);
+	}
+	
+	override void OnUnequip()
+	{
+		TakeBuff();
+	}
+}
+
+class BlightBuff : Buff
+{
+	Default
+	{
+		DamageFactor "Bleed", 1.5;
+		DamageFactor "Burn", 1.5;
+		DamageFactor "Illness", 1.5;
+		Inventory.Icon "MWNDC0";
+		
+		+BUFF.INFINITE
+		+BUFF.OFFENSIVE
+	}
+}
+
+class Blessing : Skill
+{
+	Default
+	{
+		Tag "$TAG_BLESSING";
+		Skill.Description "$DESC_BLESSING";
+		Skill.BuffType "BlessingBuff";
+		Skill.Cost 26;
+		Skill.Type "BlueMana";
+		Skill.ReserveType "RedMana";
+		Skill.CastTime 1050;
+		Skill.CoolDown 700;
+		Skill.Range 480;
+		Inventory.Icon "SHEXA0";
+		
+		+SKILL.AREABUFF
+	}
+	
+	override void UseSkill()
+	{
+		GiveBuff(owner);
+	}
+}
+
+class BlessingBuff : Buff
+{
+	Default
+	{
+		Buff.Duration 1050;
+		DamageFactor "None", 1.25;
+		Inventory.Icon "SHEXA0";
+		
+		+BUFF.OFFENSIVE
+	}
+}
+
+class DivineHeal : Skill
+{
+	Default
+	{
+		Tag "$TAG_DIVINEH";
+		Skill.Description "$DESC_DIVINEH";
+		Skill.Cost 26;
+		Skill.Type "GreenMana";
+		Skill.ReserveType "RedMana";
+		Skill.CastTime 35;
+		Skill.CoolDown 700;
+		Skill.Range 480;
+		Inventory.Icon "ARTIPTN2";
+	}
+	
+	override void UseSkill()
+	{
+		ThinkerIterator it = ThinkerIterator.Create("Actor");
+		Actor mo;
+		while (mo = Actor(it.Next()))
+		{
+			if (mo && (mo == owner || owner.IsFriend(mo)))
+				mo.GiveBody(40);
+		}
+	}
+}
+
+class Proselytize : Skill
+{
+	Default
+	{
+		Tag "$TAG_PROS";
+		Skill.Description "$DESC_PROS";
+		Skill.BuffType "ProselytizeBuff";
+		Skill.Type "BlueMana";
+		Skill.ReserveType "RedMana";
+		Skill.CastTime 35;
+		Inventory.Icon "MAN3A0";
+	}
+	
+	override void UseSkill()
+	{
+		if (!CheckAmmo(13, type, reserveType))
+		{
+			Console.Printf(Stringtable.Localize("$WARN_NOAMMO"));
+			return;
+		}
+		
+		FLineTraceData t;
+		owner.LineTrace(owner.angle, 256, owner.pitch, offsetz: owner.height/2-owner.floorclip+owner.player.mo.attackZOffset*owner.player.crouchfactor, data: t);
+		if (!t.hitActor || owner.IsFriend(t.hitActor))
+		{
+			let id = ProselytizeBuff(owner.FindInventory("ProselytizeBuff"));
+			if (id && id.minion && id.minion.CheckPosition(owner.pos.xy))
+			{
+				id.minion.SetOrigin(owner.pos, false);
+				id.minion.target = null;
+			}
+			
+			return;
+		}
+		
+		TakeAmmo(13, type, reserveType);
+		t.hitActor.master = owner;
+		t.hitActor.bFriendly = true;
+		t.hitActor.GiveInventoryType("WarriorBuff");
+		
+		GiveBuff(owner);
+		let id = ProselytizeBuff(owner.FindInventory("ProselytizeBuff"));
+		if (id)
+		{
+			if (id.minion)
+			{
+				id.minion.TakeInventory("WarriorBuff", 1);
+				id.minion.health = (id.minion.health / (id.minion.GetMaxHealth()*5)) * id.minion.GetMaxHealth();
+				id.minion.bFriendly = false;
+				id.minion.target = owner; // They're angry at you now
+				id.minion.master = null;
+			}
+			
+			id.minion = t.hitActor;
+			id.minionName = t.hitActor.GetClassName();
+			id.minionHealth = t.hitActor.health;
+			t.hitActor.target = null;
+		}
+	}
+}
+
+class ProselytizeBuff : Buff
+{
+	Actor minion;
+	
+	class<Actor> minionName;
+	int minionHealth;
+	
+	private int prevLevelNum;
+	
+	Default
+	{
+		Inventory.Icon "MAN3A0";
+		
+		+BUFF.STACKABLE
+		+BUFF.INFINITE
+	}
+	
+	override void DoEffect()
+	{
+		if (!prevLevelNum)
+			prevLevelNum = level.levelNum;
+		
+		if (level.levelNum != prevLevelNum)
+		{
+			ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
+			Actor mo;
+			
+			while (mo = Actor(it.Next()))
+			{
+				if (mo && mo.bIsMonster && mo.master == owner && mo == minion)
+					mo.Destroy();
+			}
+		}
+		
+		prevLevelNum = level.levelNum;
+		
+		if (minion)
+			minionHealth = minion.health;
+		else
+		{
+			let monster = Spawn(minionName, owner.pos);
+			if (monster)
+			{
+				minion = monster;
+				monster.bFriendly = true;
+				monster.GiveInventoryType("WarriorBuff");
+				monster.master = owner;
+				monster.health = minionHealth;
+				monster.SetState(monster.SeeState);
+			}
+		}
+		
+		stacks = 1;
+		
+		if (!minion || minion.health <= 0)
+		{
+			Destroy();
+			return;
+		}
+		
+		super.DoEffect();
+	}
+	
+	override void OnDamage(Actor inflictor, Actor source)
+	{
+		if (source && source.bIsMonster && !owner.IsFriend(source))
+		{
+			if (minion && !minion.target)
+				minion.target = source;
+		}
+	}
+	
+	override void DealtDamage(Actor damaged)
+	{
+		if (minion && !minion.target)
+			minion.target = damaged;
+	}
+}
+
+class WarriorBuff : Buff
+{
+	Default
+	{
+		DamageFactor "None", 3;
+		Inventory.Icon "CFFXA0";
+		
+		+BUFF.INFINITE
+		+BUFF.OFFENSIVE
+	}
+	
+	override void AttachToOwner(Actor other)
+	{
+		super.AttachToOwner(other);
+		if (owner)
+			owner.health = owner.GetMaxHealth()*5;
+	}
+	
+	override void DoEffect()
+	{
+		if (!owner || owner.health <= 0)
+		{
+			Destroy();
+			return;
+		}
+		
+		super.DoEffect();
+	}
+}
+
+class DivineWrath : Skill
+{
+	Default
+	{
+		Tag "$TAG_DIVINEW";
+		Skill.Description "$DESC_DIVINEW";
+		Inventory.Icon "WFR1A0";
+		
+		+SKILL.TOGGLE
 	}
 }

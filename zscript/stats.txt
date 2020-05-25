@@ -227,7 +227,7 @@ class Wisdom : Stat
 
 class Intelligence : Stat
 {
-	static const Name bonus[] = {'Fire', 'Ice', 'Electric', 'Poison', 'Burn', 'Illness'};
+	static const Name bonus[] = {'Fire', 'Ice', 'Electric', 'Poison', 'Burn', 'Illness', 'PoisonCloud'};
 	
 	Default
 	{
@@ -268,7 +268,7 @@ class Intelligence : Stat
 
 class Strength : Stat
 {
-	static const Name bonus[] = {'Cleave', 'Pierce', 'Blunt', 'Bleed', 'Melee', 'Hitscan'};
+	static const Name bonus[] = {'Cleave', 'Pierce', 'Blunt', 'Bleed', 'Melee', 'Hitscan', 'None', 'BFGSplash', 'Railgun', 'Disintegrate'};
 	
 	Default
 	{

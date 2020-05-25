@@ -263,7 +263,7 @@ class Skill : Inventory abstract
 		
 		if (bAreaBuff)
 		{
-			ThinkerIterator it = ThinkerIterator.Create("Actor", STAT_DEFAULT);
+			ThinkerIterator it = ThinkerIterator.Create("Actor");
 			Actor mo;
 			while (mo = Actor(it.Next()))
 			{
@@ -357,7 +357,7 @@ class BuffManager : Inventory
 		if (!owner)
 			return;
 		
-		for (let probe = owner.inv; probe != null; probe = probe.inv)
+		for (let probe = owner.inv; probe; probe = probe.inv)
 		{
 			let bf = Buff(probe);
 			if (bf)
@@ -383,13 +383,8 @@ class BuffManager : Inventory
 			if (bf.bStackable)
 				boost *= bf.stacks;
 			
-			if (bf.bDefensive && passive)
+			if ((bf.bDefensive && passive) || (bf.bOffensive && !passive))
 				newdamage += boost;
-			else if (bf.bOffensive && !passive)
-				newdamage += boost;
-			
-			if (newdamage <= 0)
-				break;
 		}
 	}
 }

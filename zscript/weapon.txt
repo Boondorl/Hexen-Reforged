@@ -413,7 +413,6 @@ class AreaOfEffect : Actor
 		+NODAMAGETHRUST
 		+NOBLOCKMAP
 		+DROPOFF
-		+NOINTERACTION
 	}
 	
 	virtual void Effect() {}

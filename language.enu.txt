@@ -100,8 +100,24 @@ DESC_CHARGE = "Charge through enemies while knocking them back. Distance scales 
 //Cleric
 
 TAG_HEAL = "Heal";
+TAG_TOXIN = "Toxin";
+TAG_PRAYER = "Prayer";
+TAG_IGNITE = "Ignite";
+TAG_BLIGHT = "Blight";
+TAG_BLESSING = "Blessing";
+TAG_DIVINEH = "Divine Heal";
+TAG_PROS = "Proselytize";
+TAG_DIVINEW = "Divine Wrath";
 
 DESC_HEAL = "Restore up to 25 health over 5 seconds. Will not overheal but will keep working even if at full health";
+DESC_TOXIN = "Unleash a lingering cloud of poison that deals high damage over time to enemies";
+DESC_PRAYER = "You and allies within 15m take 25% reduced damage for 30 seconds";
+DESC_IGNITE = "Set an enemy on fire. Killing them while they panic leaves behind a pool of fire. Enemies that walk into it receive the same debuff";
+DESC_BLIGHT = "Ailments you apply deal 50% increased damage";
+DESC_BLESSING = "You and allies within 15m have 25% increased damage for 30 seconds";
+DESC_DIVINEH = "You and nearby allies within 15m are healed for 40 health";
+DESC_PROS = "Convert an enemy to fight for you. They are healed and have 500% health and deal 300% damage. Max of 1";
+DESC_DIVINEW = "Summon a sword of light that deals fire damage and has a unique attack set";
 
 // Mage
 

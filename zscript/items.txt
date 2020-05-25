@@ -445,7 +445,12 @@ class RPGBlast : RPGItem replaces ArtiBlastRadius
 		else
 		{
 			if (victim.bIsMonster)
+			{
 				victim.target = owner;
+				let ail = Flinch(victim.FindInventory("Flinch"));
+				if (ail)
+					ail.AddAilment(owner, 100);
+			}
 			
 			victim.vel += dir * speed;
 		}
