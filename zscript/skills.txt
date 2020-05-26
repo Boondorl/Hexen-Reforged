@@ -320,15 +320,13 @@ class Skill : Inventory abstract
 		let mo = CastWeapon(Spawn(weap));
 		if (mo)
 		{
+			owner.player.pendingWeapon = WP_NOCHANGE;
 			mo.AttachToOwner(owner);
 			mo.prevWeapon = owner.player.ReadyWeapon;
 			owner.player.ReadyWeapon = mo;
 			let psp = owner.player.GetPSprite(PSP_WEAPON);
 			if (psp)
-			{
-				psp.SetState(mo.GetReadyState());
-				psp.y = WEAPONTOP;
-			}
+				psp.SetState(mo.GetUpState());
 		}
 	}
 	

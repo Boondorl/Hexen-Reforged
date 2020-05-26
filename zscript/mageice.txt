@@ -14,6 +14,22 @@ class ColdSnap : HurtBox
 	}
 }
 
+class FireSnap : HurtBox
+{
+	Default
+	{
+		Radius 8;
+		Height 4;
+		DamageType "Fire";
+		HurtBox.AilmentPower 100;
+		HurtBox.AilmentType "Burn";
+		HurtBox.AilmentDamage 5;
+		HurtBox.ForwardOffset 16;
+		
+		+HURTBOX.NOCRIT
+	}
+}
+
 class ReforgedFrost : RPGWeapon replaces MWeapFrost
 {
 	Default
@@ -50,12 +66,24 @@ class ReforgedFrost : RPGWeapon replaces MWeapFrost
 			Loop;
 			
 		User1:
+			TNT1 A 0 A_JumpIfInventory("ElementalistBuff", 1, "ElemUser1");
 			CONE B 3;
 			CONE C 4;
 			CONE D 3;
 			CONE E 5;
 			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
 			CONE F 3 A_Melee("ColdSnap", 100, 0, 1, 32);
+			CONE G 3;
+			CONE A 9;
+			Goto Ready;
+			
+		ElemUser1:
+			CONE B 3;
+			CONE C 4;
+			CONE D 3;
+			CONE E 5;
+			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
+			CONE F 3 A_Melee("FireSnap", 100, 0, 1, 32);
 			CONE G 3;
 			CONE A 9;
 			Goto Ready;
@@ -72,6 +100,18 @@ class ReforgedFrost : RPGWeapon replaces MWeapFrost
 			CONE A 5 A_ReFire;
 			Goto Ready;
 			
+		ElemFire:
+			CONE B 3;
+			CONE C 4;
+			CONE D 3;
+			CONE E 5;
+			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
+			CONE F 3 A_NewProjectile("RPGFireBall");
+			CONE G 3;
+			CONE A 5;
+			CONE A 5 A_ReFire;
+			Goto Ready;
+			
 		AltFire:
 			CONE B 3;
 			CONE C 4;
@@ -83,6 +123,36 @@ class ReforgedFrost : RPGWeapon replaces MWeapFrost
 			CONE A 5;
 			CONE A 5 A_ReFire;
 			Goto Ready;
+			
+		AltElemFire:
+			CONE B 3;
+			CONE C 4;
+			CONE D 3;
+			CONE E 5;
+		FireLoop:
+			TNT1 A 0 A_PlaySound ("MageShardsFire", CHAN_WEAPON);
+			CONE F 1 A_FireProjectile("RPGFlamethrower");
+			TNT1 A 0 A_ReFire("FireLoop");
+			CONE G 3;
+			CONE A 5;
+			CONE A 5 A_ReFire;
+			Goto Ready;
+	}
+	
+	override State GetAtkState(bool hold)
+	{
+		if (owner.FindInventory("ElementalistBuff"))
+			return FindState("ElemFire");
+		
+		return super.GetAtkState(hold);
+	}
+	
+	override State GetAltAtkState(bool hold)
+	{
+		if (owner.FindInventory("ElementalistBuff"))
+			return FindState("AltElemFire");
+		
+		return super.GetAltAtkState(hold);
 	}
 }
 
@@ -289,5 +359,127 @@ class FrostPillar : Actor
 		
 		floorclip = 128;
 		A_SetTranslation('Ice');
+	}
+}
+
+class RPGFireBall : RPGMissile
+{
+	Default
+	{
+		Radius 6;
+		Height 12;
+		Speed 32;
+		Damage 50;
+		DamageType "Fire";
+		RPGMissile.AilmentType "Burn";
+		RPGMissile.AilmentPower 50;
+		RPGMissile.AilmentDamage 10;
+		RenderStyle "Add";
+		SeeSound "DemonMissileFire";
+		DeathSound "DemonMissileExplode";
+		
+		+SPAWNSOUNDSOURCE
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+			DMFX ABC 4 Bright;
+			Loop;
+			
+		Death:
+			TNT1 A 0
+			{
+				for (int i = 0; i < 8; ++i)
+				{
+					let ball = Spawn("FireBallSmall", pos, ALLOW_REPLACE);
+					if (ball)
+					{
+						ball.target = target;
+						ball.angle = angle + i*45;
+						ball.Vel3DFromAngle(ball.speed, ball.angle, -45);
+					}
+				}
+			}
+			DMFX DE 4 Bright;
+			DMFX FGH 3 Bright;
+			Stop;
+	}
+}
+
+class FireBallSmall : RPGMissile
+{
+	Default
+	{
+		Radius 2;
+		Height 4;
+		Speed 8;
+		Scale 0.35;
+		Damage 10;
+		DamageType "Fire";
+		RPGMissile.AilmentType "Burn";
+		RPGMissile.AilmentPower 15;
+		RPGMissile.AilmentDamage 5;
+		RenderStyle "Add";
+		
+		-NOGRAVITY
+		+ZDOOMTRANS
+	}
+	
+	States
+	{
+		Spawn:
+			DMFX ABC 4 Bright;
+			Loop;
+			
+		Death:
+			DMFX DE 4 Bright;
+			DMFX FGH 3 Bright;
+			Stop;
+	}
+}
+
+class RPGFlameThrower : RPGMissile
+{
+	Default
+	{
+		Radius 2;
+		Height 4;
+		Speed 24;
+		Damage 6;
+		Threshold 8;
+		Scale 0.5;
+		DamageType "Fire";
+		RPGMissile.AilmentType "Burn";
+		RPGMissile.AilmentPower 10;
+		RPGMissile.AilmentDamage 10;
+		RenderStyle "Add";
+		
+		+ZDOOMTRANS
+		+RPGMISSILE.PENETRATING
+		+RPGMISSILE.SHIELDBUSTER
+		+RPGMISSILE.NOCRIT
+	}
+
+	States
+	{
+		Spawn:
+			DMFX ABC 4 Bright;
+		Death:
+			DMFX DE 4 Bright;
+			DMFX FGH 3 Bright;
+			Stop;
+	}
+	
+	override void Tick()
+	{
+		if (bMissile && radius < threshold && !isFrozen())
+		{
+			A_SetScale(scale.x + 0.25);
+			A_SetSize(radius+1, height+2);
+		}
+		
+		super.Tick();
 	}
 }

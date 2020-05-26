@@ -360,9 +360,10 @@ class KineticHands : CastWeapon
 	States
 	{
 		Select:
+			TNT1 A 0 A_Raise(WEAPONBOTTOM - WEAPONTOP);
 		Deselect:
-		Fire:
 		Ready:
+		Fire:
 			CONE B 3;
 			CONE C 4;
 			CONE D 3;
@@ -741,7 +742,7 @@ class HasteBuff : Buff
 	
 	override void MissileFired(Actor missile)
 	{
-		if (!missile || missile.master)
+		if (!missile || missile.master == owner)
 			return;
 		
 		missile.speed *= 1.5;
@@ -839,6 +840,42 @@ class ShadowBuff : Buff
 	}
 }
 
+class ThunderTracer : LineTracer
+{
+	Actor master;
+	Array<Actor> hitEnemies;
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_HitWall:
+				int blockFlags = Line.ML_BLOCKEVERYTHING;
+				if (!(results.hitLine.flags & blockFlags) &&
+					(results.hitLine.flags & Line.ML_TWOSIDED) &&
+					results.tier == TIER_Middle)
+				{
+					break;
+				}
+			case TRACE_HasHitSky:
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (results.hitActor != master && !master.IsFriend(results.hitActor) &&
+					(results.hitActor.bIsMonster || results.hitActor.player) && results.hitActor.health > 0)
+				{
+					hitEnemies.Push(results.hitActor);
+				}
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
 class Thunder : Skill
 {
 	Default
@@ -848,5 +885,52 @@ class Thunder : Skill
 		Inventory.Icon "MLFXI0";
 		Tag "$TAG_THUNDER";
 		Skill.Description "$DESC_THUNDER";
+	}
+	
+	override void UseSkill()
+	{
+		let tracer = new("ThunderTracer");
+		if (!tracer)
+			return;
+		
+		Vector3 start = owner.pos + (0,0,owner.height/2 - owner.floorclip + owner.player.mo.AttackZOffset*owner.player.crouchFactor);
+		Vector3 dir = (AngleToVector(owner.angle, cos(owner.pitch)), -sin(owner.pitch));
+		
+		tracer.master = owner;
+		tracer.Trace(start, owner.CurSector, dir, PLAYERMISSILERANGE, TRACE_ReportPortals);
+		
+		Array<Actor> alreadyHit;
+		for (uint i = 0; i < tracer.hitEnemies.Size(); ++i)
+		{
+			let mo = tracer.hitEnemies[i];
+			if (!mo || alreadyHit.Find(mo) != alreadyHit.Size())
+				continue;
+			
+			alreadyHit.Push(mo);
+			mo.DamageMobj(self, owner, 100, "Electric", DMG_NOBLOCK);
+			let ail = Shock(mo.FindInventory("Shock"));
+			if (ail)
+				ail.AddAilment(owner, 100);
+			
+			BlockThingsIterator it = BlockThingsIterator.Create(mo, 256);
+			Actor chain;
+			while (it.Next())
+			{
+				chain = it.thing;
+				if (!chain || chain == mo || chain == owner || !(chain.bIsMonster || chain.player) || chain.health <= 0 ||
+					owner.IsFriend(chain) || alreadyHit.Find(chain) != alreadyHit.Size() ||
+					tracer.hitEnemies.Find(chain) != tracer.hitEnemies.Size() ||
+					mo.Distance3DSquared(chain) > 65536 || !mo.CheckSight(chain))
+				{
+					continue;
+				}
+				
+				alreadyHit.Push(chain);
+				chain.DamageMobj(self, owner, 50, "Electric", DMG_NOBLOCK);
+				let ail = Shock(chain.FindInventory("Shock"));
+				if (ail)
+					ail.AddAilment(owner, 100);
+			}
+		}
 	}
 }

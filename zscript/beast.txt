@@ -268,7 +268,6 @@ class DemonFlame : RPGMissile
 		RPGMissile.AilmentPower 10;
 		RPGMissile.AilmentDamage 4;
 		RenderStyle "Add";
-		Obituary "$OB_MPPPHOENIXROD";
 		
 		+ZDOOMTRANS
 		+RPGMISSILE.PENETRATING
@@ -280,8 +279,6 @@ class DemonFlame : RPGMissile
 	{
 		Spawn:
 			DMFX ABC 4 Bright;
-			Loop;
-			
 		Death:
 			DMFX DE 4 Bright;
 			DMFX FGH 3 Bright;

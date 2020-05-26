@@ -421,6 +421,9 @@ class AreaOfEffect : Actor
 	{
 		super.Tick();
 		
+		if (isFrozen())
+			return;
+		
 		if (!threshold)
 		{
 			State death = FindState("Death");
@@ -432,6 +435,9 @@ class AreaOfEffect : Actor
 		
 		if (threshold >= 0)
 		{
+			if (bGrounded)
+				SetZ(floorz);
+			
 			if (threshold-- <= 0)
 			{
 				
@@ -447,22 +453,30 @@ class AreaOfEffect : Actor
 					if (!mo || (!bDamageOwner && (mo == target || mo.IsFriend(target))) || !mo.bShootable || !(mo.bIsMonster || mo.player) || (!mo.bIceCorpse && mo.health <= 0))
 						continue;
 					
+					Vector3 moMin = (mo.pos.xy - (mo.radius, mo.radius), mo.pos.z);
+					Vector3 moMax = (mo.pos.xy + (mo.radius, mo.radius), mo.pos.z + mo.height);
 					bool distanceCheck;
 					if (bSpherical)
-						distanceCheck = Distance3DSquared(mo) <= (radius+mo.radius)**2;
+					{
+						double middle = pos.z + height/2;
+						Vector3 nearest;
+						nearest.x = max(moMin.x, min(pos.x, moMax.x));
+						nearest.y = max(moMin.y, min(pos.y, moMax.y));
+						nearest.z = max(moMin.z, min(middle, moMax.z));
+						
+						Vector3 dist = nearest - (pos.xy, middle);
+						distanceCheck = (dist dot dist) <= radius*radius;
+					}
 					else
 					{
-						distanceCheck = Distance2DSquared(mo) <= (radius+mo.radius)**2;
-						if (distanceCheck)
-						{
-							if (bGrounded)
-								distanceCheck = mo.pos.z <= mo.floorz + height && abs(mo.floorz - pos.z) <= MaxStepHeight;
-							else
-								distanceCheck = mo.pos.z <= pos.z+height && mo.pos.z+mo.height >= pos.z;
-						}
+						Vector3 sMin = (pos.xy - (radius, radius), pos.z);
+						Vector3 sMax = (pos.xy + (radius, radius), pos.z + height);
+						
+						distanceCheck = (sMin.x <= moMax.x && sMax.x >= moMin.x) &&
+										(sMin.y <= moMax.y && sMax.y >= moMin.y) &&
+										(sMin.z <= moMax.z && sMax.z >= moMin.z);
 					}
 					
-					height = target.height;
 					if (distanceCheck && CheckSight(mo))
 					{
 						if (mo.bIceCorpse)
@@ -479,7 +493,6 @@ class AreaOfEffect : Actor
 								ail.AddAilment(target, ailmentPower, ailmentDamage);
 						}
 					}
-					height = default.height;
 				}
 			}
 		}

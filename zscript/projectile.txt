@@ -14,7 +14,7 @@ class FasterProjectile : Actor
 	virtual void Effect()
 	{
 		class<Actor> trail = MissileName;
-		if (trail != null)
+		if (trail)
 		{
 			double hitz = pos.z;
 
@@ -54,7 +54,7 @@ class FasterProjectile : Actor
 			FCheckPosition tm;
 			tm.DoRipping = isMissile && bRipper;
 			
-			uint count, radCount, heightCount;
+			int count, radCount, heightCount;
 			if (radius > 0)
 				radCount = ceil(vel.xy.Length() / radius);
 			
@@ -66,8 +66,8 @@ class FasterProjectile : Actor
 				count = 1; // Why do you have something with no height and radius?
 		
 			Vector3 frac = vel / count;
-			uint ripCount;
-			for (uint i = 0; i < count; ++i)
+			int ripCount;
+			for (int i = 0; i < count; ++i)
 			{
 				if (!ripCount)
 					tm.ClearLastRipped();
@@ -305,7 +305,7 @@ class FasterProjectile : Actor
 			else if (lastPos.z + height <= mo.pos.z)
 				SetZ(mo.pos.z - height);
 				
-			Vector3 diff = Vec3To(target) + (0,0,(target.height/2-floorclip) - height/2);
+			Vector3 diff = Vec3To(target) + (0,0,(target.height/2-target.floorclip) - height/2);
 			vel = diff.Unit() * vel.Length();
 		}
 		else
@@ -382,7 +382,7 @@ class FasterProjectile : Actor
 		
 		if (bounceCount > 0 && --bounceCount <= 0)
 		{
-			ExplodeMissile(BlockingLine, BlockingMobj);
+			ExplodeMissile(line, mo);
 			ClearBounce();
 			return false;
 		}
@@ -561,8 +561,6 @@ class RPGMissile : FasterProjectile
 	
 	protected double damageMultiplier;
 	protected int currentPenetration;
-	
-	Vector3 prevVel;
 	
 	Vector3 forward;
 	Vector3 up;
@@ -802,7 +800,7 @@ class RPGMissile : FasterProjectile
 	
 	override void Tick()
 	{
-		if (bOriented && prevVel != vel)
+		if (bOriented)
 		{
 			forward = vel.Unit();
 			
@@ -819,10 +817,8 @@ class RPGMissile : FasterProjectile
 			
 			right = (-1*rolSin*pchSin*angCos + -1*rolCos*-angSin, -1*rolSin*pchSin*angSin + -1*rolCos*angCos, -1*rolSin*pchCos);
 			up = (rolCos*pchSin*angCos + -rolSin*-angsin, rolCos*pchSin*angSin + -rolSin*angCos, rolCos*pchCos);
-			
-			prevVel = vel;
 		}
-		else if (!bOriented)
+		else
 		{
 			forward = (1,0,0);
 			right = (0,1,0);
@@ -984,48 +980,10 @@ class RPGMissile : FasterProjectile
 		return abs(((t dot a2)*(a3 dot b1)) - ((t dot a3)*(a2 dot b1))) > (abs((aR*a2) dot b1) + abs((aD*a3) dot b1) + abs(a1 dot (bR*b2)) + abs(a1 dot (bD*b3)));
 	}
 	
-	override void BeginPlay()
+	override void PostBeginPlay()
 	{
-		super.BeginPlay();
+		super.PostBeginPlay();
 		
 		currentPenetration = maxPenetration;
-	}
-}
-
-class DummyMissile : Actor
-{
-	array<Actor> children;
-	
-	Default
-	{
-		Radius 2;
-		Height 4;
-		
-		+NOINTERACTION
-	}
-	
-	States
-	{
-		Spawn:
-			TNT1 A 1;
-			Loop;
-	}
-	
-	override void Tick()
-	{
-		super.Tick();
-		
-		bool childAlive = false;
-		for (int i = 0; i < children.Size(); ++i)
-		{
-			if (children[i])
-			{
-				childAlive = true;
-				break;
-			}
-		}
-		
-		if (!childAlive)
-			Destroy();
 	}
 }
