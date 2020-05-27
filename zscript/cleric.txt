@@ -641,7 +641,7 @@ class ProselytizeBuff : Buff
 		super.DoEffect();
 	}
 	
-	override void OnDamage(Actor inflictor, Actor source)
+	override void OnDamage(Actor inflictor, Actor source, int dmg)
 	{
 		if (source && source.bIsMonster && !owner.IsFriend(source))
 		{
@@ -650,7 +650,7 @@ class ProselytizeBuff : Buff
 		}
 	}
 	
-	override void DealtDamage(Actor damaged)
+	override void DealtDamage(Actor damaged, int dmg)
 	{
 		if (minion && !minion.target)
 			minion.target = damaged;

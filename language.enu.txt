@@ -90,12 +90,24 @@ DESC_REMOVE = "Remove skill from slot";
 // Fighter
 
 TAG_BLOODLUST = "Blood Lust";
-TAG_TIMONVENG = "Timon's Vengeance";
+TAG_FURY = "Fury";
+TAG_IRON = "Iron Skin";
 TAG_CHARGE = "Charge";
+TAG_TIMONVENG = "Timon's Vengeance";
+TAG_BLOODRAGE = "Blood Rage";
+TAG_BLOODOATH = "Blood Oath";
+TAG_EARTHQUAKE = "Earthquake";
+TAG_SLAM = "Slam";
 
 DESC_BLOODLUST = "Nearby enemies killed by you or an ally restore up to 4% of your max health";
-DESC_TIMONVENG = "Hurl a spectral image of your axe that shocks enemies when hit";
+DESC_FURY = "Unleash a powerful punch, knocking back the hit enemy and turning them into a projectile";
+DESC_IRON = "Reduce damage by 50% for 10 seconds. Projectiles bounce off you and enemies that melee you become stunned";
 DESC_CHARGE = "Charge through enemies while knocking them back. Distance scales with movement speed";
+DESC_TIMONVENG = "Throw a spectral image of your axe that shocks enemies when hit";
+DESC_BLOODRAGE = "Become enraged, reducing your attack, cast, and swap time by 15%";
+DESC_BLOODOATH = "10% of modified damage you deal heals you. Take 25% increased modified damage. 50% of that damage is dealt as a bleed over 5 seconds";
+DESC_EARTHQUAKE = "Slam the ground with your Hammer of Retribution, sending out fiery explosions in front of you";
+DESC_SLAM = "Smash the ground with incredible force, knocking back enemies all around you and turning them into projectiles";
 
 //Cleric
 

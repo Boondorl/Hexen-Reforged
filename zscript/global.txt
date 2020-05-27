@@ -52,7 +52,7 @@ class GlobalEventsHandler : EventHandler
 				for (uint i = 0; i < bm.buffs.Size(); ++i)
 				{
 					if (bm.buffs[i])
-						bm.buffs[i].OnDamage(e.inflictor, e.damageSource);
+						bm.buffs[i].OnDamage(e.inflictor, e.damageSource, e.damage);
 				}
 			}
 		}
@@ -65,7 +65,7 @@ class GlobalEventsHandler : EventHandler
 				for (uint i = 0; i < bm.buffs.Size(); ++i)
 				{
 					if (bm.buffs[i])
-						bm.buffs[i].DealtDamage(e.thing);
+						bm.buffs[i].DealtDamage(e.thing, e.damage);
 				}
 			}
 		}

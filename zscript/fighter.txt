@@ -149,12 +149,40 @@ class ReforgedFighter : RPGPlayer
 	override void InitializeSkills()
 	{
 		GiveInventoryType("BloodLust");
-		GiveInventoryType("LightningAxe");
-		GiveInventoryType("Charge");
+		GiveInventoryType("Fury");
 		
 		SetActiveSkill(0, "BloodLust");
-		SetActiveSkill(1, "LightningAxe");
-		SetActiveSkill(2, "Charge");
+		SetActiveSkill(1, "Fury");
+	}
+	
+	override void LevelUp(bool cheat)
+	{
+		super.LevelUp(cheat);
+		
+		switch (currentLevel)
+		{
+			case 2:
+				GiveInventoryType("IronSkin");
+				break;
+				
+			case 3:
+				GiveInventoryType("Charge");
+				break;
+				
+			case 5:
+				GiveInventoryType("TimonsVengeance");
+				GiveInventoryType("BloodRage");
+				break;
+				
+			case 8:
+				GiveInventoryType("BloodOath");
+				GiveInventoryType("EarthquakeSkill");
+				break;
+				
+			case 11:
+				GiveInventoryType("Slam");
+				break;
+		}
 	}
 	
 	override void InitializeStats()
@@ -240,7 +268,130 @@ class BloodlustBuff : Buff
 	}
 }
 
-class LightningAxe : Skill
+class Fury : Skill
+{
+	Default
+	{
+		Tag "$TAG_FURY";
+		Skill.Description "$DESC_FURY";
+		Skill.CastTime 27;
+		Skill.CoolDown 350;
+		Skill.Cast "FuryPunch";
+		Inventory.Icon "PTN1A0";
+	}
+}
+
+class FuryBox : HurtBox
+{
+	Default
+	{
+		Radius 3;
+		Height 6;
+		AttackSound "FighterPunchHitThing";
+		ActiveSound "FighterPunchHitWall";
+		DamageType "Blunt";
+		HurtBox.AilmentPower 100;
+		HurtBox.AilmentType "Flinch";
+		HurtBox.BonusDamageType "Pierce";
+		HurtBox.SideOffset 8;
+		HurtBox.UpOffset 4;
+		
+		+HURTBOX.NOREVERSE
+		+HURTBOX.DIEONHIT
+	}
+	
+	override int DoSpecialDamage(Actor victim, int damage, name damagetype)
+	{
+		if (victim.bIsMonster || victim.player)
+		{
+			victim.Vel3DFromAngle(20, target.angle, target.pitch);
+			victim.bBlasted = true;
+		}
+		
+		return super.DoSpecialDamage(victim, damage, damagetype);
+	}
+}
+
+class FuryPunch : CastWeapon
+{
+	States
+	{
+		Select:
+		Deselect:
+		Ready:
+		Fire:
+			TNT1 A 10;
+			TNT1 A 0 A_PlaySound("FighterPunchMiss", CHAN_WEAPON);
+			FPCH B 4 Offset (5, 40);
+			FPCH C 3 Offset (5, 40) A_Melee("FuryBox", 50, 10, 4, 64, -10, -20, minForw: -32);
+			FPCH D 3 Offset (5, 40);
+			FPCH C 3 Offset (5, 40);
+			FPCH B 4 Offset (5, 40) A_ReFire;
+			Stop;
+	}
+}
+
+class IronSkin : Skill
+{
+	Default
+	{
+		Tag "$TAG_IRON";
+		Skill.Description "$DESC_IRON";
+		Skill.BuffType "IronSkinBuff";
+		Skill.CastTime 350;
+		Skill.CoolDown 700;
+		Inventory.Icon "PTN1A0";
+	}
+	
+	override void UseSkill()
+	{
+		GiveBuff(owner);
+	}
+}
+
+class IronSkinBuff : Buff
+{
+	Default
+	{
+		Buff.Duration 350;
+		DamageFactor "None", 0.5;
+		Inventory.Icon "PTN1A0";
+		
+		+BUFF.DEFENSIVE
+	}
+	
+	override void Effect()
+	{
+		if (!owner.bReflective)
+			owner.bReflective = true;
+	}
+	
+	override void OnDamage(Actor inflictor, Actor source, int dmg)
+	{
+		if (inflictor is "HurtBox" || inflictor == source)
+		{
+			let rpg = RPGMonster(source);
+			if (rpg)
+			{
+				rpg.bCancelled = true;
+								
+				State parry = source.FindState("Parry");
+				if (parry)
+					source.SetState(parry);
+			}
+		}
+	}
+	
+	override void OnDestroy()
+	{
+		if (owner)
+			owner.bReflective = owner.default.bReflective;
+		
+		super.OnDestroy();
+	}
+}
+
+class TimonsVengeance : Skill
 {
 	Default
 	{
@@ -250,17 +401,8 @@ class LightningAxe : Skill
 		Skill.CastTime 28;
 		Skill.Type "BlueMana";
 		Skill.ReserveType "RedMana";
-		Skill.ActiveWeapon "ReforgedAxe";
-		Skill.WeaponName "$TAG_FWEAPAXE";
 		Skill.Cast "AxeThrow";
 		Inventory.Icon "MWNDF0";
-	}
-	
-	override void UseSkill()
-	{
-		let rpg = RPGPlayer(owner.player.mo);
-		if (rpg)
-			castTimer *= rpg.attackModifier;
 	}
 }
 
@@ -317,7 +459,7 @@ class Charge : Skill
 			return;
 		
 		owner.bSkullfly = true;
-		chargeTimer = 35;
+		chargeTimer = TICRATE;
 		owner.player.mo.VelFromAngle(17*owner.speed, owner.angle);
 		launchVel = owner.vel.xy;
 		owner.player.cheats |= CF_TOTALLYFROZEN;
@@ -352,6 +494,413 @@ class Charge : Skill
 			chargeTimer = 0;
 			owner.vel = (0,0,0);
 			owner.A_SetPitch(0, SPF_INTERPOLATE);
+		}
+	}
+}
+
+class BloodRage : Skill
+{
+	Default
+	{
+		Tag "$TAG_BLOODRAGE";
+		Skill.Description "$DESC_BLOODRAGE";
+		Skill.BuffType "BloodRageBuff";
+		Skill.Cost 10;
+		Skill.Type "Health";
+		Skill.Drain 1;
+		Skill.DrainInterval 18;
+		Skill.DrainType "Health";
+		Inventory.Icon "MWNDF0";
+		
+		+SKILL.TOGGLE
+	}
+	
+	override void UseSkill()
+	{
+		GiveBuff(owner);
+		
+		let rpg = RPGPlayer(owner);
+		if (rpg)
+			rpg.attackModifier -= 0.15;
+	}
+	
+	override void EndSkill()
+	{
+		TakeBuff();
+		
+		let rpg = RPGPlayer(owner);
+		if (rpg)
+			rpg.attackModifier += 0.15;
+	}
+}
+
+class BloodRageBuff : Buff
+{
+	Default
+	{
+		Inventory.Icon "MWNDF0";
+		
+		+BUFF.INFINITE
+	}
+}
+
+class BloodOath : Skill
+{
+	Default
+	{
+		Tag "$TAG_BLOODOATH";
+		Skill.Description "$DESC_BLOODOATH";
+		Skill.BuffType "BloodOathBuff";
+		Inventory.Icon "MWNDF0";
+	}
+	
+	override void OnEquip()
+	{
+		GiveBuff(owner);
+	}
+	
+	override void OnUnequip()
+	{
+		TakeBuff();
+	}
+}
+
+class BloodOathBuff : Buff
+{
+	Default
+	{
+		Inventory.Icon "MWNDF0";
+		
+		+BUFF.INFINITE
+	}
+	
+	override void AttachToOwner(Actor other)
+	{
+		super.AttachToOwner(other);
+		
+		// Make sure this is always done after armor
+		if (owner)
+		{
+			Inventory last;
+			for (let probe = owner.inv; probe; probe = probe.inv)
+			{
+				if (!probe.inv)
+					last = probe;
+			}
+			
+			owner.inv = inv;
+			inv = null;
+			if (last)
+				last.inv = self;
+		}
+	}
+	
+	override void AbsorbDamage(int damage, Name damageType, out int newdamage)
+	{
+		newdamage = round(newdamage * 0.625);
+	}
+	
+	override void OnDamage(Actor inflictor, Actor source, int dmg)
+	{
+		if (!inflictor || dmg <= 0)
+			return;
+		
+		let bl = BleedDebuff(Spawn("BleedDebuff"));
+		if (bl)
+		{
+			bl.damageInterval = bl.threshold ? dmg / double(bl.threshold) : 0;
+			owner.GiveInventory("BleedBuff", 1);
+			bl.AttachToOwner(owner);
+		}
+	}
+	
+	override void DealtDamage(Actor damaged, int dmg)
+	{
+		owner.GiveBody(round(dmg*0.1));
+	}
+}
+
+class BleedDebuff : Inventory
+{
+	double damageInterval;
+	private double damageCounter;
+	
+	Default
+	{
+		Threshold 175;
+		
+		+INVENTORY.UNDROPPABLE
+		+NOBLOCKMAP
+	}
+	
+	override void Tick() {}
+	
+	override void DoEffect()
+	{
+		if (!owner || owner.health <= 0 || --threshold < 0)
+		{
+			Destroy();
+			return;
+		}
+		
+		damageCounter += damageInterval;
+		if (damageCounter >= 1)
+		{
+			--damageCounter;
+			--owner.health;
+			if (owner.player)
+				--owner.player.health;
+			
+			if (owner.health <= 0)
+				owner.Die(null, null);
+		}
+	}
+}
+
+class BleedBuff : Buff
+{
+	Default
+	{
+		Inventory.Icon "MWNDF0";
+		
+		+BUFF.STACKABLE
+		+BUFF.INFINITE;
+	}
+	
+	override void DoEffect()
+	{
+		stacks = 0;
+		for (let probe = owner.inv; probe; probe = probe.inv)
+		{
+			if (probe is "BleedDebuff")
+				++stacks;
+		}
+		
+		if (!stacks)
+		{
+			Destroy();
+			return;
+		}
+		
+		super.DoEffect();
+	}
+}
+
+class EarthquakeSkill : Skill
+{
+	Default
+	{
+		Tag "$TAG_EARTHQUAKE";
+		Skill.Description "$DESC_EARTHQUAKE";
+		Skill.Cost 5;
+		Skill.CastTime 31;
+		Skill.Type "BlueMana";
+		Skill.ReserveType "RedMana";
+		Skill.Cast "HammerSlam";
+		Inventory.Icon "MWNDF0";
+	}
+}
+
+class HammerSlam : CastWeapon
+{
+	Default
+	{
+		Weapon.AmmoType1 "BlueMana";
+		Weapon.AmmoType2 "RedMana";
+		Weapon.YAdjust -10;
+	}
+	
+	States
+	{
+		Select:
+		Deselect:
+		Ready:
+		Fire:
+			FHMR B 6 Offset (5, 0);
+			FHMR C 3 Offset (5, 0);
+			FHMR D 3 Offset (5, 0);
+			FHMR E 2 Offset (5, 0);
+			FHMR E 10 Offset (5, 150) A_Slam;
+			FHMR A 1 Offset (0, 60);
+			FHMR A 1 Offset (0, 55);
+			FHMR A 1 Offset (0, 50);
+			FHMR A 1 Offset (0, 45);
+			FHMR A 1 Offset (0, 40);
+			FHMR A 1 Offset (0, 35);
+			FHMR A 1;
+			Stop;
+	}
+	
+	action void A_Slam()
+	{
+		A_StartSound("minotaur/attack3", CHAN_WEAPON);
+		double angOfs = -75;
+		for (int i = 0; i < 5; ++i)
+		{
+			A_NewProjectile("EarthquakeCrawler", angOfs);
+			angOfs += 37.5;
+		}
+	}
+}
+
+class EarthquakeCrawler : Actor
+{
+	private int prevDirection;
+	private double spawnAngle;
+	Array<Actor> alreadyHit;
+	
+	Default
+	{
+		Radius 5;
+		Height 10;
+		Speed 16;
+		Threshold 6;
+		Projectile;
+		RenderStyle "Add";
+		DeathSound "minotaur/fx2hit";
+		
+		-ACTIVATEIMPACT
+		-ACTIVATEPCROSS
+		+ZDOOMTRANS
+		+FLOORHUGGER
+	}
+	
+	States
+	{
+		Spawn:
+			FX13 A 3 Bright A_EarthquakeExplosion;
+			Loop;
+			
+		Death:
+			FX13 I 4 Bright;
+			FX13 JKLM 4 Bright;
+			Stop;
+	}
+
+	void A_EarthquakeExplosion()
+	{
+		let mo = Spawn("EarthquakeExploder", pos, ALLOW_REPLACE);
+		if (mo)
+		{
+			mo.master = self;
+			mo.target = target;
+		}
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (isFrozen() || !bMissile)
+			return;
+		
+		if (--threshold <= 0)
+		{
+			int ran;
+			if (!prevDirection)
+			{
+				ran = random(-1,1);
+				if (ran == 1)
+					angle += frandom(30,90);
+				else if (ran == -1)
+					angle -= frandom(30,90);
+				
+				prevDirection = ran;
+			}
+			else
+			{
+				ran = random(0,3);
+				if (ran > 0)
+				{
+					angle = spawnAngle;
+					prevDirection = 0;
+				}
+			}
+			
+			VelFromAngle();
+			threshold = random(1,2);
+			if (!prevDirection)
+				threshold += random(1,2);
+		}
+	}
+	
+	override int SpecialMissileHit(Actor victim)
+	{
+		return 1;
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		spawnAngle = angle;
+	}
+}
+
+class EarthquakeExploder : RPGMissile
+{
+	Default
+	{
+		RenderStyle "Add";
+		RPGMissile.AilmentPower 35;
+		RPGMissile.AilmentType "Burn";
+		RPGMissile.AilmentDamage 10;
+		
+		+NOINTERACTION
+		+ZDOOMTRANS
+		-MISSILE
+	}
+	
+	States
+	{
+		Spawn:
+			TNT1 A 0 NoDelay
+			{
+				A_StartSound("minotaur/fx3hit", CHAN_BODY);
+				A_Explode(24, 24, 0, false, 24, damagetype: 'Fire');
+			}
+		Death:
+			FX13 DC 4 Bright;
+			FX13 BCDE 5 Bright;
+			FX13 FGH 4 Bright;
+			Stop;
+	}
+}
+
+class Slam : Skill
+{
+	Default
+	{
+		Tag "$TAG_SLAM";
+		Skill.Description "$DESC_SLAM";
+		Skill.Cost 10;
+		Skill.CastTime 35;
+		Skill.CoolDown 700;
+		Skill.Type "RedMana";
+		Inventory.Icon "MWNDF0";
+	}
+	
+	override void UseSkill()
+	{
+		BlockThingsIterator it = BlockThingsIterator.Create(owner, 384);
+		Actor mo;
+		while (it.Next())
+		{
+			mo = it.thing;
+			if (!mo || !(mo.bIsMonster || mo.player) || mo.health <= 0 || owner.IsFriend(mo) ||
+				owner.Distance3DSquared(mo) > 147456 || !owner.CheckSight(mo))
+			{
+				continue;
+			}
+			
+			mo.DamageMobj(self, owner, 100, 'Blunt', DMG_NOBLOCK);
+			let ail = Flinch(mo.FindInventory("Flinch"));
+			if (ail)
+				ail.AddAilment(owner, 100);
+			mo.bBlasted = true;
+			
+			Vector3 dist = owner.Vec3To(mo) + (0,0,mo.height/2-mo.floorclip - owner.height/2-owner.floorclip);
+			mo.Vel3DFromAngle(25, owner.AngleTo(mo), -VectorAngle(dist.xy.Length(), dist.z));
 		}
 	}
 }

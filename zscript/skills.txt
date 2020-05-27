@@ -207,6 +207,14 @@ class Skill : Inventory abstract
 		if (amt <= 0 || sv_infiniteammo || owner.FindInventory("PowerInfiniteAmmo"))
 			return true;
 		
+		if (type1 == "Health")
+		{
+			if (owner.health <= amt)
+				return false;
+			
+			return true;
+		}
+		
 		int amount1, amount2;
 		let ammo1 = owner.FindInventory(type1);
 		if (ammo1)
@@ -216,7 +224,7 @@ class Skill : Inventory abstract
 		if (ammo2)
 			amount2 = ammo2.amount;
 		
-		if ((type1 == 'Health' && owner.health <= amt) || amount1+amount2 < amt)
+		if (amount1+amount2 < amt)
 			return false;
 		
 		return true;
@@ -226,6 +234,15 @@ class Skill : Inventory abstract
 	{
 		if (amt <= 0 || sv_infiniteammo || owner.FindInventory("PowerInfiniteAmmo"))
 			return;
+		
+		if (type1 == "Health")
+		{
+			owner.health -= amt;
+			if (owner.player)
+				owner.player.health -= amt;
+			
+			return;
+		}
 		
 		bool useNormal, useReserve;
 		let ammo1 = owner.FindInventory(type1);
@@ -457,9 +474,9 @@ class Buff : Inventory abstract
 	
 	virtual void ThingDied(Actor thing, Actor inflictor) {}
 	
-	virtual void OnDamage(Actor inflictor, Actor source) {}
+	virtual void OnDamage(Actor inflictor, Actor source, int dmg) {}
 	
-	virtual void DealtDamage(Actor damaged) {}
+	virtual void DealtDamage(Actor damaged, int dmg) {}
 	
 	virtual void MissileFired(Actor missile) {}
 	
