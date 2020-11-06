@@ -1,3 +1,6 @@
+// Radius debugger
+sprite 0000A0, 1, 1 { patch TNT1A0, 0, 0 {} }
+
 /*
  * DamNums: by Xaser Acheron
  */

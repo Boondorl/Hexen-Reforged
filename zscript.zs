@@ -1,0 +1,71 @@
+version "3.7"
+
+// Xaser's DamNums
+
+#include "hexenreforged/xaser/constants.zs"
+#include "hexenreforged/xaser/damnum.zs"
+#include "hexenreforged/xaser/events.zs"
+#include "hexenreforged/xaser/fonts/base.zs"
+#include "hexenreforged/xaser/fonts/ravenbig.zs"
+#include "hexenreforged/xaser/fonts/ravensmall.zs"
+#include "hexenreforged/xaser/fonts/raventory.zs"
+
+// Hexen Reforged
+
+#include "hexenreforged/base/boundingbox.zs"
+#include "hexenreforged/base/hurtbox.zs"
+
+#include "hexenreforged/melee.txt"
+#include "hexenreforged/weapon.txt"
+#include "hexenreforged/projectile.txt"
+#include "hexenreforged/fighterfist.txt"
+#include "hexenreforged/fighteraxe.txt"
+#include "hexenreforged/fighterhammer.txt"
+#include "hexenreforged/fighterquietus.txt"
+#include "hexenreforged/clericmace.txt"
+#include "hexenreforged/clericstaff.txt"
+#include "hexenreforged/clericflame.txt"
+#include "hexenreforged/magewand.txt"
+#include "hexenreforged/mageice.txt"
+#include "hexenreforged/magelightning.txt"
+#include "hexenreforged/armor.txt"
+#include "hexenreforged/player.txt"
+#include "hexenreforged/skills.txt"
+#include "hexenreforged/stats.txt"
+#include "hexenreforged/mana.txt"
+#include "hexenreforged/monster.txt"
+#include "hexenreforged/ettin.txt"
+#include "hexenreforged/firedemon.txt"
+#include "hexenreforged/wendigo.txt"
+#include "hexenreforged/wraith.txt"
+#include "hexenreforged/centaur.txt"
+#include "hexenreforged/bishop.txt"
+#include "hexenreforged/serpent.txt"
+#include "hexenreforged/beast.txt"
+#include "hexenreforged/demons.txt"
+#include "hexenreforged/ailments.txt"
+#include "hexenreforged/hud.txt"
+#include "hexenreforged/xp.txt"
+#include "hexenreforged/global.txt"
+#include "hexenreforged/fighter.txt"
+#include "hexenreforged/cleric.txt"
+#include "hexenreforged/mage.txt"
+#include "hexenreforged/items.txt"
+
+// Debug
+
+#include "hexenreforged/debug/radius.zs"
+#include "hexenreforged/debug/marker.zs"
+
+// Menu
+
+#include "hexenreforged/menu/menu.txt"
+#include "hexenreforged/menu/elements/base.txt"
+#include "hexenreforged/menu/elements/rpgbase.txt"
+#include "hexenreforged/menu/elements/items.txt"
+#include "hexenreforged/menu/elements/keyitems.txt"
+#include "hexenreforged/menu/elements/armor.txt"
+#include "hexenreforged/menu/elements/keys.txt"
+#include "hexenreforged/menu/elements/weaponpieces.txt"
+#include "hexenreforged/menu/elements/skills.txt"
+#include "hexenreforged/menu/elements/stats.txt"

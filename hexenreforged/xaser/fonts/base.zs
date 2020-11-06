@@ -9,18 +9,25 @@
 class DamNumFont : Actor
 {
 	string fontPrefix;
-	string fontTrans;
+	string fontTranslation;
 
-	property Prefix: fontPrefix;
-	property DefaultTranslation: fontTrans;
+	property FontPrefix : fontPrefix;
+	property FontTranslation : fontTranslation;
 
 	Default
 	{
-		+NOINTERACTION;
-		+INVISIBLE;
-		+CLIENTSIDEONLY;
-
-		DamNumFont.Prefix DamNum_DefaultFontPrefix;
-		DamNumFont.DefaultTranslation DamNum_DefaultTranslation;
+		FloatBobPhase 0;
+		Radius 1;
+		Height 2;
+		DamNumFont.FontPrefix DEFAULT_PREFIX;
+		DamNumFont.FontTranslation DEFAULT_TRANSLATION;
+		
+		+NOBLOCKMAP
+		+NOSECTOR
+		+SYNCHRONIZED
+		+DONTBLAST
+		+NOTONAUTOMAP
 	}
+	
+	override void Tick() {}
 }

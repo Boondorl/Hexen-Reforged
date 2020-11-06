@@ -425,7 +425,7 @@ class AxeThrow : CastWeapon
 			FAXE O 3 Offset (15, 32);
 			FAXE P 2 Offset (15, 32);
 			TNT1 A 0 A_PlaySound("FighterHammerMiss", CHAN_WEAPON);
-			FAXE P 1 Offset (-5, 70) A_NewProjectile("RMageWandMissile");
+			FAXE P 1 Offset (-5, 70) A_NewProjectile("SpectralAxe");
 			FAXE P 2 Offset (-25, 90);
 			FAXE Q 1 Offset (15, 32);
 			FAXE Q 2 Offset (10, 54);
@@ -435,6 +435,108 @@ class AxeThrow : CastWeapon
 			FAXE A 1 Offset (0, 44);
 			FAXE A 1 Offset (0, 36);
 			Stop;
+	}
+}
+
+class SpectralAxe : RPGMissile
+{
+	double airFriction;
+	
+	private bool bReturning;
+	private double returnSpeed;
+	
+	Default
+	{
+		RPGMissile.AilmentPower 50;
+		RPGMissile.AilmentType "Shock";
+		Radius 2;
+		Height 6;
+		Speed 64;
+		Damage 50;
+		DamageType "Electric";
+		RenderStyle "Add";
+		Alpha 0.5;
+		
+		+RPGMISSILE.PENETRATING
+		+RPGMISSILE.SHIELDBUSTER
+	}
+	
+	States
+	{
+		Spawn:
+			MWND CD 4 Bright;
+			Loop;
+	}
+	
+	override int SpecialMissileHit(Actor victim)
+	{
+		if (bReturning && victim == target)
+			return 0;
+		
+		super.SpecialMissileHit(victim);
+		
+		if (victim != target && !victim.bShootable && victim.bSolid)
+			speed = 0;
+		
+		return -1;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		if (bDestroyed || IsFrozen())
+			return;
+		
+		if (!bReturning)
+		{
+			if (speed)
+			{
+				double prevSpeed = speed;
+				
+				speed *= abs(airFriction);
+				if (abs(speed) < 1)
+				{
+					returnSpeed = prevSpeed;
+					speed = 0;
+					bReturning = true;
+				}
+				
+				vel = vel.Unit() * speed;
+			}
+			else
+			{
+				vel = (0,0,0);
+				bReturning = true;
+			}
+			
+			return;
+		}
+		
+		if (!speed)
+			speed = max(returnSpeed, 1);
+		else
+			speed /= abs(airFriction);
+		
+		if (target)
+		{
+			Vector3 temp = Vec3To(target) + (0,0,target.height/2-target.floorclip - height/2);
+			vel = temp.Unit() * speed;
+		}
+		else	
+		{
+			if (speed == returnSpeed)
+				vel = (AngleToVector(angle+180), 0);
+			
+			vel = vel.Unit() * speed;
+		}
+	}
+	
+	override void BeginPlay()
+	{
+		super.BeginPlay();
+		
+		airFriction = 0.85;
 	}
 }
 

@@ -224,11 +224,11 @@ class ReforgedQuietus : RPGMelee replaces FWeapQuietus
 				break;
 		}
 		
-		double angInterval = ang / 10;
-		double pchInterval = pch / 10;
+		double angInterval = ang / 17;
+		double pchInterval = pch / 17;
 		Vector3 spawn = pos + (0,0,height/2 - floorclip + player.mo.AttackZOffset*player.crouchFactor);
 		
-		for (int i = 0; i < 21; ++i)
+		for (int i = 0; i < 35; ++i)
 		{
 			let missile = RPGMissile(Spawn("RFSwordMissile", spawn, ALLOW_REPLACE));
 			if (missile)
@@ -281,14 +281,14 @@ class RFSwordMissile : RPGMissile
 {
 	Default
 	{
-		Radius 4;
-		Height 8;
-		RPGMissile.Length 2;
-		RPGMissile.Width 4;
-		RPGMissile.Height 2;
+		Radius 1;
+		Height 3.75;
+		RPGMissile.Length 1;
+		RPGMissile.Width 1;
+		RPGMissile.Height 3.75;
 		Speed 64;
 		Damage 220;
-		Scale 0.25;
+		Scale 0.2;
 		DamageType "Fire";
 		RenderStyle "Add";
 		DeathSound "FighterSwordExplode";
@@ -338,13 +338,13 @@ class RFSwordMissile : RPGMissile
 	
 	override void Tick()
 	{
-		if (bMissile && radius < threshold && !isFrozen())
+		if (bMissile && !isFrozen())
 		{
 			double c = abs(cos(roll));
 			double s = abs(sin(roll));
-			A_SetScale(scale.x + 0.5*c, scale.y + 0.5*s);
-			A_SetSize(radius+2*c, height+4*s);
-			width += 2;
+			A_SetScale(scale.x+0.2*c, scale.y+0.2*s);
+			A_SetSize(radius+1*c, height+3.75*s);
+			width += 1;
 		}
 		
 		super.Tick();
