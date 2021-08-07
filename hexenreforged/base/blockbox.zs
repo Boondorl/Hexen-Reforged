@@ -1,9 +1,54 @@
-class BlockBox : OBBActor
+class BlockTracer : LineTracer
 {
-	private bool bPlayerParry;
-	private BoundingBox masterBox;
+	Actor master;
 	
-	protected Array<Actor> alreadyBlocked;
+	void Reset()
+	{
+		results.hitType = TRACE_HitNone;
+		results.ffloor = null;
+	}
+	
+	override ETraceStatus TraceCallback()
+    {
+		switch (results.HitType)
+		{
+			case TRACE_CrossingPortal:
+				results.hitType = TRACE_HitNone;
+				break;
+				
+			case TRACE_HitWall:
+				if (results.tier == TIER_Middle
+					&& (results.hitLine.flags & Line.ML_TWOSIDED)
+					&& !(results.hitLine.flags & (Line.ML_BLOCKING|Line.ML_BLOCKEVERYTHING)))
+				{
+					break;
+				}
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				if (results.ffloor
+					&& (!(results.ffloor.flags & F3DFloor.FF_EXISTS)
+					|| !(results.ffloor.flags & F3DFloor.FF_SOLID)))
+				{
+					results.ffloor = null;
+					break;
+				}
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (results.hitActor != master && results.hitActor.bSolid)
+					return TRACE_Stop;
+				break;
+		}
+		
+		results.distance = 0;
+        return TRACE_Skip;
+    }
+}
+
+class BlockBox : OBBActor abstract
+{
+	private Vector3 angles;
 	
 	double forwardOffset;
 	double sideOffset;
@@ -24,12 +69,27 @@ class BlockBox : OBBActor
 	
 	Default
 	{
+		+NOBLOOD
 		+SHOOTABLE
 		+REFLECTIVE
 		+NORADIUSDMG
 		+NODAMAGETHRUST
 		+NEVERTARGET
 		+OBBACTOR.AUTOADJUSTSIZE
+	}
+	
+	void Unblock()
+	{
+		State unblock = master.FindState("Unblock");
+		if (unblock)
+			master.SetState(unblock);
+	}
+	
+	void Parry()
+	{
+		State parry = master.FindState("Parry");
+		if (parry)
+			master.SetState(parry);
 	}
 	
 	override void MarkPrecacheSounds()
@@ -41,60 +101,43 @@ class BlockBox : OBBActor
 	
 	override void UpdateBox(BoundingBox box)
 	{
-		if (master)
-			box.SetAxes(master.angle, master.pitch, master.roll);
+		Vector3 a = box.GetAngles();
+		box.SetAxes(a + angles);
 	}
 	
 	override void Tick()
 	{
-		if (!master)
+		if (!master || master.health <= 0)
 		{
-			masterBox.Destroy();
 			Destroy();
 			return;
 		}
 		
-		if (bPlayerParry)
-		{
-			State unblock = master.FindState("Unblock");
-			if (unblock && master.health > 0)
-			{
-				rpgm.SetState(unblock);
-				return;
-			}
-			else
-				bPlayerParry = false;
-		}
-		
-		if (!masterBox)
-		{
-			masterBox = new("BoundingBox");
-			masterBox.bOriented = true;
-		}
-		
+		angles = (master.angle, 0, master.roll);
 		if (master.player)
-			masterBox.SetAxes((master.angle,master.pitch,master.roll));
-		else if (master.bIsMonster && master.target)
+			angles.y = master.pitch;
+		else if (master.target)
 		{
 			Vector3 diff = master.Vec3To(master.target) + (0,0,master.target.height/2 - master.height/2);
-			masterBox.SetAxes((VectorAngle(diff.x, diff.y), -VectorAngle(diff.xy.Length(), diff.z), 0));
+			angles.y = -VectorAngle(diff.xy.Length(), diff.z);
 		}
 		
+		Rotate r;
+		r.SetAxes(angles);
 		Vector3 f, r, u;
-		[f, r, u] = masterBox.GetAxes();
+		[f, r, u] = r.GetAxes();
 		
 		Vector3 ofs = r*sideOffset + (0,0,upOffset);
 		if (master.player)
 			ofs.z *= master.player.crouchFactor;
 		
-		Vector3 origin = master.Vec3Offset(ofs.y, ofs.y, ofs.z);
-		let tracer = new("ShieldTracer");
+		Vector3 origin = master.Vec3Offset(ofs.x, ofs.y, ofs.z);
+		let tracer = new("BlockTracer");
 		if (tracer)
 		{
 			tracer.master = master;
-			tracer.maxDistance = forwardOffset;
 			tracer.Trace(origin, level.PointInSector(origin.xy), f, forwardOffset, TRACE_ReportPortals);
-				origin += f*(tracer.results.distance);
+			origin = level.Vec3Offset(origin, f*tracer.results.distance);
 		}
 			
 		SetOrigin(origin, true);
@@ -110,14 +153,28 @@ class BlockBox : OBBActor
 	
 	override int DamageMobj(Actor inflictor, Actor source, int damage, Name mod, int flags, double angle)
 	{
-		if ((flags & DMG_EXPLOSION) || alreadyBlocked.Find(inflictor) != alreadyBlocked.Size())
+		if ((flags & DMG_EXPLOSION) || (!source && !inflictor))
 			return -1;
 		
 		double reduction = 1 - (parryWindow > 0 ? parryReduction : blockReduction);
-		A_StartSound(blockSound, CHAN_AUTO);
+		A_StartSound(blockSound, CHAN_BODY);
 		damage = round(damage * reduction);
+		
+		bool noParry;
+		let hb = HurtBox(inflictor);
+		if (hb)
+		{
+			if (hb.bGuardBreaker)
+			{
+				Parry();
+				master.DamageMobj(inflictor, source, damage, mod, flags, angle);
+				return -1;
+			}
 			
-		if (parryWindow > 0)
+			noParry = hb.bUnparryable;
+		}
+			
+		if (!noParry && parryWindow > 0)
 		{
 			if (inflictor && inflictor.bMissile && inflictor.target != master)
 			{
@@ -175,15 +232,8 @@ class BlockBox : OBBActor
 				}
 			}
 		}
-		
-		Actor inflict = self;
-		if ((inflictor is 'RPGMissile' && RPGMissile(inflictor).bShieldBuster) ||
-			(inflictor is 'HurtBox' && HurtBox(inflictor).bShieldBuster))
-		{
-			inflict = inflictor;
-		}
 			
-		master.DamageMobj(inflict, source, damage, mod, flags, angle);
+		master.DamageMobj(inflictor, source, damage, mod, flags, angle);
 		
 		return -1;
 	}

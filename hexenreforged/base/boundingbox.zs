@@ -1,6 +1,8 @@
 // Object so it can be used with dynamic arrays
 class BoundingBox : Object play
 {
+	Actor owner;
+	
 	private Vector3 size; // AABB
 	private Vector3 dimensions; // OBB
 	
@@ -154,6 +156,25 @@ class BoundingBox : Object play
 		}
 	}
 	
+	// For quickly checking Actor bounding boxes
+	static bool CheckColliding(Actor origin, Actor mo)
+	{
+		if (!origin || !mo)
+			return false;
+		
+		Vector3 orMin = origin.pos - (origin.radius, origin.radius, origin.floorclip);
+		Vector3 orMax= origin.pos + (origin.radius, origin.radius, origin.height-origin.floorclip);
+		
+		Vector3 rel = mo.PosRelative(origin.CurSector);
+		Vector3 moMin = rel - (mo.radius, mo.radius, mo.floorclip);
+		Vector3 moMax = rel + (mo.radius, mo.radius, mo.height-mo.floorclip);
+		
+		return (orMin.x <= moMax.x && orMax.x >= moMin.x) &&
+				(orMin.y <= moMax.y && orMax.y >= moMin.y) &&
+				(orMin.z <= moMax.z && orMax.z >= moMin.z);
+	}
+	
+	// TODO: Portal support
 	static bool AABBColliding(BoundingBox origin, BoundingBox mo)
 	{
 		if (!origin || !mo)
@@ -173,7 +194,7 @@ class BoundingBox : Object play
 	static bool OBBNotColliding(BoundingBox origin, BoundingBox mo)
 	{
 		if (!origin || !mo)
-			return false;
+			return true;
 		
 		Vector3 t = mo.GetCenter() - origin.GetCenter();
 		
@@ -384,6 +405,8 @@ class OBBActor : Actor
 		let box = new("BoundingBox");
 		if (!box)
 			return null;
+		
+		box.owner = self;
 		
 		box.bOriented = oriented;
 		box.SetAxes((bUseAngle ? angle : 0, bUsePitch ? pitch : 0, bUseRoll ? roll : 0), true);

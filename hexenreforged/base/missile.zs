@@ -1,21 +1,116 @@
+class WarningTracer : LineTracer
+{
+	Actor projectile;
+	
+	void Reset()
+	{
+		results.HitType = TRACE_HitNone;
+		results.ffloor = null;
+		results.hitLine = null;
+		results.hitActor = null;
+	}
+	
+	override ETraceStatus TraceCallback()
+	{
+		switch (results.HitType)
+		{
+			case TRACE_CrossingPortal:
+				results.HitType = TRACE_HitNone;
+				break;
+				
+			case TRACE_HitWall:
+				int blockFlags = Line.ML_BLOCKEVERYTHING | Line.ML_BLOCKPROJECTILE;
+				if (!(results.hitLine.flags & blockFlags) &&
+					(results.hitLine.flags & Line.ML_TWOSIDED) &&
+					results.tier == TIER_Middle)
+				{
+					break;
+				}
+			case TRACE_HitFloor:
+			case TRACE_HitCeiling:
+				if (results.ffloor &&
+					(!(results.ffloor.flags & F3DFloor.FF_EXISTS) || !(results.ffloor.flags & F3DFloor.FF_SOLID)))
+				{
+					results.ffloor = null;
+					break;
+				}
+				return TRACE_Stop;
+				break;
+			
+			case TRACE_HitActor:
+				if (results.hitActor == projectile ||
+					(projectile && results.hitActor == projectile.target) ||
+					results.hitActor.health <= 0 ||
+					(results.hitActor.bShootable && !(results.hitActor.bIsMonster || results.hitActor.player)))
+				{
+					results.hitActor = null;
+					break;
+				}
+				return TRACE_Stop;
+				break;
+		}
+		
+		return TRACE_Skip;
+	}
+}
+
 // TODO: Checks for object destroying itself
-class Missile : BBHurtBox
+class Missile : HurtBox
 {
 	static const double windTab[] = { 5/32., 10/32., 25/32. };
 	const EPSILON = 1 / 65536.;
 	
+	private int curPenetration;
+	private WarningTracer wt;
+	
+	int maxPenetration;
+	double warnRange;
+	
+	Property MaxPenetration : maxPenetration;
+	property WarnRange : warnRange;
+	
 	deprecated("3.7") private int missileFlags;
-	flagdef Continuous : missileFlags, 0;
+	flagdef Continuous : missileFlags, 0; // Use step-based collision checking
+	flagdef NoPenDmgFalloff : missileFlags, 1;
+	flagdef NoBlockWarn : missileFlags, 2; // Don't warn to block
 	
 	Default
 	{
 		Projectile;
+		HurtBox.WarnRange 384;
 		
+		+NODAMAGETHRUST
+		+OBB.AUTOADJUSTSIZE
+		+OBB.USEANGLE
+		+OBB.USEPITCH
+		+OBB.USEROLL
 		+MISSILE.CONTINUOUS
+	}
+	
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		
+		curPenetration = maxPenetration;
+	}
+	
+	override int DoSpecialDamage(Actor victim, int dmg, Name dmgType)
+	{
+		if (hit && hit.owner == victim && bRipper && maxPenetration > 0)
+		{
+			if (!bNoPenDmgFalloff)
+				dmg = ceil(dmg * ((curPenetration+1)*1. / (maxPenetration+1)));
+			if (--curPenetration <= 0)
+				bRipper = false;
+		}
+		
+		return super.DoSpecialDamage(victim, dmg, dmgType);
 	}
 	
 	override void Tick()
 	{
+		hit = null;
+		
 		if (IsFrozen())
 			return;
 		
@@ -85,6 +180,24 @@ class Missile : BBHurtBox
 		}
 		
 		UpdateBoxes();
+		
+		if (bMissile && !bNoBlockWarn && warnRange > 0)
+		{
+			if (!wt)
+			{
+				wt = new("WarningTracer");
+				wt.projectile = self;
+			}
+			
+			wt.Reset();
+			bool hit = wt.Trace(pos+(0,0,height/2), CurSector, vel.Unit(), warnRange, TRACE_ReportPortals|TRACE_NoSky);
+			if (hit && wt.results.hitType == TRACE_HitActor)
+			{
+				let rpg = RPGMonster(wt.results.hitActor);
+				if (rpg)
+					rpg.Block(self);
+			}
+		}
 	}
 	
 	void InterpolateMovement()
@@ -102,10 +215,10 @@ class Missile : BBHurtBox
 		}
 		
 		FCheckPosition tm;
-		tm.DoRipping = bRipper;
 		Vector3 frac = vel / steps;
 		for (int i = 0; i < steps; ++i)
 		{
+			tm.DoRipping = bRipper;
 			BlockingMobj = null;
 			BlockingLine = null;
 			BlockingCeiling = BlockingFloor = Blocking3DFloor = null;
@@ -535,7 +648,7 @@ class Missile : BBHurtBox
 		}
 		
 		bool onsky;
-		if (plane.negiC < 0)
+		if (plane.negiC > 0)
 		{
 			if (!bBounceOnCeilings)
 				return true;
@@ -578,7 +691,7 @@ class Missile : BBHurtBox
 				SetState(bounce);
 		}
 		
-		if (bBounceAutoOff || (bBounceAutoOffFloorOnly && plane.negiC > 0))
+		if (bBounceAutoOff || (bBounceAutoOffFloorOnly && plane.negiC < 0))
 		{
 			if (!bNoGravity && vel.z < 3)
 				ClearBounce();
